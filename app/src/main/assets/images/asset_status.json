@@ -1,58 +1,51 @@
 {
   "project": "南渡无悔",
-  "version": "V0.6.1",
-  "last_updated": "2026-06-14T14:57:51Z",
+  "version": "V0.6.8",
+  "last_updated": "2026-06-14T15:39:55Z",
   "summary": {
     "ui_icons_uploaded": 53,
-    "characters_uploaded": 8,
+    "characters_portraits": 9,
+    "characters_halfbody": 5,
     "cities_uploaded": 6,
     "events_uploaded": 4,
     "battles_uploaded": 2,
+    "faction_frames": 2,
+    "faction_flags": 4,
+    "unit_icons": 4,
+    "function_icons": 4,
     "maps_uploaded": 0,
     "fallback_placeholders_uploaded": 6,
-    "total_uploaded": 79
+    "total_uploaded": 104
   },
-  "characters": {
-    "note": "无透明底，当全身立绘使用，后续需抠图版本",
-    "files": [
-      "officer_han_shizhong_full_01.webp",
-      "officer_zong_ze_full_01.webp",
-      "officer_wanyan_zongwang_full_01.webp",
-      "officer_liu_guangshi_full_01.webp",
-      "officer_young_guard_general_full_01.webp",
-      "officer_veteran_frontier_general_full_01.webp",
-      "officer_wartime_strategist_full_01.webp",
-      "officer_jin_frontier_commander_full_01.webp"
-    ]
-  },
-  "cities": {
-    "files": [
-      "city_kaifeng_crisis_01.webp",
-      "city_linan_jiangnan_01.webp",
-      "city_xiangyang_fortress_01.webp",
-      "city_imperial_capital_dawn_01.webp",
-      "city_snow_mountain_pass_01.webp",
-      "city_jiangnan_river_port_01.webp"
-    ]
-  },
-  "events": {
-    "files": [
-      "event_jingkang_siege_01.webp",
-      "event_jianyan_south_crossing_01.webp",
-      "event_yue_fei_northern_expedition_01.webp",
-      "event_imperial_war_council_01.webp"
-    ]
-  },
-  "battles": {
-    "files": [
-      "battle_city_gate_counterattack_01.webp",
-      "battle_river_naval_clash_01.webp"
-    ]
-  },
+  "characters_with_portrait": [
+    "zhao_gou",
+    "yue_fei",
+    "qin_hui",
+    "han_shizhong",
+    "wanyan_zongbi",
+    "zong_ze"
+  ],
+  "characters_with_halfbody": [
+    "zhao_gou",
+    "yue_fei",
+    "qin_hui",
+    "zong_ze",
+    "han_shizhong"
+  ],
+  "unit_icons": [
+    "song_shenbi_archer 神臂弓手",
+    "song_beiwei_army 背嵬军",
+    "jin_guai_zi_ma 拐子马",
+    "jin_tie_futu 铁浮屠"
+  ],
+  "factions_done": [
+    "song 南宋",
+    "jin 金国"
+  ],
   "missing_required": [
-    "characters: 岳飞、秦桧、李纲、赵鼎、张浚、吴玠、刘锜、赵构 正式立绘",
-    "characters: 透明底抠图版人物（头像用）",
-    "characters/templates: NPC模板全套",
+    "characters: 李纲、赵鼎、张浚、吴玠、刘锜 立绘",
+    "factions: 西夏、大理、西辽、义军、中立 的国徽/战旗/边框",
+    "characters/templates: 大批量NPC模板",
     "maps: 羊皮纸地图底图",
     "battles: 山地战、野战背景"
   ]
