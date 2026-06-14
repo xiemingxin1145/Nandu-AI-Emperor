@@ -25,7 +25,11 @@ fun SettingsScreen(
     currentProvider: AiProviderType,
     currentApiKey: String,
     currentModel: String,
+    saveCode: String,
+    saveMessage: String,
     onSave: (AiProviderType, String, String) -> Unit,
+    onExportSave: () -> Unit,
+    onImportSave: (String) -> Unit,
     onBack: () -> Unit
 ) {
     val initialBase = if (currentModel.contains("|")) currentModel.substringBefore("|") else ""
@@ -34,6 +38,7 @@ fun SettingsScreen(
     var apiKey by remember { mutableStateOf(currentApiKey) }
     var baseUrl by remember { mutableStateOf(initialBase) }
     var modelName by remember { mutableStateOf(initialModel) }
+    var importCode by remember(saveCode) { mutableStateOf(saveCode) }
 
     Column(
         modifier = Modifier.fillMaxSize().background(InkBlack).verticalScroll(rememberScrollState()).padding(16.dp),
@@ -42,14 +47,14 @@ fun SettingsScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("← ", color = ImperialGold, fontSize = 22.sp, modifier = Modifier.clickable { onBack() })
             Column {
-                Text("御前 AI 引擎设置", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("官方模型 / OpenRouter / 自定义中转站", color = Color(0xFF8B7355), fontSize = 11.sp)
+                Text("御前设置", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("AI 引擎 / 存档码 / 手机端调试", color = Color(0xFF8B7355), fontSize = 11.sp)
             }
         }
 
         InfoBox(
             title = "当前策略",
-            body = "Mock 可离线测试；OpenAI / OpenRouter / 自定义 OpenAI-compatible 已接入。中转站只要兼容 /chat/completions，就能填 Base URL + 模型名使用。"
+            body = "Mock 可离线测试；OpenAI / OpenRouter / 自定义 OpenAI-compatible 已接入。V0.6 开始支持手动导出、导入存档码。"
         )
 
         SectionTitle("一、选择模型通道")
@@ -68,14 +73,7 @@ fun SettingsScreen(
 
         if (selectedProvider != AiProviderType.MOCK) {
             SectionTitle("二、接口参数")
-            StyledTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
-                label = "API Key",
-                placeholder = "sk-...",
-                isPassword = true
-            )
-
+            StyledTextField(apiKey, { apiKey = it }, "API Key", "sk-...", isPassword = true)
             when (selectedProvider) {
                 AiProviderType.OPENAI -> {
                     StyledTextField(modelName, { modelName = it }, "模型名", "gpt-4o / gpt-4.1 / 你的可用模型")
@@ -88,17 +86,12 @@ fun SettingsScreen(
                 AiProviderType.CUSTOM -> {
                     StyledTextField(baseUrl, { baseUrl = it }, "Base URL", "https://你的中转站域名/v1")
                     StyledTextField(modelName, { modelName = it }, "模型名", "中转站给你的模型名，如 gpt-4o / claude-3-5-sonnet / deepseek-chat")
-                    HintText("系统会自动请求：Base URL + /chat/completions。若你直接填完整 /chat/completions，也能识别。")
+                    HintText("系统会自动请求：Base URL + /chat/completions。")
                 }
-                AiProviderType.CLAUDE -> {
-                    HintText("Claude 官方通道当前使用 Anthropic Messages 接口。模型名暂固定，后续会开放选择。")
-                }
-                AiProviderType.GEMINI -> {
-                    HintText("Gemini 官方接口还在排期；现在可用自定义 OpenAI-compatible 中转接 Gemini。")
-                }
+                AiProviderType.CLAUDE -> HintText("Claude 官方通道当前使用 Anthropic Messages 接口。模型名暂固定，后续会开放选择。")
+                AiProviderType.GEMINI -> HintText("Gemini 官方接口还在排期；现在可用自定义 OpenAI-compatible 中转接 Gemini。")
                 AiProviderType.MOCK -> Unit
             }
-
             Text("API Key 只保存在本机状态，不写入 GitHub。", color = Color(0xFF5A8A5A), fontSize = 11.sp)
         }
 
@@ -118,24 +111,50 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ImperialRed),
             shape = RoundedCornerShape(8.dp)
-        ) {
-            Text("保存并启用", color = Color.White, fontWeight = FontWeight.Bold)
+        ) { Text("保存并启用", color = Color.White, fontWeight = FontWeight.Bold) }
+
+        SectionTitle("四、存档码")
+        InfoBox("手机存档说明", "点导出后复制整段 NANDU_SAVE_V1 开头的存档码。换手机、重装、刷新后，把存档码粘回来点导入即可。")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onExportSave,
+                modifier = Modifier.weight(1f).height(44.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2D4A2D)),
+                shape = RoundedCornerShape(8.dp)
+            ) { Text("导出存档", color = Color.White, fontWeight = FontWeight.Bold) }
+            OutlinedButton(
+                onClick = { onImportSave(importCode) },
+                modifier = Modifier.weight(1f).height(44.dp),
+                border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.55f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)
+            ) { Text("导入存档", fontWeight = FontWeight.Bold) }
         }
+        if (saveMessage.isNotBlank()) Text(saveMessage, color = ImperialGold, fontSize = 12.sp)
+        OutlinedTextField(
+            value = importCode,
+            onValueChange = { importCode = it },
+            label = { Text("存档码", color = Color(0xFF8B7355)) },
+            placeholder = { Text("点击导出后这里会出现存档码，也可粘贴旧存档码导入", color = Color(0xFF5A4A38), fontSize = 12.sp) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 130.dp),
+            minLines = 5,
+            maxLines = 8,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = ImperialGold,
+                unfocusedBorderColor = Color(0xFF4A3728),
+                focusedTextColor = XuanCream,
+                unfocusedTextColor = XuanCream,
+                cursorColor = ImperialGold
+            )
+        )
     }
 }
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(text, color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-}
+private fun SectionTitle(text: String) { Text(text, color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
 
 @Composable
 private fun InfoBox(title: String, body: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF120D07)),
-        border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(10.dp)
-    ) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF120D07)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)), shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, color = ImperialGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Text(body, color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
@@ -172,13 +191,7 @@ private fun providerDescription(provider: AiProviderType): String = when (provid
 }
 
 @Composable
-private fun StyledTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String,
-    isPassword: Boolean = false
-) {
+private fun StyledTextField(value: String, onValueChange: (String) -> Unit, label: String, placeholder: String, isPassword: Boolean = false) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -198,9 +211,7 @@ private fun StyledTextField(
 }
 
 @Composable
-private fun HintText(text: String) {
-    Text(text, color = Color(0xFF8B7355), fontSize = 11.sp, lineHeight = 16.sp)
-}
+private fun HintText(text: String) { Text(text, color = Color(0xFF8B7355), fontSize = 11.sp, lineHeight = 16.sp) }
 
 @Composable
 private fun PresetRow(onMock: () -> Unit, onOpenAi: () -> Unit, onOpenRouter: () -> Unit, onCustom: () -> Unit) {
@@ -218,10 +229,7 @@ private fun PresetRow(onMock: () -> Unit, onOpenAi: () -> Unit, onOpenRouter: ()
 
 @Composable
 private fun PresetButton(text: String, modifier: Modifier, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(40.dp),
-        border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.5f)),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)
-    ) { Text(text, fontSize = 12.sp) }
+    OutlinedButton(onClick = onClick, modifier = modifier.height(40.dp), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)) {
+        Text(text, fontSize = 12.sp)
+    }
 }
