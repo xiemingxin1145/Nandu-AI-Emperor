@@ -28,16 +28,13 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      - name: Rename APK
-        run: |
-          mkdir -p apk-output
-          cp app/build/outputs/apk/debug/app-debug.apk apk-output/南渡无悔-V0.3-debug.apk
-          ls -la apk-output/
+      - name: Check APK exists
+        run: ls -la app/build/outputs/apk/debug/
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 南渡无悔-V0.3-debug-apk
-          path: apk-output/南渡无悔-V0.3-debug.apk
+          name: nandu-V0.3-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
