@@ -116,7 +116,6 @@ fun MilitaryScreen(gameState: GameState) {
                     Text("御前暂无可用将吏。可先寻访、招募、拔擢人才。", color = Color(0xFFB9AA82), fontSize = 12.sp)
                 } else {
                     inCourt.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer } }
-                    // 诊断模式：弹窗暂时禁用
                 }
             }
         }
@@ -143,16 +142,16 @@ fun MilitaryScreen(gameState: GameState) {
         }
     }
 
-    // V0.8 人物详情弹窗（临时诊断：注释定位编译错误）
-    // selectedOfficer?.let { officer ->
-    //     Dialog(onDismissRequest = { selectedOfficer = null }) {
-    //         CharacterDetailPanel(
-    //             officer = officer,
-    //             cityName = cityMap[officer.currentCityId]?.name ?: officer.currentCityId,
-    //             onDismiss = { selectedOfficer = null }
-    //         )
-    //     }
-    // }
+    // V0.8 人物详情弹窗
+    selectedOfficer?.let { officer ->
+        Dialog(onDismissRequest = { selectedOfficer = null }) {
+            CharacterDetailPanel(
+                officer = officer,
+                cityName = cityMap[officer.currentCityId]?.name ?: officer.currentCityId,
+                onDismiss = { selectedOfficer = null }
+            )
+        }
+    }
 }
 
 @Composable
@@ -206,7 +205,7 @@ private fun ArmyRow(
 ) {
     val color = if (army.ownerFactionId == "jin") JinRed else SongBright
     val moving = army.status.contains("进军") && army.targetCityId.isNotBlank()
-    Column(Modifier.fillMaxWidth().clickable { onClick() }.background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssetIcon(UiIconRegistry.factionIcon(army.ownerFactionId), Modifier.size(22.dp), army.ownerFactionId)
