@@ -76,7 +76,6 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                             val sy = (n.worldY - cameraY) * zoom
                             val dist = sqrt((tap.x - sx).pow(2) + (tap.y - sy).pow(2))
                             selectedId = if (dist < 58f) {
-                                onCitySelected(n.id)
                                 if (selectedId == n.id) null else n.id
                             } else null
                         }
@@ -130,7 +129,13 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
         }
         selectedId?.let { id ->
             MapData.nodeMap[id]?.let { node ->
-                CityDetailPanel(node, cityMap[id], { selectedId = null }, Modifier.align(Alignment.BottomCenter))
+                CityDetailPanel(
+                    node = node,
+                    city = cityMap[id],
+                    onDismiss = { selectedId = null },
+                    onDraft = { action -> onCitySelected("$id|$action") },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
     }
@@ -148,13 +153,11 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
 
 private fun DrawScope.drawCommandFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
     val cityMap = gameState.cities.associateBy { it.id }
-
     gameState.cities.filter { it.owner == "jin" && it.troops > 0 }.forEach { city ->
         val node = MapData.nodeMap[city.id] ?: return@forEach
         val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
         drawArmyFlag(Offset(base.x - 26f, base.y - 32f), "金", JinRed, 0.90f)
     }
-
     gameState.officers
         .filter { it.status != OfficerStatus.DISMISSED && it.status != OfficerStatus.DECEASED }
         .groupBy { it.currentCityId }
@@ -170,8 +173,7 @@ private fun DrawScope.drawCommandFlags(gameState: GameState, camX: Float, camY: 
                     city?.owner == "jin" -> Color(0xFF8CCBFF)
                     else -> SongBright
                 }
-                val label = officer.name.take(1)
-                drawArmyFlag(Offset(base.x + dx, base.y + dy), label, color, 0.82f)
+                drawArmyFlag(Offset(base.x + dx, base.y + dy), officer.name.take(1), color, 0.82f)
             }
         }
 }
@@ -408,7 +410,13 @@ private fun LegendRow(color: Color, symbol: String, label: String) {
 }
 
 @Composable
-fun CityDetailPanel(node: MapNode, city: City?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+fun CityDetailPanel(
+    node: MapNode,
+    city: City?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDraft: (String) -> Unit = {}
+) {
     Card(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xF01A1208)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.60f))) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -435,9 +443,29 @@ fun CityDetailPanel(node: MapNode, city: City?, onDismiss: () -> Unit, modifier:
                     CityStatItem("财", "金库", "${city.gold / 1000}k")
                     CityStatItem("民", "民心", "${city.popularSupport}")
                 }
+                Spacer(Modifier.height(12.dp))
+                Text("拟旨操作", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(7.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
+                    CityActionButton("修城", Modifier.weight(1f)) { onDraft("repair") }
+                    CityActionButton("调兵", Modifier.weight(1f)) { onDraft("dispatch") }
+                    CityActionButton("筹粮", Modifier.weight(1f)) { onDraft("grain") }
+                    CityActionButton(if (city.owner == "jin") "进取" else "备战", Modifier.weight(1f)) { onDraft("attack") }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun CityActionButton(text: String, modifier: Modifier, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(36.dp),
+        border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.55f)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold),
+        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+    ) { Text(text, fontSize = 11.sp) }
 }
 
 @Composable
