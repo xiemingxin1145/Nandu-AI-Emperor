@@ -29,7 +29,6 @@ import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
 import com.xiemingxin.nandu.game.MapNode
-import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.WeatherType
 import com.xiemingxin.nandu.ui.theme.ImperialGold
@@ -111,7 +110,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                 drawCityName(node.name, screen, r, zoom)
             }
 
-            drawCommandFlags(gameState, cameraX, cameraY, zoom)
+            drawArmyCorpsFlags(gameState, cameraX, cameraY, zoom)
             drawWeatherParticles(gameState.weather, weatherPhase)
         }
 
@@ -125,7 +124,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             LegendRow(JinRed, "■", "金占")
             LegendRow(Color(0xFF68B7E8), "━", "水路")
             LegendRow(Color(0xFFD0A66A), "━", "陆路")
-            LegendRow(ImperialGold, "⚑", "军旗")
+            LegendRow(ImperialGold, "⚑", "军团")
         }
         selectedId?.let { id ->
             MapData.nodeMap[id]?.let { node ->
@@ -151,60 +150,90 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
     }
 }
 
-private fun DrawScope.drawCommandFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
-    val cityMap = gameState.cities.associateBy { it.id }
-    gameState.cities.filter { it.owner == "jin" && it.troops > 0 }.forEach { city ->
-        val node = MapData.nodeMap[city.id] ?: return@forEach
-        val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
-        drawArmyFlag(Offset(base.x - 26f, base.y - 32f), "金", JinRed, 0.90f)
-    }
-    gameState.officers
-        .filter { it.status != OfficerStatus.DISMISSED && it.status != OfficerStatus.DECEASED }
+private fun DrawScope.drawArmyCorpsFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
+    val officerMap = gameState.officers.associateBy { it.id }
+    gameState.armies
+        .filter { it.troops > 0 }
         .groupBy { it.currentCityId }
-        .forEach { (cityId, officers) ->
+        .forEach { (cityId, armies) ->
             val node = MapData.nodeMap[cityId] ?: return@forEach
             val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
-            val city = cityMap[cityId]
-            officers.take(4).forEachIndexed { index, officer ->
-                val dx = 22f + (index % 2) * 24f
-                val dy = -34f - (index / 2) * 20f
-                val color = when {
-                    officer.faction.contains("主和") -> Color(0xFFB88935)
-                    city?.owner == "jin" -> Color(0xFF8CCBFF)
-                    else -> SongBright
+            armies.sortedByDescending { it.troops }.take(5).forEachIndexed { index, army ->
+                val dx = if (army.ownerFactionId == "jin") -34f - (index % 2) * 25f else 24f + (index % 2) * 27f
+                val dy = -38f - (index / 2) * 25f
+                val color = when (army.ownerFactionId) {
+                    "jin" -> JinRed
+                    "song" -> SongBright
+                    else -> ImperialGold
                 }
-                drawArmyFlag(Offset(base.x + dx, base.y + dy), officer.name.take(1), color, 0.82f)
+                val label = armyFlagLabel(army.name, army.ownerFactionId)
+                val commander = officerMap[army.commanderId]?.name ?: army.status
+                drawArmyFlag(
+                    origin = Offset(base.x + dx, base.y + dy),
+                    label = label,
+                    color = color,
+                    scale = if (army.troops >= 20000) 1.0f else 0.86f,
+                    subLabel = "${army.troops / 1000}k",
+                    commander = commander
+                )
             }
         }
 }
 
-private fun DrawScope.drawArmyFlag(origin: Offset, label: String, color: Color, scale: Float) {
-    val h = 28f * scale
-    val w = 24f * scale
-    drawLine(Color(0xFF1A1208), origin, Offset(origin.x, origin.y + h), strokeWidth = 2.4f * scale, cap = StrokeCap.Round)
+private fun armyFlagLabel(name: String, factionId: String): String {
+    if (factionId == "jin") return "金"
+    return when {
+        name.contains("岳") -> "岳"
+        name.contains("韩") -> "韩"
+        name.contains("吴") -> "吴"
+        name.contains("刘") -> "刘"
+        else -> name.take(1)
+    }
+}
+
+private fun DrawScope.drawArmyFlag(origin: Offset, label: String, color: Color, scale: Float, subLabel: String, commander: String) {
+    val h = 32f * scale
+    val w = 28f * scale
+    drawCircle(color.copy(alpha = 0.18f), 20f * scale, Offset(origin.x + 6f, origin.y + h * 0.5f))
+    drawLine(Color(0xFF1A1208), origin, Offset(origin.x, origin.y + h), strokeWidth = 2.6f * scale, cap = StrokeCap.Round)
     val banner = Path().apply {
         moveTo(origin.x, origin.y)
         lineTo(origin.x + w, origin.y + 5f * scale)
-        lineTo(origin.x + w * 0.70f, origin.y + 14f * scale)
-        lineTo(origin.x, origin.y + 12f * scale)
+        lineTo(origin.x + w * 0.72f, origin.y + 16f * scale)
+        lineTo(origin.x, origin.y + 13f * scale)
         close()
     }
-    drawPath(banner, color.copy(alpha = 0.96f))
-    drawPath(banner, Color.Black.copy(alpha = 0.45f), style = Stroke(width = 1.1f * scale))
-    drawFlagLabel(label, Offset(origin.x + w * 0.48f, origin.y + 11f * scale), scale)
+    drawPath(banner, color.copy(alpha = 0.98f))
+    drawPath(banner, Color.Black.copy(alpha = 0.52f), style = Stroke(width = 1.15f * scale))
+    drawFlagLabel(label, Offset(origin.x + w * 0.48f, origin.y + 11.5f * scale), 10.5f * scale)
+    drawFlagLabel(subLabel, Offset(origin.x + w * 0.55f, origin.y + h + 9f * scale), 7.2f * scale)
+    drawCommanderName(commander, Offset(origin.x + w * 0.54f, origin.y + h + 20f * scale), 7.2f * scale)
 }
 
-private fun DrawScope.drawFlagLabel(label: String, center: Offset, scale: Float) {
+private fun DrawScope.drawFlagLabel(label: String, center: Offset, textSize: Float) {
     drawIntoCanvas { canvas ->
         val p = android.graphics.Paint().apply {
             color = android.graphics.Color.WHITE
-            textSize = 10f * scale
+            this.textSize = textSize
             isAntiAlias = true
             textAlign = android.graphics.Paint.Align.CENTER
             isFakeBoldText = true
-            setShadowLayer(2f, 0f, 1f, android.graphics.Color.argb(180, 0, 0, 0))
+            setShadowLayer(2f, 0f, 1f, android.graphics.Color.argb(190, 0, 0, 0))
         }
         canvas.nativeCanvas.drawText(label, center.x, center.y, p)
+    }
+}
+
+private fun DrawScope.drawCommanderName(label: String, center: Offset, textSize: Float) {
+    drawIntoCanvas { canvas ->
+        val p = android.graphics.Paint().apply {
+            color = android.graphics.Color.argb(230, 235, 220, 180)
+            this.textSize = textSize
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+            setShadowLayer(3f, 0f, 1f, android.graphics.Color.argb(220, 0, 0, 0))
+        }
+        canvas.nativeCanvas.drawText(label.take(4), center.x, center.y, p)
     }
 }
 
