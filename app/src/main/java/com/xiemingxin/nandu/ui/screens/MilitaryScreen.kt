@@ -133,6 +133,17 @@ fun MilitaryScreen(gameState: GameState) {
             }
         }
     }
+
+    // V0.8 人物详情弹窗
+    selectedOfficer?.let { officer ->
+        Dialog(onDismissRequest = { selectedOfficer = null }) {
+            CharacterDetailPanel(
+                officer = officer,
+                cityName = cityMap[officer.currentCityId]?.name ?: officer.currentCityId,
+                onDismiss = { selectedOfficer = null }
+            )
+        }
+    }
 }
 
 @Composable
