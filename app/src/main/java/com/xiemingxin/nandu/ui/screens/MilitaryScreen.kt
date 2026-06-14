@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerStatus
@@ -28,11 +29,12 @@ import com.xiemingxin.nandu.ui.theme.XuanCream
 @Composable
 fun MilitaryScreen(gameState: GameState) {
     val cityMap = gameState.cities.associateBy { it.id }
+    val officerMap = gameState.officers.associateBy { it.id }
     val activeOfficers = gameState.officers.filter { it.status != OfficerStatus.DISMISSED && it.status != OfficerStatus.DECEASED }
     val deployed = activeOfficers.filter { it.status == OfficerStatus.DEPLOYED }
     val inCourt = activeOfficers.filter { it.status == OfficerStatus.IN_COURT }
-    val songTroops = gameState.cities.filter { it.owner == "song" }.sumOf { it.troops }
-    val jinTroops = gameState.cities.filter { it.owner == "jin" }.sumOf { it.troops }
+    val songTroops = gameState.armies.filter { it.ownerFactionId == "song" }.sumOf { it.troops }
+    val jinTroops = gameState.armies.filter { it.ownerFactionId == "jin" }.sumOf { it.troops }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(InkBlack).padding(14.dp),
@@ -40,23 +42,35 @@ fun MilitaryScreen(gameState: GameState) {
     ) {
         item {
             PanelCard {
-                Text("军务府", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("军务府 V0.5", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("查看将领驻地、前线守军、宋金兵力对比。后续调兵会在山河图显示军旗移动。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("军团已入正式状态。调兵圣旨会创建或移动军团，后续可接路线移动、补给线、会战推演。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
         item {
             PanelCard {
-                SectionTitle("宋金兵势")
+                SectionTitle("宋金军团兵势")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TroopBlock("大宋兵力", songTroops, SongBright, Modifier.weight(1f))
-                    TroopBlock("金国兵力", jinTroops, JinRed, Modifier.weight(1f))
+                    TroopBlock("大宋军团", songTroops, SongBright, Modifier.weight(1f))
+                    TroopBlock("金国军团", jinTroops, JinRed, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(10.dp))
                 val total = (songTroops + jinTroops).coerceAtLeast(1)
                 GaugeLine("大宋兵势", songTroops * 100 / total, SongBright)
                 Spacer(Modifier.height(8.dp))
                 GaugeLine("金国兵势", jinTroops * 100 / total, JinRed)
+            }
+        }
+        item {
+            PanelCard {
+                SectionTitle("正式军团")
+                gameState.armies.sortedWith(compareBy<Army> { it.ownerFactionId }.thenByDescending { it.troops }).forEach { army ->
+                    ArmyRow(
+                        army = army,
+                        commanderName = officerMap[army.commanderId]?.name ?: "无名统帅",
+                        cityName = cityMap[army.currentCityId]?.name ?: army.currentCityId
+                    )
+                }
             }
         }
         item {
@@ -87,7 +101,7 @@ fun MilitaryScreen(gameState: GameState) {
                                 Text(city.name, color = if (city.owner == "jin") JinRed else XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 Text(city.controlState, color = Color(0xFF8B7355), fontSize = 10.sp)
                             }
-                            Text("兵 ${city.troops / 1000}k  防 ${city.defense}", color = Color(0xFFB9AA82), fontSize = 12.sp)
+                            Text("城兵 ${city.troops / 1000}k  防 ${city.defense}", color = Color(0xFFB9AA82), fontSize = 12.sp)
                         }
                         Spacer(Modifier.height(8.dp))
                     }
@@ -133,6 +147,21 @@ private fun GaugeLine(label: String, value: Int, color: Color) {
         color = color,
         trackColor = Color(0xFF332414)
     )
+}
+
+@Composable
+private fun ArmyRow(army: Army, commanderName: String, cityName: String) {
+    val color = if (army.ownerFactionId == "jin") JinRed else SongBright
+    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(army.name, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text("${army.troops / 1000}k", color = ImperialGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(3.dp))
+        Text("统帅：$commanderName · 驻地：$cityName · 状态：${army.status}", color = XuanCream, fontSize = 11.sp)
+        Text("类型：${army.armyType} · 士气：${army.morale} · 粮道：${army.supplyCityId}", color = Color(0xFF8B7355), fontSize = 10.sp)
+    }
+    Spacer(Modifier.height(8.dp))
 }
 
 @Composable
