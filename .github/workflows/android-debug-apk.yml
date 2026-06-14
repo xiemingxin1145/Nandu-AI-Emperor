@@ -30,17 +30,15 @@ jobs:
           set -o pipefail
           ./gradlew assembleDebug 2>&1 | tee /tmp/build.log
 
-      - name: Show APK path
-        if: success()
-        run: |
-          echo "APK files:"
-          find app/build -name "*.apk" 2>/dev/null || echo "No APK found"
-
-      - name: Show errors if build failed
+      - name: Expose errors as annotations
         if: failure()
         run: |
-          echo "=== BUILD ERRORS ==="
-          grep -E "^e: |error:|unresolved reference" /tmp/build.log | head -30 || true
+          grep -E "^e: " /tmp/build.log | head -15 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          grep -E "error:" /tmp/build.log | grep -v "^e: " | head -5 | while IFS= read -r line; do
+            echo "::warning::$line"
+          done
 
       - name: Upload APK
         if: success()
