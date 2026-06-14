@@ -20,14 +20,8 @@ import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
+import com.xiemingxin.nandu.ui.theme.*
 
-// ── 颜色主题 ──
-val InkBlack = Color(0xFF1A1208)
-val ImperialGold = Color(0xFFD4AF37)
-val ImperialRed = Color(0xFF8B1A1A)
-val XuanCream = Color(0xFFF5E6C8)
-val JadeGreen = Color(0xFF2D6A4F)
-val SongBlue = Color(0xFF1B4F72)
 
 @Composable
 fun EmperorMainScreen(
