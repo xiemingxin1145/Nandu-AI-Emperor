@@ -1,41 +1,59 @@
 {
   "project": "南渡无悔",
   "version": "V0.6.1",
-  "last_updated": "2026-06-14T14:54:03Z",
+  "last_updated": "2026-06-14T14:57:51Z",
   "summary": {
     "ui_icons_uploaded": 53,
-    "characters_historical_uploaded": 0,
-    "characters_templates_uploaded": 0,
-    "cities_uploaded": 0,
-    "events_uploaded": 0,
-    "battles_uploaded": 0,
+    "characters_uploaded": 8,
+    "cities_uploaded": 6,
+    "events_uploaded": 4,
+    "battles_uploaded": 2,
     "maps_uploaded": 0,
-    "fallback_placeholders_uploaded": 6
+    "fallback_placeholders_uploaded": 6,
+    "total_uploaded": 79
   },
-  "fallbacks": {
-    "placeholder_portrait": "app/src/main/assets/images/characters/placeholder_portrait.webp",
-    "placeholder_halfbody": "app/src/main/assets/images/characters/placeholder_halfbody.webp",
-    "placeholder_city": "app/src/main/assets/images/cities/placeholder_city.webp",
-    "placeholder_event": "app/src/main/assets/images/events/placeholder_event.webp",
-    "placeholder_battle": "app/src/main/assets/images/battles/placeholder_battle.webp",
-    "placeholder_map": "app/src/main/assets/images/maps/placeholder_map.webp"
+  "characters": {
+    "note": "无透明底，当全身立绘使用，后续需抠图版本",
+    "files": [
+      "officer_han_shizhong_full_01.webp",
+      "officer_zong_ze_full_01.webp",
+      "officer_wanyan_zongwang_full_01.webp",
+      "officer_liu_guangshi_full_01.webp",
+      "officer_young_guard_general_full_01.webp",
+      "officer_veteran_frontier_general_full_01.webp",
+      "officer_wartime_strategist_full_01.webp",
+      "officer_jin_frontier_commander_full_01.webp"
+    ]
+  },
+  "cities": {
+    "files": [
+      "city_kaifeng_crisis_01.webp",
+      "city_linan_jiangnan_01.webp",
+      "city_xiangyang_fortress_01.webp",
+      "city_imperial_capital_dawn_01.webp",
+      "city_snow_mountain_pass_01.webp",
+      "city_jiangnan_river_port_01.webp"
+    ]
+  },
+  "events": {
+    "files": [
+      "event_jingkang_siege_01.webp",
+      "event_jianyan_south_crossing_01.webp",
+      "event_yue_fei_northern_expedition_01.webp",
+      "event_imperial_war_council_01.webp"
+    ]
+  },
+  "battles": {
+    "files": [
+      "battle_city_gate_counterattack_01.webp",
+      "battle_river_naval_clash_01.webp"
+    ]
   },
   "missing_required": [
-    "characters/historical: 岳飞、韩世忠、吴玠、刘锜、李纲、赵鼎、秦桧、张浚、宗泽、赵构 头像+半身像",
-    "characters/historical: 完颜宗弼等金国核心人物 头像+半身像",
-    "characters/templates/song_civil: 文臣模板 20头像+10半身",
-    "characters/templates/song_military: 武将模板 25头像+15半身",
-    "characters/templates/song_soldier: 士兵模板 20头像+10半身",
-    "characters/templates/song_official: 功能官员 20头像+10半身",
-    "characters/templates/jin_military: 金军武将 20头像+10半身",
-    "characters/templates/jin_civil: 金国文官 12头像+6半身",
-    "characters/templates/enemy_soldier: 敌军军官 16头像+8半身",
-    "characters/templates/rebel: 叛军草寇 16头像+8半身",
-    "characters/templates/neutral: 中立人物 24头像+12半身",
-    "cities/: 临安、开封、襄阳、鄂州、建康、扬州、成都等背景图",
-    "events/: 靖康之变、二帝北狩、岳飞被害、绍兴和议等CG",
-    "battles/: 水战、野战、攻城战、山地战背景图",
-    "maps/: 羊皮纸底图、地形叠加层"
-  ],
-  "notes": "豆包生成的美术资源到位后按批次导入，占位图已就绪防止游戏崩溃"
+    "characters: 岳飞、秦桧、李纲、赵鼎、张浚、吴玠、刘锜、赵构 正式立绘",
+    "characters: 透明底抠图版人物（头像用）",
+    "characters/templates: NPC模板全套",
+    "maps: 羊皮纸地图底图",
+    "battles: 山地战、野战背景"
+  ]
 }
