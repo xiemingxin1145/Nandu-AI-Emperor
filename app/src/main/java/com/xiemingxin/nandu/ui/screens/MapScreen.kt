@@ -37,7 +37,10 @@ import com.xiemingxin.nandu.ui.theme.JinRed
 import com.xiemingxin.nandu.ui.theme.MapBg
 import com.xiemingxin.nandu.ui.theme.SongBright
 import kotlinx.coroutines.delay
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 @Composable
@@ -90,6 +93,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             drawMajorRivers(cameraX, cameraY, zoom)
             drawMapGrid(cameraX, cameraY, zoom)
             drawRoads(cameraX, cameraY, zoom)
+            drawArmyRoutes(gameState, cameraX, cameraY, zoom, weatherPhase)
             drawWeatherWash(gameState.weather, weatherPhase)
 
             MapData.nodes.forEach { node ->
@@ -127,6 +131,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             LegendRow(JinRed, "■", "金占")
             LegendRow(Color(0xFF68B7E8), "━", "水路")
             LegendRow(Color(0xFFD0A66A), "━", "陆路")
+            LegendRow(ImperialGold, "➤", "行军/粮道")
             LegendRow(ImperialGold, "⚑", "军团")
         }
         selectedId?.let { id ->
@@ -153,6 +158,69 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
             Text("${gameState.season.label} · ${gameState.weather.label}", color = Color(0xFFC6A96C), fontSize = 10.sp)
         }
     }
+}
+
+private fun DrawScope.drawArmyRoutes(gameState: GameState, camX: Float, camY: Float, zoom: Float, phase: Float) {
+    gameState.armies.filter { army ->
+        army.troops > 0 && army.supplyCityId.isNotBlank() && army.currentCityId.isNotBlank() &&
+            (army.supplyCityId != army.currentCityId || army.targetCityId.isNotBlank() || army.status.contains("进军"))
+    }.forEach { army ->
+        val fromNode = MapData.nodeMap[army.supplyCityId] ?: MapData.nodeMap[army.homeCityId] ?: return@forEach
+        val toNode = MapData.nodeMap[army.targetCityId.ifBlank { army.currentCityId }] ?: MapData.nodeMap[army.currentCityId] ?: return@forEach
+        if (fromNode.id == toNode.id) return@forEach
+        val start = w2s(fromNode.worldX, fromNode.worldY, camX, camY, zoom)
+        val end = w2s(toNode.worldX, toNode.worldY, camX, camY, zoom)
+        val color = if (army.ownerFactionId == "jin") JinRed else ImperialGold
+        drawMarchRoute(start, end, color, phase, army.status)
+    }
+}
+
+private fun DrawScope.drawMarchRoute(start: Offset, end: Offset, color: Color, phase: Float, status: String) {
+    val dx = end.x - start.x
+    val dy = end.y - start.y
+    val length = sqrt(dx * dx + dy * dy)
+    if (length < 12f) return
+    val angle = atan2(dy, dx)
+    val routePath = Path().apply {
+        moveTo(start.x, start.y)
+        lineTo(end.x, end.y)
+    }
+    drawPath(routePath, Color.Black.copy(alpha = 0.45f), style = Stroke(width = 5f, cap = StrokeCap.Round))
+    drawPath(
+        routePath,
+        color.copy(alpha = if (status.contains("进军")) 0.82f else 0.48f),
+        style = Stroke(
+            width = if (status.contains("进军")) 3.2f else 2.2f,
+            cap = StrokeCap.Round,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 10f), phase * 28f)
+        )
+    )
+    val arrows = (length / 95f).toInt().coerceIn(1, 4)
+    for (i in 1..arrows) {
+        val t = ((i.toFloat() / (arrows + 1)) + phase * 0.18f) % 1f
+        val point = Offset(start.x + dx * t, start.y + dy * t)
+        drawArrowHead(point, angle, color.copy(alpha = 0.86f))
+    }
+}
+
+private fun DrawScope.drawArrowHead(center: Offset, angle: Float, color: Color) {
+    val size = 9f
+    val left = Offset(
+        center.x - cos(angle - 0.58f) * size,
+        center.y - sin(angle - 0.58f) * size
+    )
+    val right = Offset(
+        center.x - cos(angle + 0.58f) * size,
+        center.y - sin(angle + 0.58f) * size
+    )
+    val path = Path().apply {
+        moveTo(center.x + cos(angle) * size * 0.75f, center.y + sin(angle) * size * 0.75f)
+        lineTo(left.x, left.y)
+        lineTo(right.x, right.y)
+        close()
+    }
+    drawPath(path, color)
+    drawPath(path, Color.Black.copy(alpha = 0.45f), style = Stroke(width = 1f))
 }
 
 private fun DrawScope.drawArmyCorpsFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
