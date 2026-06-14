@@ -33,13 +33,7 @@ data class UiState(
     val customModel: String = ""
 )
 
-enum class GamePhase {
-    IDLE,
-    AI_PROCESSING,
-    AWAITING_CONFIRM,
-    EXECUTING,
-    SHOWING_RESULT
-}
+enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
 
 class EmperorViewModel : ViewModel() {
 
@@ -49,43 +43,35 @@ class EmperorViewModel : ViewModel() {
     private var currentProvider: AiProvider = MockProvider()
 
     fun updateProviderSettings(type: AiProviderType, apiKey: String, customModel: String = "") {
+        val customParts = parseCustomConfig(customModel)
         currentProvider = when (type) {
             AiProviderType.CLAUDE -> ClaudeProvider(apiKey)
             AiProviderType.OPENAI -> OpenAiProvider(apiKey, customModel.ifEmpty { "gpt-4o" })
             AiProviderType.GEMINI -> GeminiProvider(apiKey)
-            AiProviderType.OPENROUTER -> OpenRouterProvider(apiKey, customModel.ifEmpty { "anthropic/claude-sonnet-4-6" })
-            AiProviderType.CUSTOM -> CustomApiProvider(customModel, apiKey, "")
+            AiProviderType.OPENROUTER -> OpenRouterProvider(apiKey, customModel.ifEmpty { "anthropic/claude-3.5-sonnet" })
+            AiProviderType.CUSTOM -> CustomApiProvider(
+                baseUrl = customParts.first.ifBlank { "https://api.example.com/v1" },
+                apiKey = apiKey,
+                model = customParts.second.ifBlank { "gpt-4o" }
+            )
             AiProviderType.MOCK -> MockProvider()
         }
-        _uiState.value = _uiState.value.copy(
-            providerType = type,
-            apiKey = apiKey,
-            customModel = customModel
-        )
+        _uiState.value = _uiState.value.copy(providerType = type, apiKey = apiKey, customModel = customModel)
     }
 
     fun submitEdict(edictText: String) {
         if (edictText.isBlank()) return
-
         val state = _uiState.value.gameState
         _uiState.value = _uiState.value.copy(phase = GamePhase.AI_PROCESSING, errorMessage = null)
-
         viewModelScope.launch {
             val context = buildGameContext(state)
             val result = currentProvider.parseEdict(edictText, context)
-
             result.fold(
                 onSuccess = { edictResult ->
-                    _uiState.value = _uiState.value.copy(
-                        phase = GamePhase.AWAITING_CONFIRM,
-                        lastEdictResult = edictResult
-                    )
+                    _uiState.value = _uiState.value.copy(phase = GamePhase.AWAITING_CONFIRM, lastEdictResult = edictResult)
                 },
                 onFailure = { error ->
-                    _uiState.value = _uiState.value.copy(
-                        phase = GamePhase.IDLE,
-                        errorMessage = "圣旨传达失败：${error.message}"
-                    )
+                    _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE, errorMessage = "圣旨传达失败：${error.message}")
                 }
             )
         }
@@ -94,13 +80,7 @@ class EmperorViewModel : ViewModel() {
     fun confirmEdict(edictText: String) {
         val edictResult = _uiState.value.lastEdictResult ?: return
         _uiState.value = _uiState.value.copy(phase = GamePhase.EXECUTING)
-
-        val executionResult = GameRuleEngine.executeEdict(
-            state = _uiState.value.gameState,
-            edictResult = edictResult,
-            edictText = edictText
-        )
-
+        val executionResult = GameRuleEngine.executeEdict(_uiState.value.gameState, edictResult, edictText)
         _uiState.value = _uiState.value.copy(
             gameState = executionResult.newState,
             lastOutcomes = executionResult.outcomes,
@@ -110,14 +90,16 @@ class EmperorViewModel : ViewModel() {
     }
 
     fun cancelEdict() {
-        _uiState.value = _uiState.value.copy(
-            phase = GamePhase.IDLE,
-            lastEdictResult = null
-        )
+        _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE, lastEdictResult = null)
     }
 
     fun dismissResult() {
         _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE)
+    }
+
+    private fun parseCustomConfig(value: String): Pair<String, String> {
+        val parts = value.split("|", limit = 2)
+        return if (parts.size == 2) parts[0].trim() to parts[1].trim() else "" to value.trim()
     }
 
     private fun buildGameContext(state: GameState) = GameContext(
