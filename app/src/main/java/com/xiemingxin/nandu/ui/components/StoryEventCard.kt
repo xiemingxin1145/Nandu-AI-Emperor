@@ -16,7 +16,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.story.StoryEvent
 
 /** V0.7.0 剧情事件展示卡片。暂不接导航，供后续页面复用。 */
@@ -35,6 +37,17 @@ fun StoryEventCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // V0.7.1 事件CG插画（缺图自动回退占位图）
+            AssetImage(
+                path = ArtResourceRegistry.eventImage(event.eventId),
+                fallbackPath = ArtResourceRegistry.Fallback.event,
+                contentDescription = event.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                placeholderText = "事件"
+            )
             Text(text = event.chapter, style = MaterialTheme.typography.labelMedium)
             Text(text = event.title, style = MaterialTheme.typography.titleLarge)
             Text(text = event.description, style = MaterialTheme.typography.bodyMedium)
