@@ -50,7 +50,10 @@ object ArtResourceRegistry {
         "ezhou" to named("ezhou", "鄂州", "$BASE/cities/city_ezhou.webp"),
         "jiankang" to named("jiankang", "建康", "$BASE/cities/city_jiankang.webp"),
         "yangzhou" to named("yangzhou", "扬州", "$BASE/cities/city_yangzhou.webp"),
-        "chengdu" to named("chengdu", "成都", "$BASE/cities/city_chengdu.webp")
+        "chengdu" to named("chengdu", "成都", "$BASE/cities/city_chengdu.webp"),
+        "chuzhou" to named("chuzhou", "滁州", "$BASE/cities/city_chuzhou.webp"),
+        "yingtianfu" to named("yingtianfu", "应天府", "$BASE/cities/city_yingtianfu.webp"),
+        "zhenjiang" to named("zhenjiang", "镇江", "$BASE/cities/city_zhenjiang.webp")
     )
 
     val eventImages: Map<String, NamedArt> = mapOf(
@@ -58,6 +61,17 @@ object ArtResourceRegistry {
         "north_crossing" to named("north_crossing", "二帝北狩", "$BASE/events/event_north_crossing.webp"),
         "yue_fei_execute" to named("yue_fei_execute", "岳飞被害", "$BASE/events/event_yue_fei_execute.webp"),
         "shaoxing_peace" to named("shaoxing_peace", "绍兴和议", "$BASE/events/event_shaoxing_peace.webp"),
+        // V0.7.1 建炎章节剧情事件CG（按 event_id 命名）
+        "jianyan_first_court_shock" to named("jianyan_first_court_shock", "建炎初议", "$BASE/events/event_jianyan_first_court_shock.webp"),
+        "discover_yue_fei_soldier" to named("discover_yue_fei_soldier", "军中一卒", "$BASE/events/event_discover_yue_fei_soldier.webp"),
+        "han_shizhong_requests_battle" to named("han_shizhong_requests_battle", "韩世忠请战", "$BASE/events/event_han_shizhong_requests_battle.webp"),
+        "zong_ze_guards_bianjing" to named("zong_ze_guards_bianjing", "宗泽北望", "$BASE/events/event_zong_ze_guards_bianjing.webp"),
+        "li_gang_dismissed" to named("li_gang_dismissed", "李纲去位", "$BASE/events/event_li_gang_dismissed.webp"),
+        "jin_army_crosses_huai" to named("jin_army_crosses_huai", "金兵渡淮", "$BASE/events/event_jin_army_crosses_huai.webp"),
+        "jin_general_wanyan_zongbi_moves" to named("jin_general_wanyan_zongbi_moves", "兀术南征", "$BASE/events/event_jin_general_wanyan_zongbi_moves.webp"),
+        "qin_hui_returns_from_jin" to named("qin_hui_returns_from_jin", "秦桧归来", "$BASE/events/event_qin_hui_returns_from_jin.webp"),
+        "yangzhou_panic_flee" to named("yangzhou_panic_flee", "扬州惊变", "$BASE/events/event_yangzhou_panic_flee.webp"),
+        "city_siege_jiankang" to named("city_siege_jiankang", "建康围城", "$BASE/events/event_city_siege_jiankang.webp"),
         "default" to named("default", "通用事件", "$BASE/events/event_default.webp")
     )
 
