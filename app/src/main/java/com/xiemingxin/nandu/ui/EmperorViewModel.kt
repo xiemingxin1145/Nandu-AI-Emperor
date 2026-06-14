@@ -115,7 +115,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val state = _uiState.value.gameState
         val nextState = state.copy(
             turn = state.turn + 1,
-            calendar = state.calendar.next()
+            calendar = state.calendar.advance()
         )
         // 用EventDirector筛出本旬可触发的第一个事件
         val event = EventDirector.firstCandidate(
