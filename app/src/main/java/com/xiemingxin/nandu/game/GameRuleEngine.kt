@@ -15,7 +15,15 @@ data class Officer(
     val politics: Int,
     val loyalty: Int,
     val currentCityId: String,
-    val status: OfficerStatus = OfficerStatus.IN_COURT
+    val status: OfficerStatus = OfficerStatus.IN_COURT,
+    // V0.8 人物面板扩展（全带默认值，兼容旧数据）
+    val charm: Int = 50,                  // 魅力（招募/稳定军心）
+    val ambition: Int = 50,               // 野心（隐藏，影响叛变）
+    val rankLevel: Int = 0,               // 官阶 0小卒→5方面大将
+    val merit: Int = 0,                   // 军功值
+    val origin: String = "",              // 出身：寒门/军户/士族/豪强/义军/归正人
+    val skills: List<String> = emptyList(), // 技能标签
+    val bio: String = ""                  // 简介
 )
 
 enum class OfficerStatus { HIDDEN, SOLDIER, WANDERING, IN_COURT, DEPLOYED, DISMISSED, DECEASED }
