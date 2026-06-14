@@ -26,20 +26,20 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        id: build
         run: |
-          ./gradlew assembleDebug 2>&1 | tee /tmp/build_full.log
-          BUILD_EXIT=${PIPESTATUS[0]}
-          if [ $BUILD_EXIT -ne 0 ]; then
-            echo "## Build Errors" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            grep -E "error:|Error |unresolved reference|Unresolved|expecting|None of" /tmp/build_full.log | head -30 >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "## Last 40 lines" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -40 /tmp/build_full.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit $BUILD_EXIT
+          if ! ./gradlew assembleDebug 2>build_error.txt; then
+            echo "BUILD FAILED - error report:"
+            cat build_error.txt | grep -E "error:|Error |unresolved|Unresolved|expecting|None of the" | head -40
+            echo "---LAST 50---"
+            tail -50 build_error.txt
+            # 把错误写进仓库
+            git config user.email "ci@nandu.dev"
+            git config user.name "CI Bot"
+            cp build_error.txt last_build_error.txt
+            git add last_build_error.txt
+            git commit -m "ci: build error report [skip ci]" || true
+            git push || true
+            exit 1
           fi
 
       - name: Upload APK
