@@ -38,62 +38,52 @@ fun NanduApp() {
     val uiState by viewModel.uiState.collectAsState()
 
     var showSettings by remember { mutableStateOf(false) }
-    var currentTab   by remember { mutableStateOf(0) }     // 0=朝议  1=山河
-    var edictText    by remember { mutableStateOf("") }
+    var currentTab by remember { mutableStateOf(0) }
+    var edictText by remember { mutableStateOf("") }
 
     if (showSettings) {
         SettingsScreen(
             currentProvider = uiState.providerType,
-            currentApiKey   = uiState.apiKey,
-            currentModel    = uiState.customModel,
-            onSave  = { t, k, m -> viewModel.updateProviderSettings(t, k, m); showSettings = false },
-            onBack  = { showSettings = false }
+            currentApiKey = uiState.apiKey,
+            currentModel = uiState.customModel,
+            onSave = { t, k, m -> viewModel.updateProviderSettings(t, k, m); showSettings = false },
+            onBack = { showSettings = false }
         )
         return
     }
 
     Column(modifier = Modifier.fillMaxSize().background(InkBlack)) {
-
-        // ── 主内容区 ──
         Box(modifier = Modifier.weight(1f)) {
             when (currentTab) {
                 0 -> EmperorMainScreen(
-                    uiState        = uiState,
-                    onSubmitEdict  = { text -> edictText = text; viewModel.submitEdict(text) },
+                    uiState = uiState,
+                    onSubmitEdict = { text -> edictText = text; viewModel.submitEdict(text) },
                     onConfirmEdict = { viewModel.confirmEdict(edictText) },
-                    onCancelEdict  = { viewModel.cancelEdict() },
-                    onDismissResult= { viewModel.dismissResult() },
+                    onCancelEdict = { viewModel.cancelEdict() },
+                    onDismissResult = { viewModel.dismissResult() },
                     onOpenSettings = { showSettings = true }
                 )
                 1 -> MapScreen(
-                    gameState      = uiState.gameState,
-                    onCitySelected = { /* 后期：选中城池后可在朝议写圣旨 */ }
+                    gameState = uiState.gameState,
+                    onCitySelected = { }
                 )
+                2 -> StateScreen(gameState = uiState.gameState)
             }
         }
 
-        // ── 底部导航 ──
-        NavigationBar(
-            containerColor = DeepBlack,
-            contentColor   = ImperialGold,
-            tonalElevation = 0.dp
-        ) {
-            listOf("📜 朝议" to 0, "🗺 山河" to 1).forEach { (label, idx) ->
+        NavigationBar(containerColor = DeepBlack, contentColor = ImperialGold, tonalElevation = 0.dp) {
+            listOf("📜 朝议" to 0, "🗺 山河" to 1, "🏛 国政" to 2).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
-                    onClick  = { currentTab = idx },
-                    icon     = {},
-                    label    = {
-                        Text(
-                            label,
-                            fontSize = 13.sp,
-                            fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal
-                        )
+                    onClick = { currentTab = idx },
+                    icon = {},
+                    label = {
+                        Text(label, fontSize = 13.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal)
                     },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedTextColor   = ImperialGold,
+                        selectedTextColor = ImperialGold,
                         unselectedTextColor = Color(0xFF5A5A5A),
-                        indicatorColor      = Color(0xFF1E1508)
+                        indicatorColor = Color(0xFF1E1508)
                     )
                 )
             }
