@@ -2,6 +2,7 @@ package com.xiemingxin.nandu.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -15,9 +16,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.window.Dialog
-import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
@@ -37,6 +36,7 @@ import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
 import com.xiemingxin.nandu.ui.components.AssetIcon
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -94,7 +94,8 @@ fun MilitaryScreen(gameState: GameState) {
                         army = army,
                         commanderName = officerMap[army.commanderId]?.name ?: "无名统帅",
                         cityName = cityMap[army.currentCityId]?.name ?: army.currentCityId,
-                        targetCityName = cityMap[army.targetCityId]?.name ?: army.targetCityId
+                        targetCityName = cityMap[army.targetCityId]?.name ?: army.targetCityId,
+                        onClick = { officerMap[army.commanderId]?.let { selectedOfficer = it } }
                     )
                 }
             }
@@ -105,7 +106,9 @@ fun MilitaryScreen(gameState: GameState) {
                 if (deployed.isEmpty()) {
                     Text("暂未任命将领外出统兵。可在朝议页下旨任命、拔擢或调兵。", color = Color(0xFFB9AA82), fontSize = 12.sp)
                 } else {
-                    deployed.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer } }
+                    deployed.forEach { officer ->
+                        OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer }
+                    }
                 }
             }
         }
@@ -115,7 +118,9 @@ fun MilitaryScreen(gameState: GameState) {
                 if (inCourt.isEmpty()) {
                     Text("御前暂无可用将吏。可先寻访、招募、拔擢人才。", color = Color(0xFFB9AA82), fontSize = 12.sp)
                 } else {
-                    inCourt.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer } }
+                    inCourt.forEach { officer ->
+                        OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer }
+                    }
                 }
             }
         }
@@ -142,7 +147,6 @@ fun MilitaryScreen(gameState: GameState) {
         }
     }
 
-    // V0.8 人物详情弹窗
     selectedOfficer?.let { officer ->
         Dialog(onDismissRequest = { selectedOfficer = null }) {
             CharacterDetailPanel(
@@ -205,7 +209,7 @@ private fun ArmyRow(
 ) {
     val color = if (army.ownerFactionId == "jin") JinRed else SongBright
     val moving = army.status.contains("进军") && army.targetCityId.isNotBlank()
-    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().clickable { onClick() }.background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssetIcon(UiIconRegistry.factionIcon(army.ownerFactionId), Modifier.size(22.dp), army.ownerFactionId)
