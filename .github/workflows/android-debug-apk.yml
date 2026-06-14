@@ -26,27 +26,28 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: |
-          set -o pipefail
-          ./gradlew assembleDebug 2>&1 | tee /tmp/build.log
-          exit_code=${PIPESTATUS[0]}
-          if [ $exit_code -ne 0 ]; then
-            echo "=== BUILD ERRORS ==="
-            grep -E "error:|Error:|FAILED" /tmp/build.log | head -30
-            exit $exit_code
-          fi
+        run: ./gradlew assembleDebug 2>&1
 
-      - name: Upload build log on failure
+      - name: Show errors if failed
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: /tmp/build.log
+        run: |
+          echo "===KOTLIN ERRORS==="
+          find . -name "*.txt" -path "*/build/reports/*" -exec cat {} \; 2>/dev/null || true
+          find . -name "*.log" -path "*/build/*" -exec grep -l "error:" {} \; 2>/dev/null || true
+
+      - name: Write error summary
+        if: failure()
+        run: |
+          ./gradlew assembleDebug 2>&1 | grep -E "^.*error:|^.*Error:|unresolved reference|expecting" > /tmp/errors.txt || true
+          echo "=== TOP ERRORS ===" >> $GITHUB_STEP_SUMMARY
+          cat /tmp/errors.txt >> $GITHUB_STEP_SUMMARY || echo "no errors captured" >> $GITHUB_STEP_SUMMARY
 
       - name: List APK
-        run: find app/build -name "*.apk" 2>/dev/null
+        if: success()
+        run: find app/build/outputs -name "*.apk"
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: nandu-ai-emperor-debug-apk
