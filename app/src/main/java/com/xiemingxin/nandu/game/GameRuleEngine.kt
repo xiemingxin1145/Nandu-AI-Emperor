@@ -34,12 +34,114 @@ data class City(
     val controlState: String = "STABLE"
 )
 
+enum class Season(val label: String, val effectText: String) {
+    SPRING("春", "整军、募兵、修城略有加成"),
+    SUMMER("夏", "水军占优，暴雨和疫病风险上升"),
+    AUTUMN("秋", "秋高马肥，北伐与金军南侵都更频繁"),
+    WINTER("冬", "行军变慢，粮草消耗上升，北方有冰渡风险")
+}
+
+enum class WeatherType(val label: String, val effectText: String) {
+    CLEAR("晴", "行军与弓弩发挥稳定"),
+    RAIN("雨", "火攻下降，水军略强，行军稍缓"),
+    STORM("暴雨", "道路泥泞，移动和攻城受阻"),
+    FOG("雾", "伏击与突围机会增加，侦察下降"),
+    SNOW("雪", "山地行军困难，士气与补给受压"),
+    WIND("大风", "火攻增强，水战风险上升")
+}
+
+data class GameCalendar(
+    val eraName: String = "建炎元年",
+    val year: Int = 1,
+    val month: Int = 1,
+    val tenDay: Int = 1
+) {
+    fun monthName(): String = listOf(
+        "正月", "二月", "三月", "四月", "五月", "六月",
+        "七月", "八月", "九月", "十月", "冬月", "腊月"
+    ).getOrElse(month - 1) { "正月" }
+
+    fun tenDayName(): String = when (tenDay) {
+        1 -> "上旬"
+        2 -> "中旬"
+        else -> "下旬"
+    }
+
+    fun season(): Season = when (month) {
+        1, 2, 3 -> Season.SPRING
+        4, 5, 6 -> Season.SUMMER
+        7, 8, 9 -> Season.AUTUMN
+        else -> Season.WINTER
+    }
+
+    fun displayText(): String = "$eraName ${monthName()}${tenDayName()}"
+
+    fun advance(): GameCalendar {
+        return if (tenDay < 3) {
+            copy(tenDay = tenDay + 1)
+        } else if (month < 12) {
+            copy(month = month + 1, tenDay = 1)
+        } else {
+            val nextYear = year + 1
+            GameCalendar(
+                eraName = "建炎${chineseYear(nextYear)}年",
+                year = nextYear,
+                month = 1,
+                tenDay = 1
+            )
+        }
+    }
+
+    private fun chineseYear(value: Int): String = when (value) {
+        1 -> "元"
+        2 -> "二"
+        3 -> "三"
+        4 -> "四"
+        5 -> "五"
+        6 -> "六"
+        7 -> "七"
+        8 -> "八"
+        9 -> "九"
+        10 -> "十"
+        else -> value.toString()
+    }
+}
+
+object WeatherSystem {
+    fun generate(calendar: GameCalendar, turn: Int): WeatherType {
+        val season = calendar.season()
+        val candidates = when (season) {
+            Season.SPRING -> listOf(
+                WeatherType.RAIN, WeatherType.CLEAR, WeatherType.FOG,
+                WeatherType.CLEAR, WeatherType.RAIN, WeatherType.STORM
+            )
+            Season.SUMMER -> listOf(
+                WeatherType.CLEAR, WeatherType.RAIN, WeatherType.STORM,
+                WeatherType.STORM, WeatherType.WIND, WeatherType.CLEAR
+            )
+            Season.AUTUMN -> listOf(
+                WeatherType.CLEAR, WeatherType.CLEAR, WeatherType.WIND,
+                WeatherType.FOG, WeatherType.RAIN, WeatherType.CLEAR
+            )
+            Season.WINTER -> listOf(
+                WeatherType.SNOW, WeatherType.CLEAR, WeatherType.WIND,
+                WeatherType.FOG, WeatherType.SNOW, WeatherType.CLEAR
+            )
+        }
+        val seed = calendar.year * 37 + calendar.month * 11 + calendar.tenDay * 7 + turn * 13
+        val idx = (seed and Int.MAX_VALUE) % candidates.size
+        return candidates[idx]
+    }
+}
+
 data class ChronicleEntry(
     val turn: Int,
     val era: String,
     val edictText: String,
     val summary: String,
-    val outcomes: List<String>
+    val outcomes: List<String>,
+    val season: Season = Season.SPRING,
+    val weather: WeatherType = WeatherType.RAIN
 )
 
 // ══════════════════════════════════════════════
@@ -49,6 +151,9 @@ data class ChronicleEntry(
 data class GameState(
     val turn: Int = 1,
     val era: String = "建炎元年",
+    val calendar: GameCalendar = GameCalendar(),
+    val season: Season = Season.SPRING,
+    val weather: WeatherType = WeatherType.RAIN,
     val gold: Int = 50000,
     val grain: Int = 200000,
     val troopMorale: Int = 60,
@@ -135,18 +240,40 @@ object GameRuleEngine {
             }
         }
 
+        val nextCalendar = currentState.calendar.advance()
+        val nextSeason = nextCalendar.season()
+        val nextWeather = WeatherSystem.generate(nextCalendar, currentState.turn + 1)
+        val seasonalThreat = if (nextSeason == Season.AUTUMN) 4 else 2
+        val weatherMoralePenalty = when (nextWeather) {
+            WeatherType.STORM, WeatherType.SNOW -> 2
+            else -> 0
+        }
+        val grainCost = if (nextSeason == Season.WINTER) 7000 else 5000
+
         currentState = currentState.copy(
             turn = currentState.turn + 1,
-            jinThreat = (currentState.jinThreat + 2).coerceAtMost(100),
-            gold = (currentState.gold - 3000).coerceAtLeast(0)
+            era = nextCalendar.eraName,
+            calendar = nextCalendar,
+            season = nextSeason,
+            weather = nextWeather,
+            jinThreat = (currentState.jinThreat + seasonalThreat).coerceAtMost(100),
+            gold = (currentState.gold - 3000).coerceAtLeast(0),
+            grain = (currentState.grain - grainCost).coerceAtLeast(0),
+            troopMorale = (currentState.troopMorale - weatherMoralePenalty).coerceIn(0, 100)
+        )
+
+        outcomes.add(
+            "【天时】时序推进至${nextCalendar.displayText()}，${nextSeason.label}，天气${nextWeather.label}；${nextWeather.effectText}。"
         )
 
         val entry = ChronicleEntry(
             turn = state.turn,
-            era = state.era,
+            era = state.calendar.displayText(),
             edictText = edictText,
             summary = edictResult.summary,
-            outcomes = outcomes + rejected
+            outcomes = outcomes + rejected,
+            season = state.season,
+            weather = state.weather
         )
         currentState = currentState.copy(
             chronicle = currentState.chronicle + entry
@@ -165,6 +292,13 @@ object GameRuleEngine {
 
         val actualTroops = cmd.troops.coerceAtMost(fromCity.troops - 5000)
         if (actualTroops <= 0) return state to null
+
+        val weatherDelay = when (state.weather) {
+            WeatherType.STORM -> "暴雨泥泞，行军迟缓，"
+            WeatherType.SNOW -> "风雪阻道，粮队艰难，"
+            WeatherType.FOG -> "雾气弥漫，斥候难明，"
+            else -> ""
+        }
 
         val newCities = state.cities.map { city ->
             when (city.id) {
@@ -186,7 +320,7 @@ object GameRuleEngine {
             jinThreat = (state.jinThreat + 5).coerceAtMost(100)
         )
 
-        return newState to "【调兵】${officer.name}率${actualTroops}兵马由${fromCity.name}驰往${toCity.name}，军心+5，金国警觉上升。"
+        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}驰往${toCity.name}，军心+5，金国警觉上升。"
     }
 
     private fun executeAssignOfficer(
@@ -219,13 +353,14 @@ object GameRuleEngine {
             return state to "【修城失败】国库不足，需${cost}贯，现有${state.gold}贯。"
         }
 
+        val seasonBonus = if (state.season == Season.SPRING) 5 else 0
         val newCities = state.cities.map {
-            if (it.id == cmd.cityId) it.copy(defense = (it.defense + 15).coerceAtMost(100))
+            if (it.id == cmd.cityId) it.copy(defense = (it.defense + 15 + seasonBonus).coerceAtMost(100))
             else it
         }
 
         return state.copy(cities = newCities, gold = state.gold - cost) to
-            "【修城】${city.name}城防加固，城防+15，耗资${cost}贯。"
+            "【修城】${city.name}城防加固，城防+${15 + seasonBonus}，耗资${cost}贯。"
     }
 
     private fun executeRaiseGrain(
@@ -234,12 +369,13 @@ object GameRuleEngine {
     ): Pair<GameState, String> {
         val officer = state.officers.find { it.id == cmd.officerId }
         val amount = cmd.amount.coerceIn(10000, 500000)
+        val seasonBonus = if (state.season == Season.AUTUMN) amount / 10 else 0
         val stabilityPenalty = if (amount > 100000) -8 else -3
 
         return state.copy(
-            grain = state.grain + amount / 2,
+            grain = state.grain + amount / 2 + seasonBonus,
             courtStability = (state.courtStability + stabilityPenalty).coerceIn(0, 100)
-        ) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2}石，朝堂稳定${stabilityPenalty}。"
+        ) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2 + seasonBonus}石，朝堂稳定${stabilityPenalty}。"
     }
 
     private fun executeSuppressOfficer(
