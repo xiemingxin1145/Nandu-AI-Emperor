@@ -1,52 +1,86 @@
 {
   "project": "南渡无悔",
-  "version": "V0.6.8",
-  "last_updated": "2026-06-14T15:39:55Z",
+  "version": "V0.7.1",
+  "last_updated": "2026-06-14T16:09:10Z",
   "summary": {
-    "ui_icons_uploaded": 53,
-    "characters_portraits": 9,
-    "characters_halfbody": 5,
-    "cities_uploaded": 6,
-    "events_uploaded": 4,
-    "battles_uploaded": 2,
-    "faction_frames": 2,
-    "faction_flags": 4,
-    "unit_icons": 4,
-    "function_icons": 4,
-    "maps_uploaded": 0,
-    "fallback_placeholders_uploaded": 6,
-    "total_uploaded": 104
+    "ui_icons": 53,
+    "faction_ui": 14,
+    "character_portraits": 17,
+    "character_halfbody": 14,
+    "city_backgrounds": 10,
+    "event_cg": 14,
+    "battle_backgrounds": 7,
+    "fallback_placeholders": 6,
+    "total_uploaded": 149
   },
-  "characters_with_portrait": [
-    "zhao_gou",
-    "yue_fei",
-    "qin_hui",
-    "han_shizhong",
-    "wanyan_zongbi",
-    "zong_ze"
+  "characters_complete": {
+    "portrait": [
+      "zhao_gou",
+      "yue_fei",
+      "qin_hui",
+      "han_shizhong",
+      "wanyan_zongbi",
+      "li_gang",
+      "zhao_ding",
+      "zhang_jun",
+      "wu_jie",
+      "liu_qi",
+      "zong_ze",
+      "liang_hongyu",
+      "wanyan_chang",
+      "wanyan_zonghan"
+    ],
+    "halfbody": [
+      "zhao_gou",
+      "yue_fei",
+      "qin_hui",
+      "han_shizhong",
+      "li_gang",
+      "zhao_ding",
+      "zhang_jun",
+      "wu_jie",
+      "liu_qi",
+      "zong_ze",
+      "liang_hongyu",
+      "wanyan_zongbi"
+    ]
+  },
+  "event_cg_by_event_id": [
+    "jianyan_first_court_shock",
+    "discover_yue_fei_soldier",
+    "han_shizhong_requests_battle",
+    "zong_ze_guards_bianjing",
+    "li_gang_dismissed",
+    "jin_army_crosses_huai",
+    "jin_general_wanyan_zongbi_moves",
+    "qin_hui_returns_from_jin",
+    "yangzhou_panic_flee",
+    "city_siege_jiankang"
   ],
-  "characters_with_halfbody": [
-    "zhao_gou",
-    "yue_fei",
-    "qin_hui",
-    "zong_ze",
-    "han_shizhong"
+  "city_backgrounds": [
+    "linan",
+    "kaifeng",
+    "xiangyang",
+    "ezhou",
+    "jiankang",
+    "yangzhou",
+    "chengdu",
+    "chuzhou",
+    "yingtianfu",
+    "zhenjiang"
   ],
-  "unit_icons": [
-    "song_shenbi_archer 神臂弓手",
-    "song_beiwei_army 背嵬军",
-    "jin_guai_zi_ma 拐子马",
-    "jin_tie_futu 铁浮屠"
-  ],
-  "factions_done": [
-    "song 南宋",
-    "jin 金国"
+  "battle_backgrounds": [
+    "camp_night",
+    "field",
+    "mountain_pass",
+    "river_naval",
+    "siege"
   ],
   "missing_required": [
-    "characters: 李纲、赵鼎、张浚、吴玠、刘锜 立绘",
-    "factions: 西夏、大理、西辽、义军、中立 的国徽/战旗/边框",
-    "characters/templates: 大批量NPC模板",
-    "maps: 羊皮纸地图底图",
-    "battles: 山地战、野战背景"
-  ]
+    "characters/templates: 批量NPC模板（文臣/武将/士兵等）",
+    "maps: 羊皮纸战略地图底图",
+    "factions: 西夏/大理/西辽/义军/中立 的国徽战旗",
+    "事件CG: 第三章之后剧情（绍兴和议、岳飞冤案）"
+  ],
+  "note": "核心历史人物立绘+主线事件CG+城池+战役背景基本齐全，可支撑V0.7.1剧情可玩闭环"
 }
