@@ -25,13 +25,18 @@ import com.xiemingxin.nandu.ui.theme.*
 @Composable
 fun EmperorMainScreen(
     uiState: UiState,
+    draftEdictText: String = "",
     onSubmitEdict: (String) -> Unit,
     onConfirmEdict: (String) -> Unit,
     onCancelEdict: () -> Unit,
     onDismissResult: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    var edictText by remember { mutableStateOf("") }
+    var edictText by remember { mutableStateOf(draftEdictText) }
+
+    LaunchedEffect(draftEdictText) {
+        if (draftEdictText.isNotBlank()) edictText = draftEdictText
+    }
 
     Box(
         modifier = Modifier
@@ -126,7 +131,7 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
                 Text("⚙", fontSize = 16.sp)
             }
             Text(
-                "V0.4",
+                "V0.4.5",
                 color = Color(0xFF3A3020),
                 fontSize = 8.sp
             )
@@ -352,34 +357,38 @@ fun NpcResponseCard(officerId: String, attitude: String, text: String) {
 }
 
 @Composable
-fun ResultView(outcomes: List<String>, rejected: List<String>, onDismiss: () -> Unit) {
+fun ResultView(
+    outcomes: List<String>,
+    rejected: List<String>,
+    onDismiss: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("【圣旨已下，天下有变】", color = ImperialGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
 
         outcomes.forEach { outcome ->
-            Text("✦ $outcome", color = XuanCream, fontSize = 13.sp)
-        }
-
-        if (rejected.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            rejected.forEach { r ->
-                Text("✗ $r", color = Color(0xFFFF6B6B), fontSize = 12.sp)
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF12100A))) {
+                Text(outcome, color = XuanCream, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        rejected.forEach { rej ->
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0A0A))) {
+                Text(rej, color = Color(0xFFFF6B6B), fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+            }
+        }
 
         Button(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth().height(44.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A1F12)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
-        ) { Text("下一旬", color = ImperialGold, fontWeight = FontWeight.Bold) }
+            colors = ButtonDefaults.buttonColors(containerColor = ImperialGold)
+        ) {
+            Text("下一旬", color = InkBlack, fontWeight = FontWeight.Bold)
+        }
     }
 }
