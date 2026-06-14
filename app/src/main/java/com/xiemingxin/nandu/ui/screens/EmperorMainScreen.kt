@@ -20,7 +20,6 @@ import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
-import com.xiemingxin.nandu.BuildConfig
 import com.xiemingxin.nandu.ui.theme.*
 
 
@@ -125,7 +124,7 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
                 Text("⚙", fontSize = 16.sp)
             }
             Text(
-                BuildConfig.VERSION_NAME,
+                "V0.3",
                 color = Color(0xFF3A3020),
                 fontSize = 8.sp
             )

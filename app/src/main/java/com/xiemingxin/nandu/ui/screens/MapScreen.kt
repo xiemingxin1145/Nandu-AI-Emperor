@@ -1,7 +1,6 @@
 package com.xiemingxin.nandu.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import com.xiemingxin.nandu.BuildConfig
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
