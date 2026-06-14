@@ -41,6 +41,33 @@ class MockProvider : AiProvider {
             responses.add(NpcResponse("zhao_ding", "support", "乱世用人，不可只看旧名册。臣请遣使入军中、乡里、流民营访求可造之才。"))
         }
 
+        if (text.contains("拔擢") || text.contains("授官") || text.contains("升官") || text.contains("提拔") || text.contains("封赏") || text.contains("赏赐")) {
+            val officerId = when {
+                text.contains("岳飞") -> "yue_fei"
+                text.contains("韩世忠") -> "han_shizhong"
+                text.contains("吴玠") -> "wu_jie"
+                text.contains("刘锜") -> "liu_qi"
+                text.contains("宗泽") -> "zong_ze"
+                text.contains("李纲") -> "li_gang"
+                text.contains("赵鼎") -> "zhao_ding"
+                text.contains("秦桧") -> "qin_hui"
+                else -> ""
+            }
+            val cityId = when {
+                text.contains("襄阳") -> "xiangyang"
+                text.contains("建康") -> "jiankang"
+                text.contains("鄂州") -> "ezhou"
+                text.contains("临安") -> "linan"
+                text.contains("开封") -> "kaifeng"
+                else -> "ezhou"
+            }
+            if (officerId.isNotBlank()) {
+                commands.add(EdictCommand(type = "assign_officer", officerId = officerId, cityId = cityId, role = "promotion", amount = 5000))
+                commands.add(EdictCommand(type = "reward_officer", officerId = officerId, amount = 5000))
+                responses.add(NpcResponse("li_gang", "support", "有功可赏，有才可拔。陛下若能破格用人，则军中士气必振。"))
+            }
+        }
+
         if (text.contains("岳飞") && (text.contains("出兵") || text.contains("北伐") || text.contains("进兵"))) {
             commands.add(EdictCommand(type = "dispatch_army", officerId = "yue_fei", fromCityId = "ezhou", toCityId = "xiangyang", troops = 30000))
             responses.add(NpcResponse("yue_fei", "support", "臣请整军听命，若粮道不绝，可进取襄汉。"))
@@ -83,7 +110,7 @@ class MockProvider : AiProvider {
                 commands = emptyList(),
                 npcResponses = listOf(NpcResponse("li_gang", "neutral", "臣请陛下明示，旨意所指，臣等方可奉行。")),
                 clarificationNeeded = true,
-                clarificationHint = "可尝试：寻访岳飞、访求襄阳人才、命韩世忠守建康、修城、筹粮"
+                clarificationHint = "可尝试：寻访岳飞、拔擢岳飞、访求襄阳人才、命韩世忠守建康、修城、筹粮"
             ))
         }
 
