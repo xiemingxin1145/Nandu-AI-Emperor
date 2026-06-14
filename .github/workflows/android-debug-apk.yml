@@ -26,19 +26,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: |
-          set -o pipefail
-          ./gradlew assembleDebug 2>&1 | tee /tmp/build.log
-
-      - name: Write error to repo file
-        if: failure()
-        run: |
-          tail -80 /tmp/build.log > build-error-latest.txt
-          git config user.email "ci@nandu.dev"
-          git config user.name "CI-Bot"
-          git add build-error-latest.txt
-          git diff --cached --quiet || git commit -m "ci: error log [skip ci]"
-          git push https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:main || true
+        run: ./gradlew assembleDebug 2>&1 | tee /tmp/build.log; exit ${PIPESTATUS[0]}
 
       - name: Upload APK
         if: success()
@@ -48,3 +36,11 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nandu-build-log
+          path: /tmp/build.log
+          retention-days: 3
