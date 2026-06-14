@@ -19,7 +19,9 @@ import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
+import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
 import com.xiemingxin.nandu.ui.theme.ImperialGold
@@ -44,9 +46,9 @@ fun MilitaryScreen(gameState: GameState) {
     ) {
         item {
             PanelCard {
-                Text("军务府 V0.6.1", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("军务府 V0.6.2", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("人物已接入身份、出身、魅力、野心、名望、经验、技能和可统兵上限。后续调兵会逐步按上限约束。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("人物隐藏维度改为模糊情报；技能已有统一权重表。调兵上限规则正在接入引擎。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
         item {
@@ -188,7 +190,9 @@ private fun OfficerRow(officer: Officer, cityName: String) {
         }
         Spacer(Modifier.height(4.dp))
         Text("武${officer.force} 统${officer.command} 谋${officer.strategy} 政${officer.politics} 魅${profile.charm}", color = Color(0xFFB9AA82), fontSize = 11.sp)
-        Text("忠${officer.loyalty} 野${profile.ambition} 名${profile.fame} 经${profile.experience} · ${profile.skills.joinToString("/")}", color = Color(0xFF8B7355), fontSize = 10.sp)
+        Text("忠：${OfficerIntel.loyaltyLabel(officer.loyalty)} · 志：${OfficerIntel.ambitionLabel(profile.ambition)} · 名：${OfficerIntel.fameLabel(profile.fame)} · 历：${OfficerIntel.experienceLabel(profile.experience)}", color = Color(0xFF8B7355), fontSize = 10.sp)
+        Text("技能：${profile.skills.joinToString("/")} · ${SkillEffects.shortSummary(profile.skills)}", color = Color(0xFF8B7355), fontSize = 10.sp)
+        Text("评估：${OfficerIntel.trustBrief(officer.loyalty, profile.ambition)}", color = Color(0xFF6F8A64), fontSize = 10.sp)
     }
     Spacer(Modifier.height(8.dp))
 }
