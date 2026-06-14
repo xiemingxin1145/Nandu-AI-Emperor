@@ -26,12 +26,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.Army
+import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
 import com.xiemingxin.nandu.game.MapNode
 import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.WeatherType
+import com.xiemingxin.nandu.ui.components.AssetImage
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.JinRed
 import com.xiemingxin.nandu.ui.theme.MapBg
@@ -544,6 +548,18 @@ fun CityDetailPanel(
 ) {
     Card(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xF01A1208)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.60f))) {
         Column(modifier = Modifier.padding(14.dp)) {
+            // V0.8 城池背景CG（缺图自动回退占位）
+            if (city != null) {
+                AssetImage(
+                    path = ArtResourceRegistry.cityBackground(city.id),
+                    fallbackPath = ArtResourceRegistry.Fallback.city,
+                    contentDescription = node.name,
+                    contentScale = ContentScale.Crop,
+                    placeholderText = "城",
+                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(10.dp))
+                )
+                Spacer(Modifier.height(10.dp))
+            }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text(node.name, color = ImperialGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -556,6 +572,13 @@ fun CityDetailPanel(
                         },
                         color = Color(0xFFB9AA82), fontSize = 12.sp
                     )
+                    // V0.8 地理信息行
+                    if (city != null && city.route.isNotBlank()) {
+                        Text(
+                            "${city.route} · ${city.cityLevel} · ${terrainLabel(city.terrain)} · 口${city.population / 10000}万",
+                            color = Color(0xFF8C7A60), fontSize = 10.sp
+                        )
+                    }
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) { Text("X", color = Color(0xFF8B7355), fontSize = 14.sp) }
             }
@@ -567,6 +590,13 @@ fun CityDetailPanel(
                     CityStatItem("粮", "粮草", "${city.grain / 1000}k")
                     CityStatItem("财", "金库", "${city.gold / 1000}k")
                     CityStatItem("民", "民心", "${city.popularSupport}")
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    CityStatItem("商", "商业", "${city.commerce}")
+                    CityStatItem("农", "农业", "${city.agriculture}")
+                    if (city.isWaterNode) CityStatItem("漕", "水运", "通")
+                    if (city.isPass) CityStatItem("关", "关隘", "险")
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("驻防军团", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -613,6 +643,14 @@ private fun CityActionButton(text: String, modifier: Modifier, onClick: () -> Un
         colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold),
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
     ) { Text(text, fontSize = 11.sp) }
+}
+
+private fun terrainLabel(terrain: String): String = when (terrain) {
+    "river" -> "水乡"
+    "mountain" -> "山地"
+    "pass" -> "关隘"
+    "coast" -> "沿海"
+    else -> "平原"
 }
 
 @Composable
