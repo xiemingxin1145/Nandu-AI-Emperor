@@ -68,7 +68,7 @@ fun MilitaryScreen(gameState: GameState) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     AssetIcon(UiIconRegistry.seasonIcon(gameState.season), Modifier.size(18.dp), gameState.season.label)
                     AssetIcon(UiIconRegistry.weatherIcon(gameState.weather), Modifier.size(18.dp), gameState.weather.label)
-                    Text("AssetManager已接入：UI图标、人物头像路径可从 assets 读取；缺图会显示占位。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                    Text("AssetManager已接入：UI图标、人物头像路径可从 assets 读取；缺图会显示占位。", color = XuanCream, fontSize = 12.sp)
                 }
             }
         }
@@ -197,7 +197,13 @@ private fun GaugeLine(label: String, value: Int, color: Color) {
 }
 
 @Composable
-private fun ArmyRow(army: Army, commanderName: String, cityName: String, targetCityName: String) {
+private fun ArmyRow(
+    army: Army,
+    commanderName: String,
+    cityName: String,
+    targetCityName: String,
+    onClick: () -> Unit = {}
+) {
     val color = if (army.ownerFactionId == "jin") JinRed else SongBright
     val moving = army.status.contains("进军") && army.targetCityId.isNotBlank()
     Column(Modifier.fillMaxWidth().clickable { onClick() }.background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
