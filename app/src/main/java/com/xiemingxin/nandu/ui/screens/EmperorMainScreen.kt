@@ -20,7 +20,9 @@ import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
+import com.xiemingxin.nandu.ui.components.StoryEventCard
 import com.xiemingxin.nandu.ui.theme.*
+import androidx.compose.ui.window.Dialog
 
 @Composable
 fun EmperorMainScreen(
@@ -30,6 +32,9 @@ fun EmperorMainScreen(
     onConfirmEdict: (String) -> Unit,
     onCancelEdict: () -> Unit,
     onDismissResult: () -> Unit,
+    onAdvanceTurn: () -> Unit,
+    onStoryChoice: (String) -> Unit,
+    onDismissStoryOutcome: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     var edictText by remember { mutableStateOf(draftEdictText) }
@@ -76,7 +81,7 @@ fun EmperorMainScreen(
                             rejected = uiState.lastRejected,
                             onDismiss = {
                                 edictText = ""
-                                onDismissResult()
+                                onAdvanceTurn()
                             }
                         )
                     }
@@ -90,6 +95,39 @@ fun EmperorMainScreen(
                     fontSize = 12.sp,
                     modifier = Modifier.padding(8.dp)
                 )
+            }
+        }
+
+        // V0.7.1 剧情事件弹窗
+        uiState.currentStoryEvent?.let { event ->
+            Dialog(onDismissRequest = { }) {
+                StoryEventCard(
+                    event = event,
+                    onChoice = onStoryChoice
+                )
+            }
+        }
+
+        // V0.7.1 剧情选择结果提示
+        if (uiState.storyOutcomes.isNotEmpty() && uiState.currentStoryEvent == null) {
+            Dialog(onDismissRequest = onDismissStoryOutcome) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("【天下有变】", color = ImperialGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        uiState.storyOutcomes.forEach { o ->
+                            Text(o, color = XuanCream, fontSize = 13.sp)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Button(
+                            onClick = onDismissStoryOutcome,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = ImperialGold)
+                        ) { Text("朕知道了", color = InkBlack, fontWeight = FontWeight.Bold) }
+                    }
+                }
             }
         }
     }
