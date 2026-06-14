@@ -3,9 +3,22 @@ package com.xiemingxin.nandu.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,8 +41,8 @@ private val PanelDark = Color(0xF21A1208)
 private val PanelSub = Color(0xFF9A8862)
 
 /**
- * V0.8 人物详情面板：点击武将弹出，显示头像、五维、技能、出身、评估。
- * 数据来源统一走 GPT 的 OfficerProfile 系统（profile()），保持一致。
+ * V0.8 人物详情面板：点击武将弹出，显示头像、五维、技能、评估。
+ * 数据统一走 OfficerProfile 系统（profile()）。
  */
 @Composable
 fun CharacterDetailPanel(
@@ -69,11 +82,11 @@ fun CharacterDetailPanel(
                             Text("X", color = PanelSub, fontSize = 14.sp)
                         }
                     }
-                    Text("${p.rank} · ${p.origin}", color = PanelCream, fontSize = 13.sp)
-                    Text("现驻 $cityName", color = PanelSub, fontSize = 11.sp)
+                    Text(p.rank + " · " + p.origin, color = PanelCream, fontSize = 13.sp)
+                    Text("现驻 " + cityName, color = PanelSub, fontSize = 11.sp)
                     Spacer(Modifier.height(3.dp))
                     Text(
-                        "忠：${OfficerIntel.loyaltyLabel(officer.loyalty)} · 志：${OfficerIntel.ambitionLabel(p.ambition)}",
+                        "忠：" + OfficerIntel.loyaltyLabel(officer.loyalty) + " · 志：" + OfficerIntel.ambitionLabel(p.ambition),
                         color = PanelSub, fontSize = 11.sp
                     )
                 }
@@ -93,7 +106,7 @@ fun CharacterDetailPanel(
             ) {
                 MiniStat("名望", OfficerIntel.fameLabel(p.fame))
                 MiniStat("资历", OfficerIntel.experienceLabel(p.experience))
-                MiniStat("可统兵", "${officer.commandLimit() / 1000}k")
+                MiniStat("可统兵", (officer.commandLimit() / 1000).toString() + "k")
             }
 
             if (p.skills.isNotEmpty()) {
@@ -110,7 +123,7 @@ fun CharacterDetailPanel(
             Spacer(Modifier.height(4.dp))
             Text(
                 OfficerIntel.trustBrief(officer.loyalty, p.ambition),
-                color = Color(0xFF8FB573), fontSize = 12.sp, lineHeight = 18.sp
+                color = Color(0xFF8FB573), fontSize = 12.sp
             )
         }
     }
@@ -118,7 +131,7 @@ fun CharacterDetailPanel(
 
 @Composable
 private fun StatBar(label: String, value: Int) {
-    val frac = (value.coerceIn(0, 100)) / 100f
+    val frac = value.coerceIn(0, 100) / 100f
     val barColor = when {
         value >= 90 -> Color(0xFFD4AF37)
         value >= 75 -> Color(0xFF8FB573)
@@ -140,7 +153,7 @@ private fun StatBar(label: String, value: Int) {
             )
         }
         Spacer(Modifier.width(8.dp))
-        Text("$value", color = PanelCream, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp))
+        Text(value.toString(), color = PanelCream, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp))
     }
 }
 
