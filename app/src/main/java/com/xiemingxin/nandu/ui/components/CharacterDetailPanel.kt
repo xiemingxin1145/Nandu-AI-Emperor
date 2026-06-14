@@ -17,6 +17,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.Officer
+import com.xiemingxin.nandu.game.OfficerIntel
+import com.xiemingxin.nandu.game.SkillEffects
+import com.xiemingxin.nandu.game.commandLimit
+import com.xiemingxin.nandu.game.profile
 
 private val PanelGold = Color(0xFFC9A227)
 private val PanelCream = Color(0xFFE8DCC0)
@@ -24,8 +28,8 @@ private val PanelDark = Color(0xF21A1208)
 private val PanelSub = Color(0xFF9A8862)
 
 /**
- * V0.8 人物面板：点击武将弹出，显示头像、五维、技能、出身、简介。
- * 隐藏维度（忠诚/野心）做模糊处理，保留信息不对称。
+ * V0.8 人物详情面板：点击武将弹出，显示头像、五维、技能、出身、评估。
+ * 数据来源统一走 GPT 的 OfficerProfile 系统（profile()），保持一致。
  */
 @Composable
 fun CharacterDetailPanel(
@@ -34,6 +38,7 @@ fun CharacterDetailPanel(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val p = officer.profile()
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -43,7 +48,6 @@ fun CharacterDetailPanel(
         border = BorderStroke(1.dp, PanelGold.copy(alpha = 0.6f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // 顶部：头像 + 名字 + 出身
             Row(verticalAlignment = Alignment.Top) {
                 AssetImage(
                     path = ArtResourceRegistry.portraitForOfficer(officer.id),
@@ -51,9 +55,7 @@ fun CharacterDetailPanel(
                     contentDescription = officer.name,
                     contentScale = ContentScale.Crop,
                     placeholderText = officer.name.take(1),
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                    modifier = Modifier.size(92.dp).clip(RoundedCornerShape(10.dp))
                 )
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -67,51 +69,49 @@ fun CharacterDetailPanel(
                             Text("X", color = PanelSub, fontSize = 14.sp)
                         }
                     }
-                    Text(rankLabel(officer.rankLevel), color = PanelCream, fontSize = 13.sp)
-                    val originText = if (officer.origin.isNotBlank()) "出身：${officer.origin}" else officer.faction
-                    Text("$originText · 现驻$cityName", color = PanelSub, fontSize = 11.sp)
-                    Spacer(Modifier.height(4.dp))
-                    // 忠诚做模糊三档显示
-                    Text("态度：${loyaltyLabel(officer.loyalty)}", color = loyaltyColor(officer.loyalty), fontSize = 11.sp)
+                    Text("${p.rank} · ${p.origin}", color = PanelCream, fontSize = 13.sp)
+                    Text("现驻 $cityName", color = PanelSub, fontSize = 11.sp)
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "忠：${OfficerIntel.loyaltyLabel(officer.loyalty)} · 志：${OfficerIntel.ambitionLabel(p.ambition)}",
+                        color = PanelSub, fontSize = 11.sp
+                    )
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            // 五维能力条
             StatBar("武", officer.force)
             StatBar("统", officer.command)
             StatBar("谋", officer.strategy)
             StatBar("政", officer.politics)
-            StatBar("魅", officer.charm)
+            StatBar("魅", p.charm)
 
-            // 可统兵上限
             Spacer(Modifier.height(10.dp))
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF241A0C), RoundedCornerShape(8.dp))
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Text("可统兵上限", color = PanelSub, fontSize = 12.sp)
-                Text("${commandLimit(officer)} 人", color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                MiniStat("名望", OfficerIntel.fameLabel(p.fame))
+                MiniStat("资历", OfficerIntel.experienceLabel(p.experience))
+                MiniStat("可统兵", "${officer.commandLimit() / 1000}k")
             }
 
-            // 技能标签
-            if (officer.skills.isNotEmpty()) {
+            if (p.skills.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 Text("专长", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                SkillTagRow(officer.skills)
+                SkillTagRow(p.skills)
+                Spacer(Modifier.height(4.dp))
+                Text(SkillEffects.shortSummary(p.skills), color = PanelSub, fontSize = 10.sp)
             }
 
-            // 简介
-            if (officer.bio.isNotBlank()) {
-                Spacer(Modifier.height(12.dp))
-                Text("生平", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(4.dp))
-                Text(officer.bio, color = PanelCream, fontSize = 12.sp, lineHeight = 18.sp)
-            }
+            Spacer(Modifier.height(12.dp))
+            Text("评估", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                OfficerIntel.trustBrief(officer.loyalty, p.ambition),
+                color = Color(0xFF8FB573), fontSize = 12.sp, lineHeight = 18.sp
+            )
         }
     }
 }
@@ -131,22 +131,24 @@ private fun StatBar(label: String, value: Int) {
     ) {
         Text(label, color = PanelSub, fontSize = 12.sp, modifier = Modifier.width(22.dp))
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(14.dp)
-                .clip(RoundedCornerShape(7.dp))
-                .background(Color(0xFF2A2010))
+            modifier = Modifier.weight(1f).height(14.dp)
+                .clip(RoundedCornerShape(7.dp)).background(Color(0xFF2A2010))
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth(frac)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(barColor)
+                modifier = Modifier.fillMaxWidth(frac).fillMaxHeight()
+                    .clip(RoundedCornerShape(7.dp)).background(barColor)
             )
         }
         Spacer(Modifier.width(8.dp))
         Text("$value", color = PanelCream, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp))
+    }
+}
+
+@Composable
+private fun MiniStat(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = PanelSub, fontSize = 9.sp)
     }
 }
 
@@ -169,41 +171,4 @@ private fun SkillTagRow(skills: List<String>) {
             }
         }
     }
-}
-
-private fun rankLabel(level: Int): String = when (level) {
-    0 -> "军中小卒"
-    1 -> "百夫长 / 军校"
-    2 -> "偏将"
-    3 -> "统领 / 统制"
-    4 -> "方面大将 / 重臣"
-    5 -> "宣抚使 / 都督"
-    else -> "未仕"
-}
-
-private fun loyaltyLabel(loyalty: Int): String = when {
-    loyalty >= 85 -> "忠心耿耿"
-    loyalty >= 60 -> "尚算可靠"
-    loyalty >= 40 -> "心思难测"
-    else -> "貌合神离"
-}
-
-private fun loyaltyColor(loyalty: Int): Color = when {
-    loyalty >= 85 -> Color(0xFF8FB573)
-    loyalty >= 60 -> Color(0xFFD4AF37)
-    loyalty >= 40 -> Color(0xFFCC9955)
-    else -> Color(0xFFCC6655)
-}
-
-/** 可统兵上限 = 官阶基数 × 统率系数 */
-private fun commandLimit(o: Officer): Int {
-    val base = when (o.rankLevel) {
-        0 -> 1000
-        1 -> 5000
-        2 -> 12000
-        3 -> 30000
-        4 -> 60000
-        else -> 90000
-    }
-    return (base * (0.6 + o.command / 100.0 * 0.6)).toInt()
 }
