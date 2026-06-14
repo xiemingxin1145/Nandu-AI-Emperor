@@ -7,9 +7,11 @@ import java.util.Base64
 
 object GameSaveCodec {
     private const val PREFIX = "NANDU_SAVE_V1:"
+    private const val SAVE_VERSION = 2
 
     fun export(state: GameState): String {
         val root = JSONObject()
+            .put("saveVersion", SAVE_VERSION)
             .put("turn", state.turn)
             .put("era", state.era)
             .put("calendar", state.calendar.toJson())
@@ -36,10 +38,11 @@ object GameSaveCodec {
         require(trimmed.startsWith(PREFIX)) { "不是南渡无悔存档码" }
         val json = String(Base64.getDecoder().decode(trimmed.removePrefix(PREFIX)), StandardCharsets.UTF_8)
         val root = JSONObject(json)
+        val ignoredVersion = root.optInt("saveVersion", 1)
         GameState(
             turn = root.optInt("turn", 1),
             era = root.optString("era", "建炎元年"),
-            calendar = root.getJSONObject("calendar").toCalendar(),
+            calendar = root.optJSONObject("calendar")?.toCalendar() ?: GameCalendar(),
             season = enumValueOf(root.optString("season", Season.SPRING.name)),
             weather = enumValueOf(root.optString("weather", WeatherType.RAIN.name)),
             gold = root.optInt("gold", 50000),
