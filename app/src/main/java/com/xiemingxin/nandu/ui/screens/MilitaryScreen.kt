@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -12,18 +13,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.Army
+import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.SkillEffects
+import com.xiemingxin.nandu.game.UiIconRegistry
 import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
+import com.xiemingxin.nandu.ui.components.AssetIcon
+import com.xiemingxin.nandu.ui.components.AssetImage
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -46,17 +52,24 @@ fun MilitaryScreen(gameState: GameState) {
     ) {
         item {
             PanelCard {
-                Text("军务府 V0.6.4", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssetIcon(UiIconRegistry.actionPromote, Modifier.size(24.dp), "升官")
+                    Text("军务府 V0.6.5", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                }
                 Spacer(Modifier.height(6.dp))
-                Text("已接入调兵上限、人物技能权重与拔擢圣旨解析。下旨“拔擢岳飞/授官韩世忠”会进入培养流程。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AssetIcon(UiIconRegistry.seasonIcon(gameState.season), Modifier.size(18.dp), gameState.season.label)
+                    AssetIcon(UiIconRegistry.weatherIcon(gameState.weather), Modifier.size(18.dp), gameState.weather.label)
+                    Text("AssetManager已接入：UI图标、人物头像路径可从 assets 读取；缺图会显示占位。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                }
             }
         }
         item {
             PanelCard {
                 SectionTitle("宋金军团兵势")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TroopBlock("大宋军团", songTroops, SongBright, Modifier.weight(1f))
-                    TroopBlock("金国军团", jinTroops, JinRed, Modifier.weight(1f))
+                    TroopBlock("大宋军团", songTroops, SongBright, UiIconRegistry.factionSong, Modifier.weight(1f))
+                    TroopBlock("金国军团", jinTroops, JinRed, UiIconRegistry.factionJin, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(10.dp))
                 val total = (songTroops + jinTroops).coerceAtLeast(1)
@@ -106,9 +119,12 @@ fun MilitaryScreen(gameState: GameState) {
                     .sortedByDescending { it.troops }
                     .forEach { city ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column {
-                                Text(city.name, color = if (city.owner == "jin") JinRed else XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(city.controlState, color = Color(0xFF8B7355), fontSize = 10.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AssetIcon(UiIconRegistry.factionIcon(city.owner), Modifier.size(22.dp), city.owner)
+                                Column {
+                                    Text(city.name, color = if (city.owner == "jin") JinRed else XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(city.controlState, color = Color(0xFF8B7355), fontSize = 10.sp)
+                                }
                             }
                             Text("城兵 ${city.troops / 1000}k  防 ${city.defense}", color = Color(0xFFB9AA82), fontSize = 12.sp)
                         }
@@ -136,8 +152,10 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun TroopBlock(label: String, troops: Int, color: Color, modifier: Modifier) {
+private fun TroopBlock(label: String, troops: Int, color: Color, iconPath: String, modifier: Modifier) {
     Column(modifier.background(Color(0xFF1D150B), RoundedCornerShape(8.dp)).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        AssetIcon(iconPath, Modifier.size(26.dp), label)
+        Spacer(Modifier.height(4.dp))
         Text(label, color = Color(0xFFB9AA82), fontSize = 11.sp)
         Text("${troops / 1000}k", color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text("兵", color = Color(0xFF8B7355), fontSize = 10.sp)
@@ -163,8 +181,11 @@ private fun ArmyRow(army: Army, commanderName: String, cityName: String, targetC
     val color = if (army.ownerFactionId == "jin") JinRed else SongBright
     val moving = army.status.contains("进军") && army.targetCityId.isNotBlank()
     Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(army.name, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssetIcon(UiIconRegistry.factionIcon(army.ownerFactionId), Modifier.size(22.dp), army.ownerFactionId)
+                Text(army.name, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
             Text("${army.troops / 1000}k", color = ImperialGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(3.dp))
@@ -182,14 +203,29 @@ private fun OfficerRow(officer: Officer, cityName: String) {
     val profile = officer.profile()
     Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text(officer.name, color = XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text("${profile.rank} · ${profile.origin} · $cityName", color = Color(0xFF8B7355), fontSize = 10.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                AssetImage(
+                    path = ArtResourceRegistry.portraitForOfficer(officer.id),
+                    fallbackPath = ArtResourceRegistry.Fallback.portrait,
+                    modifier = Modifier.size(46.dp).clip(CircleShape),
+                    contentDescription = officer.name,
+                    placeholderText = officer.name.take(1)
+                )
+                Column {
+                    Text(officer.name, color = XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("${profile.rank} · ${profile.origin} · $cityName", color = Color(0xFF8B7355), fontSize = 10.sp)
+                }
             }
-            Text("可统 ${officer.commandLimit() / 1000}k", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Column(horizontalAlignment = Alignment.End) {
+                Text("可统 ${officer.commandLimit() / 1000}k", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                AssetIcon(UiIconRegistry.statCommand, Modifier.size(18.dp), "统帅")
+            }
         }
         Spacer(Modifier.height(4.dp))
-        Text("武${officer.force} 统${officer.command} 谋${officer.strategy} 政${officer.politics} 魅${profile.charm}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            AssetIcon(UiIconRegistry.statForce, Modifier.size(16.dp), "武力")
+            Text("武${officer.force} 统${officer.command} 谋${officer.strategy} 政${officer.politics} 魅${profile.charm}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+        }
         Text("忠：${OfficerIntel.loyaltyLabel(officer.loyalty)} · 志：${OfficerIntel.ambitionLabel(profile.ambition)} · 名：${OfficerIntel.fameLabel(profile.fame)} · 历：${OfficerIntel.experienceLabel(profile.experience)}", color = Color(0xFF8B7355), fontSize = 10.sp)
         Text("技能：${profile.skills.joinToString("/")} · ${SkillEffects.shortSummary(profile.skills)}", color = Color(0xFF8B7355), fontSize = 10.sp)
         Text("评估：${OfficerIntel.trustBrief(officer.loyalty, profile.ambition)}", color = Color(0xFF6F8A64), fontSize = 10.sp)
