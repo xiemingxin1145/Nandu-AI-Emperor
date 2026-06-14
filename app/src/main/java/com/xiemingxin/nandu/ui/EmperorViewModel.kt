@@ -1,6 +1,7 @@
 package com.xiemingxin.nandu.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.xiemingxin.nandu.ai.AiProvider
 import com.xiemingxin.nandu.ai.AiProviderType
@@ -18,6 +19,10 @@ import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.story.EventDirector
+import com.xiemingxin.nandu.story.StoryEvent
+import com.xiemingxin.nandu.story.StoryEventEffectApplier
+import com.xiemingxin.nandu.story.StoryEventLoader
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -33,17 +38,22 @@ data class UiState(
     val apiKey: String = "",
     val customModel: String = "",
     val saveCode: String = "",
-    val saveMessage: String = ""
+    val saveMessage: String = "",
+    val currentStoryEvent: StoryEvent? = null,
+    val storyOutcomes: List<String> = emptyList()
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
 
-class EmperorViewModel : ViewModel() {
+class EmperorViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
     private var currentProvider: AiProvider = MockProvider()
+
+    // V0.7.1 剧情事件库（开局一次性加载）
+    private val storyEvents: List<StoryEvent> = StoryEventLoader.loadJianyan01(application)
 
     fun updateProviderSettings(type: AiProviderType, apiKey: String, customModel: String = "") {
         val customParts = parseCustomConfig(customModel)
@@ -98,6 +108,54 @@ class EmperorViewModel : ViewModel() {
 
     fun dismissResult() {
         _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE)
+    }
+
+    /** V0.7.1 推进一旬：日历前进，并检查是否触发剧情事件 */
+    fun advanceTurn() {
+        val state = _uiState.value.gameState
+        val nextState = state.copy(
+            turn = state.turn + 1,
+            calendar = state.calendar.next()
+        )
+        // 用EventDirector筛出本旬可触发的第一个事件
+        val event = EventDirector.firstCandidate(
+            state = nextState,
+            events = storyEvents,
+            firedEventIds = nextState.firedEventIds,
+            flags = nextState.storyFlags
+        )
+        _uiState.value = _uiState.value.copy(
+            gameState = nextState,
+            phase = GamePhase.IDLE,
+            lastOutcomes = emptyList(),
+            lastRejected = emptyList(),
+            currentStoryEvent = event,
+            storyOutcomes = emptyList()
+        )
+    }
+
+    /** V0.7.1 玩家在剧情弹窗中做出选择 */
+    fun chooseStoryOption(choiceId: String) {
+        val event = _uiState.value.currentStoryEvent ?: return
+        val state = _uiState.value.gameState
+        val result = StoryEventEffectApplier.applyChoice(state, event, choiceId)
+        // 记录已触发事件 + 累积flag
+        val newFired = state.firedEventIds + event.eventId
+        val newFlags = state.storyFlags + result.flags
+        val finalState = result.newState.copy(
+            firedEventIds = newFired,
+            storyFlags = newFlags
+        )
+        _uiState.value = _uiState.value.copy(
+            gameState = finalState,
+            currentStoryEvent = null,
+            storyOutcomes = result.outcomes
+        )
+    }
+
+    /** 关闭剧情结果提示 */
+    fun dismissStoryOutcome() {
+        _uiState.value = _uiState.value.copy(storyOutcomes = emptyList())
     }
 
     fun exportSaveCode() {
