@@ -1,8 +1,7 @@
 package com.xiemingxin.nandu.game
 
 /**
- * 临时兼容层：V0.6.4 人物官阶成长准备字段。
- * 先让 Profile 层可编译，下一步再把 rankLevel / merit 写入 Officer 主结构和存档。
+ * V0.8: rankLevel / merit 已正式写入 Officer 主结构（GameRuleEngine.kt）。
+ * 原临时兼容层扩展属性已移除，避免与成员字段冲突。
+ * 官阶成长系统现可读取真实 rankLevel / merit 值。
  */
-val Officer.rankLevel: Int get() = 0
-val Officer.merit: Int get() = 0
