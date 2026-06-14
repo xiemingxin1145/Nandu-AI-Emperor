@@ -11,6 +11,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.window.Dialog
+import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +45,7 @@ import com.xiemingxin.nandu.ui.theme.XuanCream
 
 @Composable
 fun MilitaryScreen(gameState: GameState) {
+    var selectedOfficer by remember { mutableStateOf<Officer?>(null) }
     val cityMap = gameState.cities.associateBy { it.id }
     val officerMap = gameState.officers.associateBy { it.id }
     val activeOfficers = gameState.officers.filter { it.status != OfficerStatus.DISMISSED && it.status != OfficerStatus.DECEASED }
@@ -97,7 +105,7 @@ fun MilitaryScreen(gameState: GameState) {
                 if (deployed.isEmpty()) {
                     Text("暂未任命将领外出统兵。可在朝议页下旨任命、拔擢或调兵。", color = Color(0xFFB9AA82), fontSize = 12.sp)
                 } else {
-                    deployed.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) }
+                    deployed.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer } }
                 }
             }
         }
@@ -107,7 +115,7 @@ fun MilitaryScreen(gameState: GameState) {
                 if (inCourt.isEmpty()) {
                     Text("御前暂无可用将吏。可先寻访、招募、拔擢人才。", color = Color(0xFFB9AA82), fontSize = 12.sp)
                 } else {
-                    inCourt.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) }
+                    inCourt.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) { selectedOfficer = officer } }
                 }
             }
         }
@@ -191,7 +199,7 @@ private fun GaugeLine(label: String, value: Int, color: Color) {
 private fun ArmyRow(army: Army, commanderName: String, cityName: String, targetCityName: String) {
     val color = if (army.ownerFactionId == "jin") JinRed else SongBright
     val moving = army.status.contains("进军") && army.targetCityId.isNotBlank()
-    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().clickable { onClick() }.background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssetIcon(UiIconRegistry.factionIcon(army.ownerFactionId), Modifier.size(22.dp), army.ownerFactionId)
@@ -210,9 +218,9 @@ private fun ArmyRow(army: Army, commanderName: String, cityName: String, targetC
 }
 
 @Composable
-private fun OfficerRow(officer: Officer, cityName: String) {
+private fun OfficerRow(officer: Officer, cityName: String, onClick: () -> Unit = {}) {
     val profile = officer.profile()
-    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
+    Column(Modifier.fillMaxWidth().clickable { onClick() }.background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 AssetImage(
