@@ -1,5 +1,6 @@
 package com.xiemingxin.nandu.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,116 +28,200 @@ fun SettingsScreen(
     onSave: (AiProviderType, String, String) -> Unit,
     onBack: () -> Unit
 ) {
+    val initialBase = if (currentModel.contains("|")) currentModel.substringBefore("|") else ""
+    val initialModel = if (currentModel.contains("|")) currentModel.substringAfter("|") else currentModel
     var selectedProvider by remember { mutableStateOf(currentProvider) }
     var apiKey by remember { mutableStateOf(currentApiKey) }
-    var customModel by remember { mutableStateOf(currentModel) }
+    var baseUrl by remember { mutableStateOf(initialBase) }
+    var modelName by remember { mutableStateOf(initialModel) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(InkBlack)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().background(InkBlack).verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("← ", color = ImperialGold, fontSize = 20.sp,
-                modifier = Modifier.clickable { onBack() })
-            Text("AI引擎设置", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
-
-        // Provider选择
-        Text("选择AI模型", color = XuanCream, fontSize = 14.sp)
-
-        AiProviderType.entries.forEach { provider ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { selectedProvider = provider }
-                    .border(
-                        width = if (selectedProvider == provider) 1.dp else 0.5.dp,
-                        color = if (selectedProvider == provider) ImperialGold else Color(0xFF3A2A1A),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .background(
-                        if (selectedProvider == provider) Color(0xFF1E1508) else Color(0xFF0D0A04),
-                        RoundedCornerShape(4.dp)
-                    )
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = selectedProvider == provider,
-                    onClick = { selectedProvider = provider },
-                    colors = RadioButtonDefaults.colors(selectedColor = ImperialGold)
-                )
-                Spacer(Modifier.width(8.dp))
-                Column {
-                    Text(provider.displayName, color = XuanCream, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Text(
-                        when (provider) {
-                            AiProviderType.CLAUDE -> "推荐。最准确的圣旨理解"
-                            AiProviderType.OPENAI -> "GPT-4o，效果优秀"
-                            AiProviderType.GEMINI -> "Google模型，免费额度较多"
-                            AiProviderType.OPENROUTER -> "聚合路由，可选便宜模型"
-                            AiProviderType.CUSTOM -> "自定义API地址"
-                            AiProviderType.MOCK -> "无需API Key，本地离线模拟"
-                        },
-                        color = Color(0xFF8B7355),
-                        fontSize = 11.sp
-                    )
-                }
+            Text("← ", color = ImperialGold, fontSize = 22.sp, modifier = Modifier.clickable { onBack() })
+            Column {
+                Text("御前 AI 引擎设置", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("官方模型 / OpenRouter / 自定义中转站", color = Color(0xFF8B7355), fontSize = 11.sp)
             }
         }
 
-        // API Key输入（MOCK不需要）
+        InfoBox(
+            title = "当前策略",
+            body = "Mock 可离线测试；OpenAI / OpenRouter / 自定义 OpenAI-compatible 已接入。中转站只要兼容 /chat/completions，就能填 Base URL + 模型名使用。"
+        )
+
+        SectionTitle("一、选择模型通道")
+        AiProviderType.entries.forEach { provider ->
+            ProviderCard(
+                provider = provider,
+                selected = selectedProvider == provider,
+                onClick = {
+                    selectedProvider = provider
+                    if (provider == AiProviderType.OPENAI && modelName.isBlank()) modelName = "gpt-4o"
+                    if (provider == AiProviderType.OPENROUTER && modelName.isBlank()) modelName = "anthropic/claude-3.5-sonnet"
+                    if (provider == AiProviderType.CUSTOM && baseUrl.isBlank()) baseUrl = "https://你的中转站域名/v1"
+                }
+            )
+        }
+
         if (selectedProvider != AiProviderType.MOCK) {
-            OutlinedTextField(
+            SectionTitle("二、接口参数")
+            StyledTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key", color = Color(0xFF8B7355)) },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ImperialGold,
-                    unfocusedBorderColor = Color(0xFF4A3728),
-                    focusedTextColor = XuanCream,
-                    unfocusedTextColor = XuanCream
-                ),
-                singleLine = true
+                label = "API Key",
+                placeholder = "sk-...",
+                isPassword = true
             )
 
-            // 自定义模型名（OpenRouter/Custom需要）
-            if (selectedProvider == AiProviderType.OPENROUTER || selectedProvider == AiProviderType.CUSTOM) {
-                OutlinedTextField(
-                    value = customModel,
-                    onValueChange = { customModel = it },
-                    label = { Text("模型名 / Base URL", color = Color(0xFF8B7355)) },
-                    placeholder = { Text("如：anthropic/claude-sonnet-4-6", color = Color(0xFF5A4A38)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ImperialGold,
-                        unfocusedBorderColor = Color(0xFF4A3728),
-                        focusedTextColor = XuanCream,
-                        unfocusedTextColor = XuanCream
-                    ),
-                    singleLine = true
-                )
+            when (selectedProvider) {
+                AiProviderType.OPENAI -> {
+                    StyledTextField(modelName, { modelName = it }, "模型名", "gpt-4o / gpt-4.1 / 你的可用模型")
+                    HintText("官方地址固定为 https://api.openai.com/v1/chat/completions")
+                }
+                AiProviderType.OPENROUTER -> {
+                    StyledTextField(modelName, { modelName = it }, "模型名", "anthropic/claude-3.5-sonnet / openai/gpt-4o / deepseek/deepseek-chat")
+                    HintText("OpenRouter 地址固定为 https://openrouter.ai/api/v1/chat/completions")
+                }
+                AiProviderType.CUSTOM -> {
+                    StyledTextField(baseUrl, { baseUrl = it }, "Base URL", "https://你的中转站域名/v1")
+                    StyledTextField(modelName, { modelName = it }, "模型名", "中转站给你的模型名，如 gpt-4o / claude-3-5-sonnet / deepseek-chat")
+                    HintText("系统会自动请求：Base URL + /chat/completions。若你直接填完整 /chat/completions，也能识别。")
+                }
+                AiProviderType.CLAUDE -> {
+                    HintText("Claude 官方通道当前使用 Anthropic Messages 接口。模型名暂固定，后续会开放选择。")
+                }
+                AiProviderType.GEMINI -> {
+                    HintText("Gemini 官方接口还在排期；现在可用自定义 OpenAI-compatible 中转接 Gemini。")
+                }
+                AiProviderType.MOCK -> Unit
             }
 
-            Text(
-                "⚠ API Key仅存储于本机，不上传服务器",
-                color = Color(0xFF5A8A5A),
-                fontSize = 11.sp
-            )
+            Text("API Key 只保存在本机状态，不写入 GitHub。", color = Color(0xFF5A8A5A), fontSize = 11.sp)
         }
 
+        SectionTitle("三、快速预设")
+        PresetRow(
+            onMock = { selectedProvider = AiProviderType.MOCK },
+            onOpenAi = { selectedProvider = AiProviderType.OPENAI; modelName = "gpt-4o" },
+            onOpenRouter = { selectedProvider = AiProviderType.OPENROUTER; modelName = "anthropic/claude-3.5-sonnet" },
+            onCustom = { selectedProvider = AiProviderType.CUSTOM; baseUrl = "https://你的中转站域名/v1"; modelName = "gpt-4o" }
+        )
+
         Button(
-            onClick = { onSave(selectedProvider, apiKey, customModel) },
-            modifier = Modifier.fillMaxWidth().height(44.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ImperialRed)
+            onClick = {
+                val savedModel = if (selectedProvider == AiProviderType.CUSTOM) "${baseUrl.trim()}|${modelName.trim()}" else modelName.trim()
+                onSave(selectedProvider, apiKey.trim(), savedModel)
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = ImperialRed),
+            shape = RoundedCornerShape(8.dp)
         ) {
-            Text("保存设置", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("保存并启用", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+private fun InfoBox(title: String, body: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF120D07)),
+        border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, color = ImperialGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(body, color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+    }
+}
+
+@Composable
+private fun ProviderCard(provider: AiProviderType, selected: Boolean, onClick: () -> Unit) {
+    val borderColor = if (selected) ImperialGold else Color(0xFF3A2A1A)
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
+            .border(if (selected) 1.dp else 0.5.dp, borderColor, RoundedCornerShape(8.dp))
+            .background(if (selected) Color(0xFF1E1508) else Color(0xFF0D0A04), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = ImperialGold))
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(provider.displayName, color = XuanCream, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(providerDescription(provider), color = Color(0xFF8B7355), fontSize = 11.sp)
+        }
+    }
+}
+
+private fun providerDescription(provider: AiProviderType): String = when (provider) {
+    AiProviderType.CLAUDE -> "官方 Anthropic，适合圣旨理解和群臣辩论"
+    AiProviderType.OPENAI -> "官方 OpenAI-compatible，已接入 /chat/completions"
+    AiProviderType.GEMINI -> "官方 Gemini 排期中，可先用中转站"
+    AiProviderType.OPENROUTER -> "聚合路由，便宜模型和多模型可选"
+    AiProviderType.CUSTOM -> "自定义 OpenAI-compatible 中转站，最适合便宜接口"
+    AiProviderType.MOCK -> "无需 Key，本地模拟，开发测试最稳"
+}
+
+@Composable
+private fun StyledTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    isPassword: Boolean = false
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, color = Color(0xFF8B7355)) },
+        placeholder = { Text(placeholder, color = Color(0xFF5A4A38), fontSize = 12.sp) },
+        modifier = Modifier.fillMaxWidth(),
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = ImperialGold,
+            unfocusedBorderColor = Color(0xFF4A3728),
+            focusedTextColor = XuanCream,
+            unfocusedTextColor = XuanCream,
+            cursorColor = ImperialGold
+        ),
+        singleLine = true
+    )
+}
+
+@Composable
+private fun HintText(text: String) {
+    Text(text, color = Color(0xFF8B7355), fontSize = 11.sp, lineHeight = 16.sp)
+}
+
+@Composable
+private fun PresetRow(onMock: () -> Unit, onOpenAi: () -> Unit, onOpenRouter: () -> Unit, onCustom: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PresetButton("Mock离线", Modifier.weight(1f), onMock)
+            PresetButton("OpenAI", Modifier.weight(1f), onOpenAi)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PresetButton("OpenRouter", Modifier.weight(1f), onOpenRouter)
+            PresetButton("中转站", Modifier.weight(1f), onCustom)
+        }
+    }
+}
+
+@Composable
+private fun PresetButton(text: String, modifier: Modifier, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.5f)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)
+    ) { Text(text, fontSize = 12.sp) }
 }
