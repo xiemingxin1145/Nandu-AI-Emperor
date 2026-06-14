@@ -27,32 +27,24 @@ Starting a Gradle Daemon (subsequent builds will be faster)
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:javaPreCompileDebug
+> Task :app:processDebugManifestForPackage
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
-> Task :app:desugarDebugFileDependencies
-> Task :app:mergeDebugJniLibFolders
-> Task :app:checkDebugDuplicateClasses
-> Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:processDebugManifestForPackage
-> Task :app:mergeExtDexDebug
-> Task :app:stripDebugDebugSymbols NO-SOURCE
-> Task :app:mergeLibDexDebug
 > Task :app:processDebugResources
-> Task :app:validateSigningDebug
-> Task :app:writeDebugAppMetadata
-> Task :app:writeDebugSigningConfigVersions
+> Task :app:checkDebugDuplicateClasses
+> Task :app:desugarDebugFileDependencies
 
-> Task :app:compileDebugKotlin FAILED
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:78:32 Unresolved reference: dp
+> Task :app:compileDebugKotlin
 e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:131:24 Type mismatch: inferred type is Unit but CityContext was expected
 e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:131:43 Unresolved reference: CityContext
 e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:132:29 Type mismatch: inferred type is Unit but OfficerContext was expected
 e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:134:20 Unresolved reference: OfficerContext
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/screens/MapScreen.kt:140:21 Unresolved reference: drawIntoCanvas
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/screens/MapScreen.kt:140:38 Cannot infer a type for this parameter. Please specify it explicitly.
+
+> Task :app:mergeExtDexDebug
+> Task :app:compileDebugKotlin FAILED
 
 FAILURE: Build failed with an exception.
 
@@ -260,4 +252,4 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 
 
 BUILD FAILED in 2m 11s
-27 actionable tasks: 27 executed
+22 actionable tasks: 22 executed
