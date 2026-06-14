@@ -2,7 +2,6 @@ package com.xiemingxin.nandu.ai
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
 import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -88,7 +87,7 @@ yue_fei忠烈主战铿锵 qin_hui主和阴柔暗指风险 zhao_ding稳重理财�
                 .removePrefix("```json").removePrefix("```")
                 .removeSuffix("```").trim()
 
-            val result = Json.decodeFromString<EdictResult>(cleanJson)
+            val result = json.decodeFromString(EdictResult.serializer(), cleanJson)
 
             Result.success(result.copy(
                 commands = result.commands.filter { EdictCommand.isValid(it.type) }
