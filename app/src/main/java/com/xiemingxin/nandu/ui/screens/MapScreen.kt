@@ -29,6 +29,7 @@ import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
 import com.xiemingxin.nandu.game.MapNode
+import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.WeatherType
 import com.xiemingxin.nandu.ui.theme.ImperialGold
@@ -110,6 +111,8 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                 drawCityIcon(screen, r, mainColor, node.isCapital, isJin, isFrontline)
                 drawCityName(node.name, screen, r, zoom)
             }
+
+            drawCommandFlags(gameState, cameraX, cameraY, zoom)
             drawWeatherParticles(gameState.weather, weatherPhase)
         }
 
@@ -123,7 +126,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             LegendRow(JinRed, "■", "金占")
             LegendRow(Color(0xFF68B7E8), "━", "水路")
             LegendRow(Color(0xFFD0A66A), "━", "陆路")
-            LegendRow(Color(0xFFB08A54), "┅", "山道")
+            LegendRow(ImperialGold, "⚑", "军旗")
         }
         selectedId?.let { id ->
             MapData.nodeMap[id]?.let { node ->
@@ -140,6 +143,66 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
             Text(gameState.calendar.displayText(), color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Text("${gameState.season.label} · ${gameState.weather.label}", color = Color(0xFFC6A96C), fontSize = 10.sp)
         }
+    }
+}
+
+private fun DrawScope.drawCommandFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
+    val cityMap = gameState.cities.associateBy { it.id }
+
+    gameState.cities.filter { it.owner == "jin" && it.troops > 0 }.forEach { city ->
+        val node = MapData.nodeMap[city.id] ?: return@forEach
+        val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
+        drawArmyFlag(Offset(base.x - 26f, base.y - 32f), "金", JinRed, 0.90f)
+    }
+
+    gameState.officers
+        .filter { it.status != OfficerStatus.DISMISSED && it.status != OfficerStatus.DECEASED }
+        .groupBy { it.currentCityId }
+        .forEach { (cityId, officers) ->
+            val node = MapData.nodeMap[cityId] ?: return@forEach
+            val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
+            val city = cityMap[cityId]
+            officers.take(4).forEachIndexed { index, officer ->
+                val dx = 22f + (index % 2) * 24f
+                val dy = -34f - (index / 2) * 20f
+                val color = when {
+                    officer.faction.contains("主和") -> Color(0xFFB88935)
+                    city?.owner == "jin" -> Color(0xFF8CCBFF)
+                    else -> SongBright
+                }
+                val label = officer.name.take(1)
+                drawArmyFlag(Offset(base.x + dx, base.y + dy), label, color, 0.82f)
+            }
+        }
+}
+
+private fun DrawScope.drawArmyFlag(origin: Offset, label: String, color: Color, scale: Float) {
+    val h = 28f * scale
+    val w = 24f * scale
+    drawLine(Color(0xFF1A1208), origin, Offset(origin.x, origin.y + h), strokeWidth = 2.4f * scale, cap = StrokeCap.Round)
+    val banner = Path().apply {
+        moveTo(origin.x, origin.y)
+        lineTo(origin.x + w, origin.y + 5f * scale)
+        lineTo(origin.x + w * 0.70f, origin.y + 14f * scale)
+        lineTo(origin.x, origin.y + 12f * scale)
+        close()
+    }
+    drawPath(banner, color.copy(alpha = 0.96f))
+    drawPath(banner, Color.Black.copy(alpha = 0.45f), style = Stroke(width = 1.1f * scale))
+    drawFlagLabel(label, Offset(origin.x + w * 0.48f, origin.y + 11f * scale), scale)
+}
+
+private fun DrawScope.drawFlagLabel(label: String, center: Offset, scale: Float) {
+    drawIntoCanvas { canvas ->
+        val p = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 10f * scale
+            isAntiAlias = true
+            textAlign = android.graphics.Paint.Align.CENTER
+            isFakeBoldText = true
+            setShadowLayer(2f, 0f, 1f, android.graphics.Color.argb(180, 0, 0, 0))
+        }
+        canvas.nativeCanvas.drawText(label, center.x, center.y, p)
     }
 }
 
