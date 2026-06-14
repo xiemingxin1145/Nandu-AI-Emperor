@@ -2,10 +2,6 @@ package com.xiemingxin.nandu.ai
 
 import kotlinx.coroutines.delay
 
-/**
- * MockProvider — 不需要API Key，用于开发和UI调试
- * 根据关键词返回预设响应，让界面可以离线跑通
- */
 class MockProvider : AiProvider {
 
     override val providerType = AiProviderType.MOCK
@@ -15,48 +11,51 @@ class MockProvider : AiProvider {
         edictText: String,
         gameContext: GameContext
     ): Result<EdictResult> {
-        delay(800) // 模拟网络延迟
+        delay(800)
 
-        // 简单关键词检测
         val text = edictText
         val commands = mutableListOf<EdictCommand>()
         val responses = mutableListOf<NpcResponse>()
         val risks = mutableListOf<String>()
 
-        // 调兵检测
+        if (text.contains("寻访") || text.contains("访才") || text.contains("搜索") || text.contains("找人") || text.contains("招募") || text.contains("在野") || text.contains("人才")) {
+            val cityId = when {
+                text.contains("襄阳") -> "xiangyang"
+                text.contains("建康") -> "jiankang"
+                text.contains("兴元") || text.contains("川陕") -> "xinguan"
+                text.contains("淮") -> "huaihe"
+                text.contains("临安") -> "linan"
+                text.contains("开封") -> "kaifeng"
+                else -> ""
+            }
+            val officerId = when {
+                text.contains("岳飞") -> "yue_fei"
+                text.contains("韩世忠") -> "han_shizhong"
+                text.contains("吴玠") -> "wu_jie"
+                text.contains("刘锜") -> "liu_qi"
+                text.contains("宗泽") -> "zong_ze"
+                text.contains("秦桧") -> "qin_hui"
+                else -> ""
+            }
+            commands.add(EdictCommand(type = "assign_officer", officerId = officerId, cityId = cityId, role = "search", amount = 3000))
+            responses.add(NpcResponse("zhao_ding", "support", "乱世用人，不可只看旧名册。臣请遣使入军中、乡里、流民营访求可造之才。"))
+        }
+
         if (text.contains("岳飞") && (text.contains("出兵") || text.contains("北伐") || text.contains("进兵"))) {
-            commands.add(EdictCommand(
-                type = "dispatch_army",
-                officerId = "yue_fei",
-                fromCityId = "ezhou",
-                toCityId = "xiangyang",
-                troops = 30000
-            ))
-            responses.add(NpcResponse("yue_fei", "support",
-                "臣请即刻整军，若粮道不绝，襄阳可图，直捣黄龙亦非妄言。"))
+            commands.add(EdictCommand(type = "dispatch_army", officerId = "yue_fei", fromCityId = "ezhou", toCityId = "xiangyang", troops = 30000))
+            responses.add(NpcResponse("yue_fei", "support", "臣请整军听命，若粮道不绝，可进取襄汉。"))
             risks.add("grain_pressure")
             risks.add("jin_retaliation")
         }
 
         if (text.contains("韩世忠") && (text.contains("守") || text.contains("水路") || text.contains("建康"))) {
-            commands.add(EdictCommand(
-                type = "assign_officer",
-                officerId = "han_shizhong",
-                cityId = "jiankang",
-                role = "defender"
-            ))
-            responses.add(NpcResponse("han_shizhong", "support",
-                "陛下放心，长江水路有臣在，金人休想南渡半步！"))
+            commands.add(EdictCommand(type = "assign_officer", officerId = "han_shizhong", cityId = "jiankang", role = "defender"))
+            responses.add(NpcResponse("han_shizhong", "support", "臣愿守江防。"))
         }
 
         if (text.contains("秦桧") && (text.contains("贬") || text.contains("压") || text.contains("退") || text.contains("闭嘴"))) {
-            commands.add(EdictCommand(
-                type = "suppress_officer",
-                officerId = "qin_hui",
-                severity = "medium"
-            ))
-            responses.add(NpcResponse("qin_hui", "oppose",
-                "陛下轻启边衅，恐金廷震怒再度南侵，江南百姓不堪其苦，望陛下三思。"))
+            commands.add(EdictCommand(type = "suppress_officer", officerId = "qin_hui", severity = "medium"))
+            responses.add(NpcResponse("qin_hui", "oppose", "臣以为当慎动兵戈。"))
             risks.add("court_backlash")
         }
 
@@ -69,27 +68,22 @@ class MockProvider : AiProvider {
                 else -> "jiankang"
             }
             commands.add(EdictCommand(type = "repair_city", cityId = cityId, resourceFocus = "defense"))
-            responses.add(NpcResponse("zhao_ding", "support",
-                "修缮城防乃固本之举，臣以为可行，然须计算工料所费。"))
+            responses.add(NpcResponse("zhao_ding", "support", "修缮城防乃固本之举。"))
         }
 
         if (text.contains("筹粮") || text.contains("粮草") || text.contains("军粮")) {
             commands.add(EdictCommand(type = "raise_grain", officerId = "zhao_ding", amount = 100000, deadlineTurns = 3))
-            responses.add(NpcResponse("zhao_ding", "concerned",
-                "筹粮可行，然三旬之期颇紧，若强征恐扰民心，臣当尽力周旋。"))
+            responses.add(NpcResponse("zhao_ding", "concerned", "筹粮可行，然须防扰民。"))
             risks.add("grain_pressure")
         }
 
-        // 默认响应（解析不出命令时）
         if (commands.isEmpty()) {
             return Result.success(EdictResult(
                 summary = "陛下之旨意尚待厘清",
                 commands = emptyList(),
-                npcResponses = listOf(
-                    NpcResponse("li_gang", "neutral", "臣请陛下明示，旨意所指，臣等方可奉行。")
-                ),
+                npcResponses = listOf(NpcResponse("li_gang", "neutral", "臣请陛下明示，旨意所指，臣等方可奉行。")),
                 clarificationNeeded = true,
-                clarificationHint = "可尝试：命岳飞出兵、命韩世忠守建康、修城、筹粮"
+                clarificationHint = "可尝试：寻访岳飞、访求襄阳人才、命韩世忠守建康、修城、筹粮"
             ))
         }
 
