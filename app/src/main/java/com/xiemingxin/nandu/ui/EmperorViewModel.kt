@@ -15,6 +15,7 @@ import com.xiemingxin.nandu.ai.OfficerContext
 import com.xiemingxin.nandu.ai.OpenAiProvider
 import com.xiemingxin.nandu.ai.OpenRouterProvider
 import com.xiemingxin.nandu.game.GameRuleEngine
+import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +31,9 @@ data class UiState(
     val errorMessage: String? = null,
     val providerType: AiProviderType = AiProviderType.MOCK,
     val apiKey: String = "",
-    val customModel: String = ""
+    val customModel: String = "",
+    val saveCode: String = "",
+    val saveMessage: String = ""
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -95,6 +98,33 @@ class EmperorViewModel : ViewModel() {
 
     fun dismissResult() {
         _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE)
+    }
+
+    fun exportSaveCode() {
+        val code = GameSaveCodec.export(_uiState.value.gameState)
+        _uiState.value = _uiState.value.copy(
+            saveCode = code,
+            saveMessage = "存档码已生成，复制保存即可。"
+        )
+    }
+
+    fun importSaveCode(code: String) {
+        GameSaveCodec.import(code).fold(
+            onSuccess = { loaded ->
+                _uiState.value = _uiState.value.copy(
+                    gameState = loaded,
+                    saveCode = code.trim(),
+                    saveMessage = "读档成功：${loaded.calendar.displayText()}。",
+                    phase = GamePhase.IDLE,
+                    lastEdictResult = null,
+                    lastOutcomes = emptyList(),
+                    lastRejected = emptyList()
+                )
+            },
+            onFailure = { error ->
+                _uiState.value = _uiState.value.copy(saveMessage = "读档失败：${error.message ?: "存档码损坏"}")
+            }
+        )
     }
 
     private fun parseCustomConfig(value: String): Pair<String, String> {
