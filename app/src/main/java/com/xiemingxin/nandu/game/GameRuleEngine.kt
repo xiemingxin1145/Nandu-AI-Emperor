@@ -18,7 +18,7 @@ data class Officer(
     val status: OfficerStatus = OfficerStatus.IN_COURT
 )
 
-enum class OfficerStatus { IN_COURT, DEPLOYED, DISMISSED, DECEASED }
+enum class OfficerStatus { HIDDEN, SOLDIER, WANDERING, IN_COURT, DEPLOYED, DISMISSED, DECEASED }
 
 data class City(
     val id: String,
@@ -196,7 +196,7 @@ object GameRuleEngine {
                         currentState = result.first
                         outcomes.add(result.second!!)
                     } else {
-                        rejected.add("【调兵失败】兵力不足、城池不存在或将领不可用。")
+                        rejected.add("【调兵失败】兵力不足、城池不存在、将领未被朝廷登记或正在行军。")
                     }
                 }
                 "assign_officer" -> {
@@ -276,12 +276,14 @@ object GameRuleEngine {
 
     private fun executeDispatchArmy(state: GameState, cmd: EdictCommand): Pair<GameState, String?> {
         val officer = state.officers.find { it.id == cmd.officerId } ?: return state to null
+        if (officer.status != OfficerStatus.IN_COURT && officer.status != OfficerStatus.DEPLOYED) return state to null
         val fromCity = state.cities.find { it.id == cmd.fromCityId } ?: return state to null
         val toCity = state.cities.find { it.id == cmd.toCityId } ?: return state to null
         val actualTroops = cmd.troops.coerceAtMost(fromCity.troops - 5000)
         if (actualTroops <= 0) return state to null
-
         val existingArmy = state.armies.find { it.commanderId == officer.id }
+        if (existingArmy?.status?.contains("进军") == true) return state to null
+
         val armyType = existingArmy?.armyType ?: "field_army"
         val marchDays = estimateMarchDays(cmd.fromCityId, cmd.toCityId, armyType, state.season, state.weather)
         val weatherDelay = when (state.weather) {
@@ -402,10 +404,7 @@ object GameRuleEngine {
                         marchDaysRemaining = 0
                     )
                 } else {
-                    army.copy(
-                        status = "进军·余${remaining}天",
-                        marchDaysRemaining = remaining
-                    )
+                    army.copy(status = "进军·余${remaining}天", marchDaysRemaining = remaining)
                 }
             }
         }
@@ -413,25 +412,60 @@ object GameRuleEngine {
     }
 
     private fun executeAssignOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
-        val officer = state.officers.find { it.id == cmd.officerId } ?: return state to "【任命失败】未找到武将。"
+        if (cmd.role == "search" || cmd.officerId.isBlank()) return executeTalentSearch(state, cmd)
+        val officer = state.officers.find { it.id == cmd.officerId } ?: return state to "【任命失败】未找到此人。"
         val city = state.cities.find { it.id == cmd.cityId } ?: return state to "【任命失败】未找到城池。"
+        if (officer.status == OfficerStatus.HIDDEN || officer.status == OfficerStatus.SOLDIER || officer.status == OfficerStatus.WANDERING) {
+            return executeTalentSearch(state, cmd)
+        }
         val newOfficers = state.officers.map {
             if (it.id == cmd.officerId) it.copy(currentCityId = cmd.cityId, status = OfficerStatus.DEPLOYED) else it
         }
         val newArmies = if (state.armies.any { it.commanderId == officer.id }) {
             state.armies.map {
-                if (it.commanderId == officer.id) it.copy(
-                    currentCityId = cmd.cityId,
-                    supplyCityId = cmd.cityId,
-                    status = "驻防",
-                    targetCityId = "",
-                    routeFromCityId = "",
-                    marchDaysTotal = 0,
-                    marchDaysRemaining = 0
-                ) else it
+                if (it.commanderId == officer.id) it.copy(currentCityId = cmd.cityId, supplyCityId = cmd.cityId, status = "驻防", targetCityId = "", routeFromCityId = "", marchDaysTotal = 0, marchDaysRemaining = 0) else it
             }
         } else state.armies
         return state.copy(officers = newOfficers, armies = newArmies) to "【任命】${officer.name}奉命赴${city.name}，职掌${cmd.role.ifEmpty { "守备" }}。"
+    }
+
+    private fun executeTalentSearch(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
+        val cost = (cmd.amount.takeIf { it > 0 } ?: 3000).coerceIn(1000, 20000)
+        if (state.gold < cost) return state to "【寻访失败】国库不足，无法派出访才使。"
+        val hiddenStatuses = setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING)
+        val targetPool = state.officers.filter { officer ->
+            officer.status in hiddenStatuses &&
+                (cmd.officerId.isBlank() || officer.id == cmd.officerId) &&
+                (cmd.cityId.isBlank() || officer.currentCityId == cmd.cityId)
+        }.ifEmpty {
+            state.officers.filter { officer -> officer.status in hiddenStatuses && (cmd.officerId.isBlank() || officer.id == cmd.officerId) }
+        }
+        if (targetPool.isEmpty()) {
+            return state.copy(gold = state.gold - cost) to "【寻访】使者遍访军营乡里，未得可用之才，耗资${cost}贯。"
+        }
+        val seed = state.turn * 37 + cmd.cityId.hashCode() * 3 + cmd.officerId.hashCode() * 7 + state.calendar.month * 11
+        val roll = (seed and Int.MAX_VALUE) % 100
+        val threshold = if (cmd.officerId.isNotBlank()) 82 else 48
+        val chosen = targetPool[(seed and Int.MAX_VALUE) % targetPool.size]
+        if (roll > threshold) {
+            val hintCity = state.cities.find { it.id == chosen.currentCityId }?.name ?: chosen.currentCityId
+            return state.copy(gold = state.gold - cost) to "【寻访】访才使得线索：$hintCity 一带似有可造之才，但此番未能请至御前，耗资${cost}贯。"
+        }
+        val newOfficers = state.officers.map {
+            if (it.id == chosen.id) it.copy(status = OfficerStatus.IN_COURT, faction = when (it.id) {
+                "yue_fei", "liu_qi" -> "新锐武将"
+                "han_shizhong", "wu_jie" -> "武将派"
+                "qin_hui" -> "文臣派"
+                else -> it.faction
+            }) else it
+        }
+        val cityName = state.cities.find { it.id == chosen.currentCityId }?.name ?: chosen.currentCityId
+        val origin = when (chosen.status) {
+            OfficerStatus.SOLDIER -> "军中低阶之人"
+            OfficerStatus.WANDERING -> "流落未仕之士"
+            else -> "民间未登记之才"
+        }
+        return state.copy(gold = state.gold - cost, officers = newOfficers) to "【寻访得才】访才使在${cityName}寻得${origin}：${chosen.name}。此人已录入御前名册，可听候任用，耗资${cost}贯。"
     }
 
     private fun executeRepairCity(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
@@ -450,10 +484,7 @@ object GameRuleEngine {
         val amount = cmd.amount.coerceIn(10000, 500000)
         val seasonBonus = if (state.season == Season.AUTUMN) amount / 10 else 0
         val stabilityPenalty = if (amount > 100000) -8 else -3
-        return state.copy(
-            grain = state.grain + amount / 2 + seasonBonus,
-            courtStability = (state.courtStability + stabilityPenalty).coerceIn(0, 100)
-        ) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2 + seasonBonus}石，朝堂稳定${stabilityPenalty}。"
+        return state.copy(grain = state.grain + amount / 2 + seasonBonus, courtStability = (state.courtStability + stabilityPenalty).coerceIn(0, 100)) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2 + seasonBonus}石，朝堂稳定${stabilityPenalty}。"
     }
 
     private fun executeSuppressOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
@@ -464,12 +495,7 @@ object GameRuleEngine {
         val newOfficers = state.officers.map {
             if (it.id == cmd.officerId && cmd.severity == "severe") it.copy(status = OfficerStatus.DISMISSED) else it
         }
-        return state.copy(
-            officers = newOfficers,
-            courtStability = (state.courtStability + stabilityChange).coerceIn(0, 100),
-            warFactionPower = (state.warFactionPower + factionShift).coerceIn(0, 100),
-            peaceFactionPower = (state.peaceFactionPower - factionShift).coerceIn(0, 100)
-        ) to "【处置】${officer.name}遭御前压制，朝堂稳定${stabilityChange}，主战派声势+${factionShift}。"
+        return state.copy(officers = newOfficers, courtStability = (state.courtStability + stabilityChange).coerceIn(0, 100), warFactionPower = (state.warFactionPower + factionShift).coerceIn(0, 100), peaceFactionPower = (state.peaceFactionPower - factionShift).coerceIn(0, 100)) to "【处置】${officer.name}遭御前压制，朝堂稳定${stabilityChange}，主战派声势+${factionShift}。"
     }
 
     private fun executeRewardOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
