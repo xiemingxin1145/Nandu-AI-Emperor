@@ -3,10 +3,6 @@ package com.xiemingxin.nandu.game
 import com.xiemingxin.nandu.ai.EdictCommand
 import com.xiemingxin.nandu.ai.EdictResult
 
-// ══════════════════════════════════════════════
-//  数据模型
-// ══════════════════════════════════════════════
-
 data class Officer(
     val id: String,
     val name: String,
@@ -32,6 +28,31 @@ data class City(
     val gold: Int,
     val popularSupport: Int = 80,
     val controlState: String = "STABLE"
+)
+
+data class Faction(
+    val id: String,
+    val name: String,
+    val shortName: String,
+    val rulerName: String,
+    val capitalCityId: String,
+    val stance: String,
+    val isPlayable: Boolean = false
+)
+
+data class Army(
+    val id: String,
+    val name: String,
+    val ownerFactionId: String,
+    val commanderId: String,
+    val homeCityId: String,
+    val currentCityId: String,
+    val troops: Int,
+    val morale: Int,
+    val armyType: String,
+    val supplyCityId: String,
+    val status: String = "驻防",
+    val targetCityId: String = ""
 )
 
 enum class Season(val label: String, val effectText: String) {
@@ -83,12 +104,7 @@ data class GameCalendar(
             copy(month = month + 1, tenDay = 1)
         } else {
             val nextYear = year + 1
-            GameCalendar(
-                eraName = "建炎${chineseYear(nextYear)}年",
-                year = nextYear,
-                month = 1,
-                tenDay = 1
-            )
+            GameCalendar("建炎${chineseYear(nextYear)}年", nextYear, 1, 1)
         }
     }
 
@@ -109,28 +125,14 @@ data class GameCalendar(
 
 object WeatherSystem {
     fun generate(calendar: GameCalendar, turn: Int): WeatherType {
-        val season = calendar.season()
-        val candidates = when (season) {
-            Season.SPRING -> listOf(
-                WeatherType.RAIN, WeatherType.CLEAR, WeatherType.FOG,
-                WeatherType.CLEAR, WeatherType.RAIN, WeatherType.STORM
-            )
-            Season.SUMMER -> listOf(
-                WeatherType.CLEAR, WeatherType.RAIN, WeatherType.STORM,
-                WeatherType.STORM, WeatherType.WIND, WeatherType.CLEAR
-            )
-            Season.AUTUMN -> listOf(
-                WeatherType.CLEAR, WeatherType.CLEAR, WeatherType.WIND,
-                WeatherType.FOG, WeatherType.RAIN, WeatherType.CLEAR
-            )
-            Season.WINTER -> listOf(
-                WeatherType.SNOW, WeatherType.CLEAR, WeatherType.WIND,
-                WeatherType.FOG, WeatherType.SNOW, WeatherType.CLEAR
-            )
+        val candidates = when (calendar.season()) {
+            Season.SPRING -> listOf(WeatherType.RAIN, WeatherType.CLEAR, WeatherType.FOG, WeatherType.CLEAR, WeatherType.RAIN, WeatherType.STORM)
+            Season.SUMMER -> listOf(WeatherType.CLEAR, WeatherType.RAIN, WeatherType.STORM, WeatherType.STORM, WeatherType.WIND, WeatherType.CLEAR)
+            Season.AUTUMN -> listOf(WeatherType.CLEAR, WeatherType.CLEAR, WeatherType.WIND, WeatherType.FOG, WeatherType.RAIN, WeatherType.CLEAR)
+            Season.WINTER -> listOf(WeatherType.SNOW, WeatherType.CLEAR, WeatherType.WIND, WeatherType.FOG, WeatherType.SNOW, WeatherType.CLEAR)
         }
         val seed = calendar.year * 37 + calendar.month * 11 + calendar.tenDay * 7 + turn * 13
-        val idx = (seed and Int.MAX_VALUE) % candidates.size
-        return candidates[idx]
+        return candidates[(seed and Int.MAX_VALUE) % candidates.size]
     }
 }
 
@@ -143,10 +145,6 @@ data class ChronicleEntry(
     val season: Season = Season.SPRING,
     val weather: WeatherType = WeatherType.RAIN
 )
-
-// ══════════════════════════════════════════════
-//  游戏状态
-// ══════════════════════════════════════════════
 
 data class GameState(
     val turn: Int = 1,
@@ -161,15 +159,12 @@ data class GameState(
     val jinThreat: Int = 70,
     val warFactionPower: Int = 50,
     val peaceFactionPower: Int = 50,
+    val factions: List<Faction> = InitialData.factions,
+    val armies: List<Army> = InitialData.armies,
     val officers: List<Officer> = InitialData.officers,
     val cities: List<City> = InitialData.cities,
     val chronicle: List<ChronicleEntry> = emptyList()
 )
-
-// ══════════════════════════════════════════════
-//  GameRuleEngine — 本地规则裁决
-//  AI不能直接改国运，必须过这里
-// ══════════════════════════════════════════════
 
 object GameRuleEngine {
 
@@ -179,11 +174,7 @@ object GameRuleEngine {
         val rejectedCommands: List<String>
     )
 
-    fun executeEdict(
-        state: GameState,
-        edictResult: EdictResult,
-        edictText: String
-    ): ExecutionResult {
+    fun executeEdict(state: GameState, edictResult: EdictResult, edictText: String): ExecutionResult {
         var currentState = state
         val outcomes = mutableListOf<String>()
         val rejected = mutableListOf<String>()
@@ -193,7 +184,6 @@ object GameRuleEngine {
                 rejected.add("【命令拒绝】未知命令：${command.type}")
                 continue
             }
-
             when (command.type) {
                 "dispatch_army" -> {
                     val result = executeDispatchArmy(currentState, command)
@@ -234,9 +224,7 @@ object GameRuleEngine {
                     currentState = result.first
                     outcomes.add(result.second)
                 }
-                "move_capital" -> {
-                    rejected.add("【迁都暂缓】迁都系统尚未开放。")
-                }
+                "move_capital" -> rejected.add("【迁都暂缓】迁都系统尚未开放。")
             }
         }
 
@@ -262,9 +250,7 @@ object GameRuleEngine {
             troopMorale = (currentState.troopMorale - weatherMoralePenalty).coerceIn(0, 100)
         )
 
-        outcomes.add(
-            "【天时】时序推进至${nextCalendar.displayText()}，${nextSeason.label}，天气${nextWeather.label}；${nextWeather.effectText}。"
-        )
+        outcomes.add("【天时】时序推进至${nextCalendar.displayText()}，${nextSeason.label}，天气${nextWeather.label}；${nextWeather.effectText}。")
 
         val entry = ChronicleEntry(
             turn = state.turn,
@@ -275,21 +261,14 @@ object GameRuleEngine {
             season = state.season,
             weather = state.weather
         )
-        currentState = currentState.copy(
-            chronicle = currentState.chronicle + entry
-        )
-
+        currentState = currentState.copy(chronicle = currentState.chronicle + entry)
         return ExecutionResult(currentState, outcomes, rejected)
     }
 
-    private fun executeDispatchArmy(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String?> {
+    private fun executeDispatchArmy(state: GameState, cmd: EdictCommand): Pair<GameState, String?> {
         val officer = state.officers.find { it.id == cmd.officerId } ?: return state to null
         val fromCity = state.cities.find { it.id == cmd.fromCityId } ?: return state to null
         val toCity = state.cities.find { it.id == cmd.toCityId } ?: return state to null
-
         val actualTroops = cmd.troops.coerceAtMost(fromCity.troops - 5000)
         if (actualTroops <= 0) return state to null
 
@@ -307,93 +286,90 @@ object GameRuleEngine {
                 else -> city
             }
         }
-
         val newOfficers = state.officers.map {
-            if (it.id == cmd.officerId) it.copy(currentCityId = cmd.toCityId, status = OfficerStatus.DEPLOYED)
-            else it
+            if (it.id == cmd.officerId) it.copy(currentCityId = cmd.toCityId, status = OfficerStatus.DEPLOYED) else it
+        }
+        val existingArmy = state.armies.find { it.commanderId == officer.id }
+        val newArmies = if (existingArmy != null) {
+            state.armies.map { army ->
+                if (army.id == existingArmy.id) army.copy(
+                    currentCityId = cmd.toCityId,
+                    targetCityId = cmd.toCityId,
+                    troops = actualTroops,
+                    morale = (army.morale + 3).coerceAtMost(100),
+                    supplyCityId = cmd.fromCityId,
+                    status = "进军"
+                ) else army
+            }
+        } else {
+            state.armies + Army(
+                id = "army_${officer.id}_${state.turn}",
+                name = "${officer.name}部",
+                ownerFactionId = fromCity.owner,
+                commanderId = officer.id,
+                homeCityId = cmd.fromCityId,
+                currentCityId = cmd.toCityId,
+                troops = actualTroops,
+                morale = (state.troopMorale + officer.loyalty / 10).coerceIn(30, 100),
+                armyType = "field_army",
+                supplyCityId = cmd.fromCityId,
+                status = "进军",
+                targetCityId = cmd.toCityId
+            )
         }
 
         val newState = state.copy(
             cities = newCities,
             officers = newOfficers,
+            armies = newArmies,
             troopMorale = (state.troopMorale + 5).coerceAtMost(100),
             jinThreat = (state.jinThreat + 5).coerceAtMost(100)
         )
-
-        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}驰往${toCity.name}，军心+5，金国警觉上升。"
+        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}驰往${toCity.name}，军团已入军籍，军心+5。"
     }
 
-    private fun executeAssignOfficer(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String> {
-        val officer = state.officers.find { it.id == cmd.officerId }
-            ?: return state to "【任命失败】未找到武将。"
-        val city = state.cities.find { it.id == cmd.cityId }
-            ?: return state to "【任命失败】未找到城池。"
-
+    private fun executeAssignOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
+        val officer = state.officers.find { it.id == cmd.officerId } ?: return state to "【任命失败】未找到武将。"
+        val city = state.cities.find { it.id == cmd.cityId } ?: return state to "【任命失败】未找到城池。"
         val newOfficers = state.officers.map {
-            if (it.id == cmd.officerId) it.copy(currentCityId = cmd.cityId, status = OfficerStatus.DEPLOYED)
-            else it
+            if (it.id == cmd.officerId) it.copy(currentCityId = cmd.cityId, status = OfficerStatus.DEPLOYED) else it
         }
-
-        return state.copy(officers = newOfficers) to
-            "【任命】${officer.name}奉命赴${city.name}，职掌${cmd.role.ifEmpty { "守备" }}。"
+        val newArmies = if (state.armies.any { it.commanderId == officer.id }) {
+            state.armies.map { if (it.commanderId == officer.id) it.copy(currentCityId = cmd.cityId, status = "驻防", targetCityId = "") else it }
+        } else state.armies
+        return state.copy(officers = newOfficers, armies = newArmies) to "【任命】${officer.name}奉命赴${city.name}，职掌${cmd.role.ifEmpty { "守备" }}。"
     }
 
-    private fun executeRepairCity(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String> {
-        val city = state.cities.find { it.id == cmd.cityId }
-            ?: return state to "【修城失败】未找到城池。"
-
+    private fun executeRepairCity(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
+        val city = state.cities.find { it.id == cmd.cityId } ?: return state to "【修城失败】未找到城池。"
         val cost = 8000
-        if (state.gold < cost) {
-            return state to "【修城失败】国库不足，需${cost}贯，现有${state.gold}贯。"
-        }
-
+        if (state.gold < cost) return state to "【修城失败】国库不足，需${cost}贯，现有${state.gold}贯。"
         val seasonBonus = if (state.season == Season.SPRING) 5 else 0
         val newCities = state.cities.map {
-            if (it.id == cmd.cityId) it.copy(defense = (it.defense + 15 + seasonBonus).coerceAtMost(100))
-            else it
+            if (it.id == cmd.cityId) it.copy(defense = (it.defense + 15 + seasonBonus).coerceAtMost(100)) else it
         }
-
-        return state.copy(cities = newCities, gold = state.gold - cost) to
-            "【修城】${city.name}城防加固，城防+${15 + seasonBonus}，耗资${cost}贯。"
+        return state.copy(cities = newCities, gold = state.gold - cost) to "【修城】${city.name}城防加固，城防+${15 + seasonBonus}，耗资${cost}贯。"
     }
 
-    private fun executeRaiseGrain(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String> {
+    private fun executeRaiseGrain(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
         val officer = state.officers.find { it.id == cmd.officerId }
         val amount = cmd.amount.coerceIn(10000, 500000)
         val seasonBonus = if (state.season == Season.AUTUMN) amount / 10 else 0
         val stabilityPenalty = if (amount > 100000) -8 else -3
-
         return state.copy(
             grain = state.grain + amount / 2 + seasonBonus,
             courtStability = (state.courtStability + stabilityPenalty).coerceIn(0, 100)
         ) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2 + seasonBonus}石，朝堂稳定${stabilityPenalty}。"
     }
 
-    private fun executeSuppressOfficer(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String> {
-        val officer = state.officers.find { it.id == cmd.officerId }
-            ?: return state to "【处置失败】未找到此人。"
-
+    private fun executeSuppressOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
+        val officer = state.officers.find { it.id == cmd.officerId } ?: return state to "【处置失败】未找到此人。"
         val isPeaceFaction = officer.faction == "主和派"
         val stabilityChange = if (cmd.severity == "severe") -15 else -8
         val factionShift = if (isPeaceFaction && cmd.severity != "light") 10 else 0
-
         val newOfficers = state.officers.map {
-            if (it.id == cmd.officerId && cmd.severity == "severe") it.copy(status = OfficerStatus.DISMISSED)
-            else it
+            if (it.id == cmd.officerId && cmd.severity == "severe") it.copy(status = OfficerStatus.DISMISSED) else it
         }
-
         return state.copy(
             officers = newOfficers,
             courtStability = (state.courtStability + stabilityChange).coerceIn(0, 100),
@@ -402,36 +378,16 @@ object GameRuleEngine {
         ) to "【处置】${officer.name}遭御前压制，朝堂稳定${stabilityChange}，主战派声势+${factionShift}。"
     }
 
-    private fun executeRewardOfficer(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String> {
-        val officer = state.officers.find { it.id == cmd.officerId }
-            ?: return state to "【赏赐失败】未找到武将。"
+    private fun executeRewardOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
+        val officer = state.officers.find { it.id == cmd.officerId } ?: return state to "【赏赐失败】未找到武将。"
         val cost = 5000
         if (state.gold < cost) return state to "【赏赐失败】国库不足。"
-
-        return state.copy(
-            gold = state.gold - cost,
-            troopMorale = (state.troopMorale + 3).coerceAtMost(100)
-        ) to "【赏赐】${officer.name}受赏，军心+3，耗资${cost}贯。"
+        return state.copy(gold = state.gold - cost, troopMorale = (state.troopMorale + 3).coerceAtMost(100)) to "【赏赐】${officer.name}受赏，军心+3，耗资${cost}贯。"
     }
 
-    private fun executePunishOfficer(
-        state: GameState,
-        cmd: EdictCommand
-    ): Pair<GameState, String> {
-        val officer = state.officers.find { it.id == cmd.officerId }
-            ?: return state to "【惩处失败】未找到此人。"
-
-        val newOfficers = state.officers.map {
-            if (it.id == cmd.officerId) it.copy(status = OfficerStatus.DISMISSED)
-            else it
-        }
-
-        return state.copy(
-            officers = newOfficers,
-            courtStability = (state.courtStability - 10).coerceIn(0, 100)
-        ) to "【惩处】${officer.name}被罢黜，朝堂稳定-10。"
+    private fun executePunishOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
+        val officer = state.officers.find { it.id == cmd.officerId } ?: return state to "【惩处失败】未找到此人。"
+        val newOfficers = state.officers.map { if (it.id == cmd.officerId) it.copy(status = OfficerStatus.DISMISSED) else it }
+        return state.copy(officers = newOfficers, courtStability = (state.courtStability - 10).coerceIn(0, 100)) to "【惩处】${officer.name}被罢黜，朝堂稳定-10。"
     }
 }
