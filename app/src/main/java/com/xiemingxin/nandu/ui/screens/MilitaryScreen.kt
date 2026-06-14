@@ -42,9 +42,9 @@ fun MilitaryScreen(gameState: GameState) {
     ) {
         item {
             PanelCard {
-                Text("军务府 V0.5", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("军务府 V0.5.4", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("军团已入正式状态。调兵圣旨会创建或移动军团，后续可接路线移动、补给线、会战推演。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("军团行军已按距离、兵种、季节、天气计算预计天数。每过一旬，行军天数自动扣减，归零后才抵达。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
         item {
@@ -68,7 +68,8 @@ fun MilitaryScreen(gameState: GameState) {
                     ArmyRow(
                         army = army,
                         commanderName = officerMap[army.commanderId]?.name ?: "无名统帅",
-                        cityName = cityMap[army.currentCityId]?.name ?: army.currentCityId
+                        cityName = cityMap[army.currentCityId]?.name ?: army.currentCityId,
+                        targetCityName = cityMap[army.targetCityId]?.name ?: army.targetCityId
                     )
                 }
             }
@@ -150,8 +151,9 @@ private fun GaugeLine(label: String, value: Int, color: Color) {
 }
 
 @Composable
-private fun ArmyRow(army: Army, commanderName: String, cityName: String) {
+private fun ArmyRow(army: Army, commanderName: String, cityName: String, targetCityName: String) {
     val color = if (army.ownerFactionId == "jin") JinRed else SongBright
+    val moving = army.status.contains("进军") && army.targetCityId.isNotBlank()
     Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(army.name, color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -159,6 +161,9 @@ private fun ArmyRow(army: Army, commanderName: String, cityName: String) {
         }
         Spacer(Modifier.height(3.dp))
         Text("统帅：$commanderName · 驻地：$cityName · 状态：${army.status}", color = XuanCream, fontSize = 11.sp)
+        if (moving) {
+            Text("目标：$targetCityName · 总程${army.marchDaysTotal}天 · 剩余${army.marchDaysRemaining}天", color = ImperialGold, fontSize = 10.sp)
+        }
         Text("类型：${army.armyType} · 士气：${army.morale} · 粮道：${army.supplyCityId}", color = Color(0xFF8B7355), fontSize = 10.sp)
     }
     Spacer(Modifier.height(8.dp))
