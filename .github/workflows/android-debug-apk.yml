@@ -27,20 +27,12 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          if ! ./gradlew assembleDebug 2>build_error.txt; then
-            echo "BUILD FAILED - error report:"
-            cat build_error.txt | grep -E "error:|Error |unresolved|Unresolved|expecting|None of the" | head -40
-            echo "---LAST 50---"
-            tail -50 build_error.txt
-            # 把错误写进仓库
-            git config user.email "ci@nandu.dev"
-            git config user.name "CI Bot"
-            cp build_error.txt last_build_error.txt
-            git add last_build_error.txt
-            git commit -m "ci: build error report [skip ci]" || true
-            git push || true
+          ./gradlew assembleDebug 2>&1 | tee /tmp/build.log || {
+            echo "=== KOTLIN ERRORS ==="
+            grep -E "^e: |error:|unresolved reference|None of the" /tmp/build.log | head -50
+            echo "::error::$(grep -E '^e: ' /tmp/build.log | head -5 | tr '\n' '|')"
             exit 1
-          fi
+          }
 
       - name: Upload APK
         if: success()
