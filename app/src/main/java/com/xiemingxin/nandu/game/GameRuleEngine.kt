@@ -2,6 +2,8 @@ package com.xiemingxin.nandu.game
 
 import com.xiemingxin.nandu.ai.EdictCommand
 import com.xiemingxin.nandu.ai.EdictResult
+import kotlin.math.ceil
+import kotlin.math.sqrt
 
 data class Officer(
     val id: String,
@@ -52,7 +54,10 @@ data class Army(
     val armyType: String,
     val supplyCityId: String,
     val status: String = "驻防",
-    val targetCityId: String = ""
+    val targetCityId: String = "",
+    val routeFromCityId: String = "",
+    val marchDaysTotal: Int = 0,
+    val marchDaysRemaining: Int = 0
 )
 
 enum class Season(val label: String, val effectText: String) {
@@ -250,7 +255,11 @@ object GameRuleEngine {
             troopMorale = (currentState.troopMorale - weatherMoralePenalty).coerceIn(0, 100)
         )
 
+        val march = advanceMarchingArmies(currentState, days = 10)
+        currentState = march.first
+
         outcomes.add("【天时】时序推进至${nextCalendar.displayText()}，${nextSeason.label}，天气${nextWeather.label}；${nextWeather.effectText}。")
+        outcomes.addAll(march.second)
 
         val entry = ChronicleEntry(
             turn = state.turn,
@@ -272,33 +281,35 @@ object GameRuleEngine {
         val actualTroops = cmd.troops.coerceAtMost(fromCity.troops - 5000)
         if (actualTroops <= 0) return state to null
 
+        val existingArmy = state.armies.find { it.commanderId == officer.id }
+        val armyType = existingArmy?.armyType ?: "field_army"
+        val marchDays = estimateMarchDays(cmd.fromCityId, cmd.toCityId, armyType, state.season, state.weather)
         val weatherDelay = when (state.weather) {
             WeatherType.STORM -> "暴雨泥泞，行军迟缓，"
             WeatherType.SNOW -> "风雪阻道，粮队艰难，"
             WeatherType.FOG -> "雾气弥漫，斥候难明，"
+            WeatherType.RAIN -> "道路湿滑，"
             else -> ""
         }
 
         val newCities = state.cities.map { city ->
-            when (city.id) {
-                cmd.fromCityId -> city.copy(troops = city.troops - actualTroops)
-                cmd.toCityId -> city.copy(troops = city.troops + actualTroops)
-                else -> city
-            }
+            if (city.id == cmd.fromCityId) city.copy(troops = city.troops - actualTroops) else city
         }
         val newOfficers = state.officers.map {
-            if (it.id == cmd.officerId) it.copy(currentCityId = cmd.toCityId, status = OfficerStatus.DEPLOYED) else it
+            if (it.id == cmd.officerId) it.copy(currentCityId = cmd.fromCityId, status = OfficerStatus.DEPLOYED) else it
         }
-        val existingArmy = state.armies.find { it.commanderId == officer.id }
         val newArmies = if (existingArmy != null) {
             state.armies.map { army ->
                 if (army.id == existingArmy.id) army.copy(
-                    currentCityId = cmd.toCityId,
+                    currentCityId = cmd.fromCityId,
                     targetCityId = cmd.toCityId,
+                    routeFromCityId = cmd.fromCityId,
                     troops = actualTroops,
                     morale = (army.morale + 3).coerceAtMost(100),
                     supplyCityId = cmd.fromCityId,
-                    status = "进军"
+                    status = "进军·余${marchDays}天",
+                    marchDaysTotal = marchDays,
+                    marchDaysRemaining = marchDays
                 ) else army
             }
         } else {
@@ -308,13 +319,16 @@ object GameRuleEngine {
                 ownerFactionId = fromCity.owner,
                 commanderId = officer.id,
                 homeCityId = cmd.fromCityId,
-                currentCityId = cmd.toCityId,
+                currentCityId = cmd.fromCityId,
                 troops = actualTroops,
                 morale = (state.troopMorale + officer.loyalty / 10).coerceIn(30, 100),
-                armyType = "field_army",
+                armyType = armyType,
                 supplyCityId = cmd.fromCityId,
-                status = "进军",
-                targetCityId = cmd.toCityId
+                status = "进军·余${marchDays}天",
+                targetCityId = cmd.toCityId,
+                routeFromCityId = cmd.fromCityId,
+                marchDaysTotal = marchDays,
+                marchDaysRemaining = marchDays
             )
         }
 
@@ -325,7 +339,77 @@ object GameRuleEngine {
             troopMorale = (state.troopMorale + 5).coerceAtMost(100),
             jinThreat = (state.jinThreat + 5).coerceAtMost(100)
         )
-        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}驰往${toCity.name}，军团已入军籍，军心+5。"
+        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}启程赴${toCity.name}，预计${marchDays}日抵达，军心+5。"
+    }
+
+    private fun estimateMarchDays(fromCityId: String, toCityId: String, armyType: String, season: Season, weather: WeatherType): Int {
+        val from = MapData.nodeMap[fromCityId] ?: return 30
+        val to = MapData.nodeMap[toCityId] ?: return 30
+        val dx = (from.worldX - to.worldX).toDouble()
+        val dy = (from.worldY - to.worldY).toDouble()
+        val mapDistance = sqrt(dx * dx + dy * dy)
+        val routeKm = mapDistance / 6.5
+        val baseSpeed = when {
+            armyType.contains("naval") -> 45.0
+            armyType.contains("cavalry") -> 36.0
+            armyType.contains("mountain") -> 21.0
+            else -> 26.0
+        }
+        val seasonFactor = when (season) {
+            Season.SPRING -> 1.0
+            Season.SUMMER -> 1.05
+            Season.AUTUMN -> 0.95
+            Season.WINTER -> 1.25
+        }
+        val weatherFactor = when (weather) {
+            WeatherType.CLEAR -> 1.0
+            WeatherType.RAIN -> 1.15
+            WeatherType.STORM -> 1.55
+            WeatherType.FOG -> 1.10
+            WeatherType.SNOW -> 1.40
+            WeatherType.WIND -> 1.05
+        }
+        val days = ceil(routeKm / baseSpeed * seasonFactor * weatherFactor).toInt()
+        return days.coerceIn(3, 120)
+    }
+
+    private fun advanceMarchingArmies(state: GameState, days: Int): Pair<GameState, List<String>> {
+        var cities = state.cities
+        var officers = state.officers
+        val outcomes = mutableListOf<String>()
+        val newArmies = state.armies.map { army ->
+            if (!army.status.contains("进军") || army.targetCityId.isBlank()) {
+                army
+            } else {
+                val remaining = (army.marchDaysRemaining - days).coerceAtLeast(0)
+                if (remaining == 0) {
+                    val targetCity = state.cities.find { it.id == army.targetCityId }
+                    val commander = state.officers.find { it.id == army.commanderId }
+                    cities = cities.map {
+                        if (it.id == army.targetCityId) it.copy(troops = it.troops + army.troops) else it
+                    }
+                    officers = officers.map {
+                        if (it.id == army.commanderId) it.copy(currentCityId = army.targetCityId, status = OfficerStatus.DEPLOYED) else it
+                    }
+                    outcomes.add("【军情】${commander?.name ?: army.name}所部抵达${targetCity?.name ?: army.targetCityId}，${army.troops}兵入城驻防。")
+                    army.copy(
+                        currentCityId = army.targetCityId,
+                        supplyCityId = army.targetCityId,
+                        status = "驻防",
+                        targetCityId = "",
+                        routeFromCityId = "",
+                        marchDaysTotal = 0,
+                        marchDaysRemaining = 0
+                    )
+                } else {
+                    army.copy(
+                        status = "进军·余${remaining}天",
+                        marchDaysRemaining = remaining
+                    )
+                }
+            }
+        }
+        return state.copy(cities = cities, officers = officers, armies = newArmies) to outcomes
     }
 
     private fun executeAssignOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
@@ -335,7 +419,17 @@ object GameRuleEngine {
             if (it.id == cmd.officerId) it.copy(currentCityId = cmd.cityId, status = OfficerStatus.DEPLOYED) else it
         }
         val newArmies = if (state.armies.any { it.commanderId == officer.id }) {
-            state.armies.map { if (it.commanderId == officer.id) it.copy(currentCityId = cmd.cityId, status = "驻防", targetCityId = "") else it }
+            state.armies.map {
+                if (it.commanderId == officer.id) it.copy(
+                    currentCityId = cmd.cityId,
+                    supplyCityId = cmd.cityId,
+                    status = "驻防",
+                    targetCityId = "",
+                    routeFromCityId = "",
+                    marchDaysTotal = 0,
+                    marchDaysRemaining = 0
+                ) else it
+            }
         } else state.armies
         return state.copy(officers = newOfficers, armies = newArmies) to "【任命】${officer.name}奉命赴${city.name}，职掌${cmd.role.ifEmpty { "守备" }}。"
     }
