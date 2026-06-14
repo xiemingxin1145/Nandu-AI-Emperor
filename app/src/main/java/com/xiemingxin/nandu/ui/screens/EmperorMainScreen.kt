@@ -20,6 +20,7 @@ import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
+import com.xiemingxin.nandu.BuildConfig
 import com.xiemingxin.nandu.ui.theme.*
 
 
@@ -119,8 +120,15 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
             HudStat("⚔", "${state.troopMorale}")
             HudStat("🏯", "${state.jinThreat}", if (state.jinThreat > 80) Color.Red else Color.White)
         }
-        IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
-            Text("⚙", fontSize = 16.sp)
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
+                Text("⚙", fontSize = 16.sp)
+            }
+            Text(
+                BuildConfig.VERSION_NAME,
+                color = Color(0xFF3A3020),
+                fontSize = 8.sp
+            )
         }
     }
 }
