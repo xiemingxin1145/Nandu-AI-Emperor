@@ -1,8 +1,8 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V0.6.1 人物底层：身份、出身、魅力、野心、名望、经验、技能、可统兵上限。
- * 先用 deterministic profile 覆盖历史人物和早期 NPC，后续 V0.6.2 再接随机 NPC 生成器。
+ * 人物底层：身份、出身、魅力、野心、名望、经验、技能、可统兵上限。
+ * V0.6.4 开始接入 rankLevel / merit，让拔擢真正影响身份与统兵上限。
  */
 data class OfficerProfile(
     val rank: String,
@@ -29,7 +29,7 @@ object OfficerProfiles {
             "zhang_俊" -> OfficerProfile("低阶武官", "军户", 60, 72, 14, 22, listOf("步战", "统兵"))
             else -> fallback(officer)
         }
-        return when (officer.status) {
+        val statusProfile = when (officer.status) {
             OfficerStatus.HIDDEN -> base.copy(rank = base.rank, fame = base.fame.coerceAtMost(8), experience = base.experience.coerceAtMost(20))
             OfficerStatus.SOLDIER -> base.copy(rank = "军中小卒", fame = base.fame.coerceAtMost(12))
             OfficerStatus.WANDERING -> base.copy(rank = "在野士人", fame = base.fame.coerceAtMost(25))
@@ -38,6 +38,7 @@ object OfficerProfiles {
             OfficerStatus.DISMISSED -> base.copy(rank = "罢黜")
             OfficerStatus.DECEASED -> base.copy(rank = "已故")
         }
+        return applyRankProgress(officer, statusProfile)
     }
 
     private fun fallback(officer: Officer): OfficerProfile {
@@ -89,6 +90,45 @@ object OfficerProfiles {
         }
         return profile.copy(rank = rank, fame = (profile.fame + 18).coerceAtMost(100), experience = (profile.experience + 10).coerceAtMost(100))
     }
+
+    private fun applyRankProgress(officer: Officer, profile: OfficerProfile): OfficerProfile {
+        val level = officer.rankLevel.coerceIn(0, 5)
+        if (level == 0 && officer.merit == 0) return profile
+        val isCivil = officer.politics >= officer.command && officer.politics >= officer.force
+        val newRank = if (isCivil) {
+            when (level) {
+                0 -> profile.rank
+                1 -> "新进文臣"
+                2 -> "外任官"
+                3 -> "要郡守臣"
+                4 -> "枢密幕臣"
+                else -> "宰执重臣"
+            }
+        } else {
+            when (level) {
+                0 -> profile.rank
+                1 -> "新拔军校"
+                2 -> "偏将"
+                3 -> "统领"
+                4 -> "方面守将"
+                else -> "方面大将"
+            }
+        }
+        val bonusFame = level * 10 + officer.merit / 8
+        val bonusExp = level * 8 + officer.merit / 10
+        val bonusSkills = when {
+            !isCivil && level >= 4 -> listOf("统兵", "军政")
+            !isCivil && level >= 2 -> listOf("统兵")
+            isCivil && level >= 3 -> listOf("军政")
+            else -> emptyList()
+        }
+        return profile.copy(
+            rank = newRank,
+            fame = (profile.fame + bonusFame).coerceAtMost(100),
+            experience = (profile.experience + bonusExp).coerceAtMost(100),
+            skills = (profile.skills + bonusSkills).distinct()
+        )
+    }
 }
 
 fun Officer.profile(): OfficerProfile = OfficerProfiles.of(this)
@@ -105,7 +145,12 @@ fun Officer.commandLimit(): Int {
         "偏将" -> 12000
         "统领" -> 18000
         "守将" -> 22000
+        "方面守将" -> 42000
+        "方面大将" -> 70000
         "外任官" -> 4000
+        "要郡守臣" -> 8000
+        "枢密幕臣" -> 12000
+        "宰执重臣" -> 15000
         "朝臣", "新进文臣", "新召幕僚" -> 1500
         else -> 1000
     }
