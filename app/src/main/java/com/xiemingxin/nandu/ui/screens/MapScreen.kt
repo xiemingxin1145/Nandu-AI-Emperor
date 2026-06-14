@@ -35,6 +35,7 @@ import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.JinRed
 import com.xiemingxin.nandu.ui.theme.MapBg
 import com.xiemingxin.nandu.ui.theme.SongBright
+import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -44,7 +45,15 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     var cameraY by remember { mutableStateOf(1200f) }
     var zoom by remember { mutableStateOf(0.027f) }
     var selectedId by remember { mutableStateOf<String?>(null) }
+    var weatherPhase by remember { mutableStateOf(0f) }
     val cityMap = gameState.cities.associateBy { it.id }
+
+    LaunchedEffect(gameState.weather) {
+        while (true) {
+            weatherPhase = (weatherPhase + 0.0125f) % 1f
+            delay(33L)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(MapBg)) {
         Canvas(
@@ -79,7 +88,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             drawMajorRivers(cameraX, cameraY, zoom)
             drawMapGrid(cameraX, cameraY, zoom)
             drawRoads(cameraX, cameraY, zoom)
-            drawWeatherWash(gameState.weather)
+            drawWeatherWash(gameState.weather, weatherPhase)
 
             MapData.nodes.forEach { node ->
                 val city = cityMap[node.id]
@@ -101,7 +110,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                 drawCityIcon(screen, r, mainColor, node.isCapital, isJin, isFrontline)
                 drawCityName(node.name, screen, r, zoom)
             }
-            drawWeatherParticles(gameState.weather)
+            drawWeatherParticles(gameState.weather, weatherPhase)
         }
 
         MapStatusChip(gameState, Modifier.align(Alignment.TopStart).padding(12.dp))
@@ -176,63 +185,71 @@ private fun DrawScope.drawMajorRivers(camX: Float, camY: Float, zoom: Float) {
     drawWorldPath(listOf(Offset(6500f, 3800f), Offset(8200f, 3900f), Offset(9000f, 3900f), Offset(10400f, 3600f)), Color(0xFF496F9A).copy(alpha = 0.40f), 5f, camX, camY, zoom)
 }
 
-private fun DrawScope.drawWeatherWash(weather: WeatherType) {
+private fun DrawScope.drawWeatherWash(weather: WeatherType, phase: Float) {
     when (weather) {
         WeatherType.CLEAR -> drawRect(Color(0x11E8C66A))
         WeatherType.RAIN -> drawRect(Color(0x220A1A24))
         WeatherType.STORM -> drawRect(Color(0x66040608))
-        WeatherType.FOG -> drawRect(Color(0x30D8D8D8))
+        WeatherType.FOG -> drawRect(Color.White.copy(alpha = 0.10f + phase * 0.04f))
         WeatherType.SNOW -> drawRect(Color(0x22303A42))
         WeatherType.WIND -> drawRect(Color(0x22A98A55))
     }
 }
 
-private fun DrawScope.drawWeatherParticles(weather: WeatherType) {
+private fun DrawScope.drawWeatherParticles(weather: WeatherType, phase: Float) {
     when (weather) {
-        WeatherType.RAIN -> drawRain(60, 0.28f, 16f)
-        WeatherType.STORM -> drawRain(130, 0.45f, 22f)
-        WeatherType.SNOW -> drawSnow(80)
-        WeatherType.WIND -> drawWind(35)
-        WeatherType.FOG -> drawFogLines()
+        WeatherType.RAIN -> drawRain(70, 0.28f, 18f, phase, 1.45f)
+        WeatherType.STORM -> drawRain(150, 0.48f, 24f, phase, 2.2f)
+        WeatherType.SNOW -> drawSnow(85, phase)
+        WeatherType.WIND -> drawWind(38, phase)
+        WeatherType.FOG -> drawFogLines(phase)
         WeatherType.CLEAR -> Unit
     }
 }
 
-private fun DrawScope.drawRain(count: Int, alpha: Float, length: Float) {
-    val w = size.width.toInt().coerceAtLeast(1)
-    val h = size.height.toInt().coerceAtLeast(1)
+private fun DrawScope.drawRain(count: Int, alpha: Float, length: Float, phase: Float, speed: Float) {
+    val w = size.width.coerceAtLeast(1f)
+    val h = size.height.coerceAtLeast(1f)
     for (i in 0 until count) {
-        val x = ((i * 73) % w).toFloat()
-        val y = ((i * 137) % h).toFloat()
+        val x = wrap(i * 73f - phase * w * 0.45f, w)
+        val y = wrap(i * 137f + phase * h * speed, h)
         drawLine(Color(0xFF9DC8E8).copy(alpha = alpha), Offset(x, y), Offset(x - length * 0.45f, y + length), 1.1f, cap = StrokeCap.Round)
     }
 }
 
-private fun DrawScope.drawSnow(count: Int) {
-    val w = size.width.toInt().coerceAtLeast(1)
-    val h = size.height.toInt().coerceAtLeast(1)
+private fun DrawScope.drawSnow(count: Int, phase: Float) {
+    val w = size.width.coerceAtLeast(1f)
+    val h = size.height.coerceAtLeast(1f)
     for (i in 0 until count) {
-        val x = ((i * 91) % w).toFloat()
-        val y = ((i * 157) % h).toFloat()
+        val drift = if (i % 2 == 0) phase * 48f else -phase * 32f
+        val x = wrap(i * 91f + drift, w)
+        val y = wrap(i * 157f + phase * h * 0.38f, h)
         drawCircle(Color.White.copy(alpha = 0.45f), if (i % 3 == 0) 2.1f else 1.25f, Offset(x, y))
     }
 }
 
-private fun DrawScope.drawWind(count: Int) {
-    val w = size.width.toInt().coerceAtLeast(1)
-    val h = size.height.toInt().coerceAtLeast(1)
+private fun DrawScope.drawWind(count: Int, phase: Float) {
+    val w = size.width.coerceAtLeast(1f)
+    val h = size.height.coerceAtLeast(1f)
     for (i in 0 until count) {
-        val x = ((i * 113) % w).toFloat()
-        val y = ((i * 83) % h).toFloat()
-        drawLine(Color(0xFFD1B06A).copy(alpha = 0.25f), Offset(x, y), Offset(x + 42f, y - 10f), 1.4f, cap = StrokeCap.Round)
+        val x = wrap(i * 113f + phase * w * 1.35f, w)
+        val y = wrap(i * 83f + phase * 38f, h)
+        drawLine(Color(0xFFD1B06A).copy(alpha = 0.26f), Offset(x, y), Offset(x + 46f, y - 10f), 1.4f, cap = StrokeCap.Round)
     }
 }
 
-private fun DrawScope.drawFogLines() {
+private fun DrawScope.drawFogLines(phase: Float) {
     for (i in 0 until 7) {
         val y = size.height * (i + 1) / 8f
-        drawLine(Color.White.copy(alpha = 0.13f), Offset(0f, y), Offset(size.width, y - 18f), 18f, cap = StrokeCap.Round)
+        val xShift = wrap(phase * size.width * 0.35f + i * 57f, size.width.coerceAtLeast(1f)) - size.width * 0.2f
+        drawLine(Color.White.copy(alpha = 0.13f), Offset(xShift - size.width * 0.4f, y), Offset(xShift + size.width * 1.1f, y - 18f), 18f, cap = StrokeCap.Round)
     }
+}
+
+private fun wrap(value: Float, max: Float): Float {
+    val m = max.coerceAtLeast(1f)
+    val r = value % m
+    return if (r < 0f) r + m else r
 }
 
 private fun DrawScope.drawWorldRect(left: Float, top: Float, right: Float, bottom: Float, color: Color, camX: Float, camY: Float, zoom: Float) {
