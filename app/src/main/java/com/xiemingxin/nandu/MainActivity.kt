@@ -56,7 +56,11 @@ fun NanduApp() {
             currentProvider = uiState.providerType,
             currentApiKey = uiState.apiKey,
             currentModel = uiState.customModel,
+            saveCode = uiState.saveCode,
+            saveMessage = uiState.saveMessage,
             onSave = { t, k, m -> viewModel.updateProviderSettings(t, k, m); showSettings = false },
+            onExportSave = { viewModel.exportSaveCode() },
+            onImportSave = { code -> viewModel.importSaveCode(code) },
             onBack = { showSettings = false }
         )
         return
