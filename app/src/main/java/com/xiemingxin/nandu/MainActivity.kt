@@ -63,22 +63,20 @@ fun NanduApp() {
                     onDismissResult = { viewModel.dismissResult() },
                     onOpenSettings = { showSettings = true }
                 )
-                1 -> MapScreen(
-                    gameState = uiState.gameState,
-                    onCitySelected = { }
-                )
+                1 -> MapScreen(gameState = uiState.gameState, onCitySelected = { })
                 2 -> StateScreen(gameState = uiState.gameState)
+                3 -> MilitaryScreen(gameState = uiState.gameState)
             }
         }
 
         NavigationBar(containerColor = DeepBlack, contentColor = ImperialGold, tonalElevation = 0.dp) {
-            listOf("📜 朝议" to 0, "🗺 山河" to 1, "🏛 国政" to 2).forEach { (label, idx) ->
+            listOf("朝议" to 0, "山河" to 1, "国政" to 2, "军务" to 3).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
                     onClick = { currentTab = idx },
                     icon = {},
                     label = {
-                        Text(label, fontSize = 13.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal)
+                        Text(label, fontSize = 12.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal)
                     },
                     colors = NavigationBarItemDefaults.colors(
                         selectedTextColor = ImperialGold,
