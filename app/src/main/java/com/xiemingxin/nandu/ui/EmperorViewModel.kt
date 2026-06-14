@@ -122,7 +122,7 @@ class EmperorViewModel : ViewModel() {
 
     private fun buildGameContext(state: GameState) = GameContext(
         currentTurn = state.turn,
-        era = state.era,
+        era = "${state.calendar.displayText()} / ${state.season.label} / 天气${state.weather.label}",
         gold = state.gold,
         grain = state.grain,
         troopMorale = state.troopMorale,
