@@ -46,9 +46,9 @@ fun MilitaryScreen(gameState: GameState) {
     ) {
         item {
             PanelCard {
-                Text("军务府 V0.6.2", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("军务府 V0.6.4", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("人物隐藏维度改为模糊情报；技能已有统一权重表。调兵上限规则正在接入引擎。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("已接入调兵上限、人物技能权重与拔擢圣旨解析。下旨“拔擢岳飞/授官韩世忠”会进入培养流程。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
         item {
@@ -82,7 +82,7 @@ fun MilitaryScreen(gameState: GameState) {
             PanelCard {
                 SectionTitle("在外统兵")
                 if (deployed.isEmpty()) {
-                    Text("暂未任命将领外出统兵。可在朝议页下旨任命或调兵。", color = Color(0xFFB9AA82), fontSize = 12.sp)
+                    Text("暂未任命将领外出统兵。可在朝议页下旨任命、拔擢或调兵。", color = Color(0xFFB9AA82), fontSize = 12.sp)
                 } else {
                     deployed.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) }
                 }
