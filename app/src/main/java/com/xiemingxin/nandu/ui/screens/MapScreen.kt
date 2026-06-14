@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
@@ -47,6 +48,8 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     var selectedId by remember { mutableStateOf<String?>(null) }
     var weatherPhase by remember { mutableStateOf(0f) }
     val cityMap = gameState.cities.associateBy { it.id }
+    val armiesByCity = gameState.armies.groupBy { it.currentCityId }
+    val officerNames = gameState.officers.associate { it.id to it.name }
 
     LaunchedEffect(gameState.weather) {
         while (true) {
@@ -131,6 +134,8 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                 CityDetailPanel(
                     node = node,
                     city = cityMap[id],
+                    armies = armiesByCity[id].orEmpty().sortedByDescending { it.troops },
+                    officerNames = officerNames,
                     onDismiss = { selectedId = null },
                     onDraft = { action -> onCitySelected("$id|$action") },
                     modifier = Modifier.align(Alignment.BottomCenter)
@@ -152,32 +157,28 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
 
 private fun DrawScope.drawArmyCorpsFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
     val officerMap = gameState.officers.associateBy { it.id }
-    gameState.armies
-        .filter { it.troops > 0 }
-        .groupBy { it.currentCityId }
-        .forEach { (cityId, armies) ->
-            val node = MapData.nodeMap[cityId] ?: return@forEach
-            val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
-            armies.sortedByDescending { it.troops }.take(5).forEachIndexed { index, army ->
-                val dx = if (army.ownerFactionId == "jin") -34f - (index % 2) * 25f else 24f + (index % 2) * 27f
-                val dy = -38f - (index / 2) * 25f
-                val color = when (army.ownerFactionId) {
-                    "jin" -> JinRed
-                    "song" -> SongBright
-                    else -> ImperialGold
-                }
-                val label = armyFlagLabel(army.name, army.ownerFactionId)
-                val commander = officerMap[army.commanderId]?.name ?: army.status
-                drawArmyFlag(
-                    origin = Offset(base.x + dx, base.y + dy),
-                    label = label,
-                    color = color,
-                    scale = if (army.troops >= 20000) 1.0f else 0.86f,
-                    subLabel = "${army.troops / 1000}k",
-                    commander = commander
-                )
+    gameState.armies.filter { it.troops > 0 }.groupBy { it.currentCityId }.forEach { (cityId, armies) ->
+        val node = MapData.nodeMap[cityId] ?: return@forEach
+        val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
+        armies.sortedByDescending { it.troops }.take(5).forEachIndexed { index, army ->
+            val dx = if (army.ownerFactionId == "jin") -34f - (index % 2) * 25f else 24f + (index % 2) * 27f
+            val dy = -38f - (index / 2) * 25f
+            val color = when (army.ownerFactionId) {
+                "jin" -> JinRed
+                "song" -> SongBright
+                else -> ImperialGold
             }
+            val commander = officerMap[army.commanderId]?.name ?: army.status
+            drawArmyFlag(
+                origin = Offset(base.x + dx, base.y + dy),
+                label = armyFlagLabel(army.name, army.ownerFactionId),
+                color = color,
+                scale = if (army.troops >= 20000) 1.0f else 0.86f,
+                subLabel = "${army.troops / 1000}k",
+                commander = commander
+            )
         }
+    }
 }
 
 private fun armyFlagLabel(name: String, factionId: String): String {
@@ -442,6 +443,8 @@ private fun LegendRow(color: Color, symbol: String, label: String) {
 fun CityDetailPanel(
     node: MapNode,
     city: City?,
+    armies: List<Army>,
+    officerNames: Map<String, String>,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onDraft: (String) -> Unit = {}
@@ -473,6 +476,14 @@ fun CityDetailPanel(
                     CityStatItem("民", "民心", "${city.popularSupport}")
                 }
                 Spacer(Modifier.height(12.dp))
+                Text("驻防军团", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                if (armies.isEmpty()) {
+                    Text("此城暂无正式军团驻防。", color = Color(0xFF8C7A60), fontSize = 11.sp)
+                } else {
+                    armies.take(4).forEach { army -> CityArmyRow(army, officerNames[army.commanderId] ?: army.status) }
+                }
+                Spacer(Modifier.height(12.dp))
                 Text("拟旨操作", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(7.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
@@ -484,6 +495,19 @@ fun CityDetailPanel(
             }
         }
     }
+}
+
+@Composable
+private fun CityArmyRow(army: Army, commander: String) {
+    val color = if (army.ownerFactionId == "jin") JinRed else SongBright
+    Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF1D150B), RoundedCornerShape(7.dp)).padding(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(army.name, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("${army.troops / 1000}k", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        Text("统帅：$commander · 士气${army.morale} · ${army.status}", color = Color(0xFFB9AA82), fontSize = 10.sp)
+    }
+    Spacer(Modifier.height(6.dp))
 }
 
 @Composable
