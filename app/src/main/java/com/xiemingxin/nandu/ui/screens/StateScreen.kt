@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,6 +34,7 @@ fun StateScreen(gameState: GameState) {
         item { ResourceGrid(gameState) }
         item { CourtPowerCard(gameState) }
         item { FactionCard(gameState) }
+        item { TalentHintCard(gameState) }
         item { CitySummaryCard(gameState) }
         item { OfficerSummaryCard(gameState) }
         item { ChroniclePreviewCard(gameState) }
@@ -44,7 +44,7 @@ fun StateScreen(gameState: GameState) {
 @Composable
 private fun HeaderCard(state: GameState) {
     PanelCard {
-        Text("国政总览", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Text("国政总览 V0.5.6", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Text("${state.calendar.displayText()}  ${state.season.label}  天气${state.weather.label}", color = XuanCream, fontSize = 13.sp)
         Text(state.weather.effectText, color = Color(0xFFB9AA82), fontSize = 11.sp)
@@ -91,8 +91,21 @@ private fun FactionCard(state: GameState) {
             FactionMini("大宋", songCities, songTroops, SongBright, Modifier.weight(1f))
             FactionMini("金国", jinCities, jinTroops, JinRed, Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+private fun TalentHintCard(state: GameState) {
+    val hidden = state.officers.count { it.status == OfficerStatus.HIDDEN || it.status == OfficerStatus.SOLDIER || it.status == OfficerStatus.WANDERING }
+    val registered = state.officers.count { it.status == OfficerStatus.IN_COURT || it.status == OfficerStatus.DEPLOYED }
+    PanelCard {
+        SectionTitle("人才名册")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BigStat("已登记", registered.toString(), "人", Modifier.weight(1f), SongBright)
+            BigStat("未发现", hidden.toString(), "线索", Modifier.weight(1f), ImperialGold)
+        }
         Spacer(Modifier.height(6.dp))
-        Text("后续会扩展西夏、大理、义军、归正人，不允许随机 NPC 乱投国家。", color = Color(0xFF8B7355), fontSize = 11.sp)
+        Text("未来名将不会开局全亮。可下旨：寻访岳飞、访求襄阳人才、搜索建康军中勇士。", color = Color(0xFFB9AA82), fontSize = 11.sp)
     }
 }
 
@@ -117,15 +130,19 @@ private fun CitySummaryCard(state: GameState) {
 
 @Composable
 private fun OfficerSummaryCard(state: GameState) {
-    val active = state.officers.filter { it.status != OfficerStatus.DISMISSED && it.status != OfficerStatus.DECEASED }
+    val active = state.officers.filter { it.status == OfficerStatus.IN_COURT || it.status == OfficerStatus.DEPLOYED }
     PanelCard {
-        SectionTitle("百官名将")
-        active.take(8).forEach { officer ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${officer.name} · ${officer.faction}", color = XuanCream, fontSize = 12.sp)
-                Text("统${officer.command} 忠${officer.loyalty} @${officer.currentCityId}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+        SectionTitle("朝廷已登记人才")
+        if (active.isEmpty()) {
+            Text("尚无可用人才。请下旨寻访。", color = Color(0xFF8B7355), fontSize = 12.sp)
+        } else {
+            active.take(8).forEach { officer ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("${officer.name} · ${officer.faction}", color = XuanCream, fontSize = 12.sp)
+                    Text("统${officer.command} 忠${officer.loyalty} @${officer.currentCityId}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+                }
+                Spacer(Modifier.height(4.dp))
             }
-            Spacer(Modifier.height(4.dp))
         }
     }
 }
@@ -154,9 +171,7 @@ private fun PanelCard(content: @Composable ColumnScope.() -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Color(0xFF120D07)),
         border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.30f)),
         shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(Modifier.padding(12.dp), content = content)
-    }
+    ) { Column(Modifier.padding(12.dp), content = content) }
 }
 
 @Composable
