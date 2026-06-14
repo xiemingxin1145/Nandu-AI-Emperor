@@ -49,7 +49,9 @@ data class City(
     val isWaterNode: Boolean = false,  // 是否水运节点
     val isPass: Boolean = false,       // 是否关隘
     val x: Int = 0,                    // 地图坐标X
-    val y: Int = 0                     // 地图坐标Y
+    val y: Int = 0,                    // 地图坐标Y
+    // V0.9 城池经营：建筑ID→等级（0未建/1-3级）
+    val buildings: Map<String, Int> = emptyMap()
 )
 
 data class Faction(
