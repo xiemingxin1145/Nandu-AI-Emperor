@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "project": "南渡无悔",
+  "base_path": "app/src/main/assets/images",
+  "categories": {
+    "characters": {
+      "path": "characters",
+      "historical": {
+        "song": [
+          {"id":"zhao_gou","name":"赵构","portrait":"portrait_zhao_gou.webp","halfbody":"halfbody_zhao_gou.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"yue_fei","name":"岳飞","portrait":"portrait_yue_fei.webp","halfbody":"halfbody_yue_fei.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"han_shizhong","name":"韩世忠","portrait":"portrait_han_shizhong.webp","halfbody":"halfbody_han_shizhong.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"wu_jie","name":"吴玠","portrait":"portrait_wu_jie.webp","halfbody":"halfbody_wu_jie.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"liu_qi","name":"刘锜","portrait":"portrait_liu_qi.webp","halfbody":"halfbody_liu_qi.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"li_gang","name":"李纲","portrait":"portrait_li_gang.webp","halfbody":"halfbody_li_gang.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"zhao_ding","name":"赵鼎","portrait":"portrait_zhao_ding.webp","halfbody":"halfbody_zhao_ding.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"qin_hui","name":"秦桧","portrait":"portrait_qin_hui.webp","halfbody":"halfbody_qin_hui.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"zhang_jun","name":"张浚","portrait":"portrait_zhang_jun.webp","halfbody":"halfbody_zhang_jun.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"zong_ze","name":"宗泽","portrait":"portrait_zong_ze.webp","halfbody":"halfbody_zong_ze.webp","faction":"song","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true}
+        ],
+        "jin": [
+          {"id":"wanyan_zongbi","name":"完颜宗弼","portrait":"portrait_wanyan_zongbi.webp","halfbody":"halfbody_wanyan_zongbi.webp","faction":"jin","size_portrait":"512x512","size_halfbody":"1024x1536","transparent":true},
+          {"id":"jin_historical_placeholder","name":"金国核心人物","portrait":"portrait_jin_hero_{n}.webp","halfbody":"halfbody_jin_hero_{n}.webp","faction":"jin","count":9,"transparent":true}
+        ]
+      },
+      "templates": {
+        "song_civil": {"path":"templates/song_civil","portrait_count":20,"halfbody_count":10,"naming":"tmpl_civil_{n:02d}.webp","transparent":true},
+        "song_military": {"path":"templates/song_military","portrait_count":25,"halfbody_count":15,"naming":"tmpl_military_{n:02d}.webp","transparent":true},
+        "song_soldier": {"path":"templates/song_soldier","portrait_count":20,"halfbody_count":10,"naming":"tmpl_soldier_{n:02d}.webp","transparent":false},
+        "song_official": {"path":"templates/song_official","portrait_count":20,"halfbody_count":10,"naming":"tmpl_official_{n:02d}.webp","transparent":true},
+        "jin_military": {"path":"templates/jin_military","portrait_count":20,"halfbody_count":10,"naming":"tmpl_jin_mil_{n:02d}.webp","transparent":true},
+        "jin_civil": {"path":"templates/jin_civil","portrait_count":12,"halfbody_count":6,"naming":"tmpl_jin_civ_{n:02d}.webp","transparent":true},
+        "enemy_soldier": {"path":"templates/enemy_soldier","portrait_count":16,"halfbody_count":8,"naming":"tmpl_enemy_sol_{n:02d}.webp","transparent":false},
+        "rebel": {"path":"templates/rebel","portrait_count":16,"halfbody_count":8,"naming":"tmpl_rebel_{n:02d}.webp","transparent":false},
+        "neutral": {"path":"templates/neutral","portrait_count":24,"halfbody_count":12,"naming":"tmpl_neutral_{n:02d}.webp","transparent":true}
+      }
+    },
+    "cities": {
+      "path": "cities",
+      "items": [
+        {"id":"linan","name":"临安","file":"city_linan.webp","faction":"song"},
+        {"id":"kaifeng","name":"开封","file":"city_kaifeng.webp","faction":"jin"},
+        {"id":"xiangyang","name":"襄阳","file":"city_xiangyang.webp","faction":"song"},
+        {"id":"ezhou","name":"鄂州","file":"city_ezhou.webp","faction":"song"},
+        {"id":"jiankang","name":"建康","file":"city_jiankang.webp","faction":"song"},
+        {"id":"yangzhou","name":"扬州","file":"city_yangzhou.webp","faction":"song"},
+        {"id":"chengdu","name":"成都","file":"city_chengdu.webp","faction":"song"},
+        {"id":"placeholder","name":"通用城池","file":"city_default.webp","faction":"any"}
+      ]
+    },
+    "maps": {"path":"maps","items":[{"id":"parchment_bg","name":"羊皮纸底图","file":"map_parchment_bg.webp"},{"id":"terrain_overlay","name":"地形叠加层","file":"map_terrain_overlay.webp"}]},
+    "events": {"path":"events","items":[{"id":"jingkang","name":"靖康之变","file":"event_jingkang.webp"},{"id":"north_crossing","name":"二帝北狩","file":"event_north_crossing.webp"},{"id":"yue_fei_execute","name":"岳飞被害","file":"event_yue_fei_execute.webp"},{"id":"shaoxing_peace","name":"绍兴和议","file":"event_shaoxing_peace.webp"},{"id":"default","name":"通用事件","file":"event_default.webp"}]},
+    "battles": {"path":"battles","items":[{"id":"river_naval","name":"水战","file":"battle_river_naval.webp"},{"id":"field_battle","name":"野战","file":"battle_field.webp"},{"id":"siege","name":"攻城战","file":"battle_siege.webp"},{"id":"mountain","name":"山地战","file":"battle_mountain.webp"},{"id":"default","name":"通用战役","file":"battle_default.webp"}]},
+    "ui": {"path":"ui","items":[{"id":"btn_primary","name":"主按钮","file":"ui_btn_primary.webp"},{"id":"btn_secondary","name":"副按钮","file":"ui_btn_secondary.webp"},{"id":"btn_danger","name":"警告按钮","file":"ui_btn_danger.webp"},{"id":"frame_gold","name":"金色边框","file":"ui_frame_gold.webp"},{"id":"frame_jade","name":"玉色边框","file":"ui_frame_jade.webp"},{"id":"icon_set","name":"功能图标组","file":"ui_icons_{name}.webp"}]}
+  },
+  "fallback": {"portrait":"placeholder_portrait.webp","halfbody":"placeholder_halfbody.webp","city":"placeholder_city.webp","event":"placeholder_event.webp","battle":"placeholder_battle.webp"}
+}
