@@ -1,0 +1,216 @@
+{
+  "version": "1.0",
+  "project": "南渡无悔",
+  "pack_name": "七大势力第一批美术资源压缩包",
+  "source_zip": "13302e8161dc484e810d71441e084535.zip",
+  "format": "webp",
+  "items": [
+    {
+      "id": "frame_song_border",
+      "name": "南宋边框",
+      "category": "UI边框",
+      "source_file": "南渡无悔-七大势力美术资源包/UI边框/南宋_边框.png",
+      "target_path": "app/src/main/assets/images/ui/faction_frames/frame_song_border.webp",
+      "size": "512x512",
+      "bytes": 32986
+    },
+    {
+      "id": "frame_jin_border",
+      "name": "金国边框",
+      "category": "UI边框",
+      "source_file": "南渡无悔-七大势力美术资源包/UI边框/金国_边框.png",
+      "target_path": "app/src/main/assets/images/ui/faction_frames/frame_jin_border.webp",
+      "size": "512x512",
+      "bytes": 49292
+    },
+    {
+      "id": "portrait_wanyan_zongbi",
+      "name": "完颜宗弼头像",
+      "category": "人物头像",
+      "source_file": "南渡无悔-七大势力美术资源包/人物头像/完颜宗弼_头像.png",
+      "target_path": "app/src/main/assets/images/characters/portrait_wanyan_zongbi.webp",
+      "size": "512x512",
+      "bytes": 63214
+    },
+    {
+      "id": "portrait_yue_fei_faction",
+      "name": "岳飞势力头像",
+      "category": "人物头像",
+      "source_file": "南渡无悔-七大势力美术资源包/人物头像/岳飞_势力头像.png",
+      "target_path": "app/src/main/assets/images/characters/portrait_yue_fei_faction.webp",
+      "size": "512x512",
+      "bytes": 56412
+    },
+    {
+      "id": "portrait_yue_fei",
+      "name": "岳飞头像",
+      "category": "人物头像",
+      "source_file": "南渡无悔-七大势力美术资源包/人物头像/岳飞_头像.png",
+      "target_path": "app/src/main/assets/images/characters/portrait_yue_fei.webp",
+      "size": "512x512",
+      "bytes": 48036
+    },
+    {
+      "id": "portrait_qin_hui",
+      "name": "秦桧头像",
+      "category": "人物头像",
+      "source_file": "南渡无悔-七大势力美术资源包/人物头像/秦桧_头像.png",
+      "target_path": "app/src/main/assets/images/characters/portrait_qin_hui.webp",
+      "size": "512x512",
+      "bytes": 37394
+    },
+    {
+      "id": "portrait_zhao_gou",
+      "name": "赵构头像",
+      "category": "人物头像",
+      "source_file": "南渡无悔-七大势力美术资源包/人物头像/赵构_头像.png",
+      "target_path": "app/src/main/assets/images/characters/portrait_zhao_gou.webp",
+      "size": "512x512",
+      "bytes": 45480
+    },
+    {
+      "id": "portrait_han_shizhong",
+      "name": "韩世忠头像",
+      "category": "人物头像",
+      "source_file": "南渡无悔-七大势力美术资源包/人物头像/韩世忠_势力头像.png",
+      "target_path": "app/src/main/assets/images/characters/portrait_han_shizhong.webp",
+      "size": "512x512",
+      "bytes": 50112
+    },
+    {
+      "id": "unit_song_shenbi_archer",
+      "name": "南宋神臂弓手",
+      "category": "兵种图标",
+      "source_file": "南渡无悔-七大势力美术资源包/兵种图标/南宋_神臂弓手.png",
+      "target_path": "app/src/main/assets/images/ui/unit_icons/unit_song_shenbi_archer.webp",
+      "size": "512x512",
+      "bytes": 43470
+    },
+    {
+      "id": "unit_song_beiwei_army",
+      "name": "南宋背嵬军",
+      "category": "兵种图标",
+      "source_file": "南渡无悔-七大势力美术资源包/兵种图标/南宋_背嵬军.png",
+      "target_path": "app/src/main/assets/images/ui/unit_icons/unit_song_beiwei_army.webp",
+      "size": "512x512",
+      "bytes": 47490
+    },
+    {
+      "id": "unit_jin_guai_zi_ma",
+      "name": "金国拐子马",
+      "category": "兵种图标",
+      "source_file": "南渡无悔-七大势力美术资源包/兵种图标/金国_拐子马.png",
+      "target_path": "app/src/main/assets/images/ui/unit_icons/unit_jin_guai_zi_ma.webp",
+      "size": "512x512",
+      "bytes": 41750
+    },
+    {
+      "id": "unit_jin_tie_futu",
+      "name": "金国铁浮屠",
+      "category": "兵种图标",
+      "source_file": "南渡无悔-七大势力美术资源包/兵种图标/金国_铁浮屠.png",
+      "target_path": "app/src/main/assets/images/ui/unit_icons/unit_jin_tie_futu.webp",
+      "size": "512x512",
+      "bytes": 49908
+    },
+    {
+      "id": "function_song_domestic",
+      "name": "南宋内政",
+      "category": "功能图标",
+      "source_file": "南渡无悔-七大势力美术资源包/功能图标/南宋_内政.png",
+      "target_path": "app/src/main/assets/images/ui/function_icons/function_song_domestic.webp",
+      "size": "512x512",
+      "bytes": 34344
+    },
+    {
+      "id": "function_song_military",
+      "name": "南宋军事",
+      "category": "功能图标",
+      "source_file": "南渡无悔-七大势力美术资源包/功能图标/南宋_军事.png",
+      "target_path": "app/src/main/assets/images/ui/function_icons/function_song_military.webp",
+      "size": "512x512",
+      "bytes": 42096
+    },
+    {
+      "id": "function_jin_domestic",
+      "name": "金国内政",
+      "category": "功能图标",
+      "source_file": "南渡无悔-七大势力美术资源包/功能图标/金国_内政.png",
+      "target_path": "app/src/main/assets/images/ui/function_icons/function_jin_domestic.webp",
+      "size": "512x512",
+      "bytes": 52634
+    },
+    {
+      "id": "function_jin_military",
+      "name": "金国军事",
+      "category": "功能图标",
+      "source_file": "南渡无悔-七大势力美术资源包/功能图标/金国_军事.png",
+      "target_path": "app/src/main/assets/images/ui/function_icons/function_jin_military.webp",
+      "size": "512x512",
+      "bytes": 50560
+    },
+    {
+      "id": "faction_song_emblem",
+      "name": "南宋国徽",
+      "category": "势力旗帜",
+      "source_file": "南渡无悔-七大势力美术资源包/势力旗帜/南宋_国徽.png",
+      "target_path": "app/src/main/assets/images/ui/faction_flags/faction_song_emblem.webp",
+      "size": "512x512",
+      "bytes": 60498
+    },
+    {
+      "id": "faction_song_banner",
+      "name": "南宋战旗",
+      "category": "势力旗帜",
+      "source_file": "南渡无悔-七大势力美术资源包/势力旗帜/南宋_战旗.png",
+      "target_path": "app/src/main/assets/images/ui/faction_flags/faction_song_banner.webp",
+      "size": "512x512",
+      "bytes": 36870
+    },
+    {
+      "id": "faction_jin_emblem",
+      "name": "金国国徽",
+      "category": "势力旗帜",
+      "source_file": "南渡无悔-七大势力美术资源包/势力旗帜/金国_国徽.png",
+      "target_path": "app/src/main/assets/images/ui/faction_flags/faction_jin_emblem.webp",
+      "size": "512x512",
+      "bytes": 60624
+    },
+    {
+      "id": "faction_jin_banner",
+      "name": "金国战旗",
+      "category": "势力旗帜",
+      "source_file": "南渡无悔-七大势力美术资源包/势力旗帜/金国_战旗.png",
+      "target_path": "app/src/main/assets/images/ui/faction_flags/faction_jin_banner.webp",
+      "size": "512x512",
+      "bytes": 45406
+    },
+    {
+      "id": "halfbody_yue_fei",
+      "name": "岳飞半身像",
+      "category": "核心人物半身像",
+      "source_file": "南渡无悔-七大势力美术资源包/核心人物半身像/岳飞_半身像.png",
+      "target_path": "app/src/main/assets/images/characters/halfbody_yue_fei.webp",
+      "size": "1024x1536",
+      "bytes": 239762
+    },
+    {
+      "id": "halfbody_qin_hui",
+      "name": "秦桧半身像",
+      "category": "核心人物半身像",
+      "source_file": "南渡无悔-七大势力美术资源包/核心人物半身像/秦桧_半身像.png",
+      "target_path": "app/src/main/assets/images/characters/halfbody_qin_hui.webp",
+      "size": "1024x1536",
+      "bytes": 136188
+    },
+    {
+      "id": "halfbody_zhao_gou",
+      "name": "赵构半身像",
+      "category": "核心人物半身像",
+      "source_file": "南渡无悔-七大势力美术资源包/核心人物半身像/赵构_半身像.png",
+      "target_path": "app/src/main/assets/images/characters/halfbody_zhao_gou.webp",
+      "size": "1024x1536",
+      "bytes": 197128
+    }
+  ]
+}
