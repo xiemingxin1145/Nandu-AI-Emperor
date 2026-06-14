@@ -168,7 +168,9 @@ data class GameState(
     val armies: List<Army> = InitialData.armies,
     val officers: List<Officer> = InitialData.officers,
     val cities: List<City> = InitialData.cities,
-    val chronicle: List<ChronicleEntry> = emptyList()
+    val chronicle: List<ChronicleEntry> = emptyList(),
+    val firedEventIds: Set<String> = emptySet(),
+    val storyFlags: Set<String> = emptySet()
 )
 
 object GameRuleEngine {
