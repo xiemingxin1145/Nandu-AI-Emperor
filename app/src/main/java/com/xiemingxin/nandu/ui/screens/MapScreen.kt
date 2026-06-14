@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,22 +37,17 @@ fun MapScreen(
     gameState: GameState,
     onCitySelected: (String) -> Unit = {}
 ) {
-    // ── 摄像机状态 ──
-    // 初始视角：让地图大致居中可见
     var cameraX by remember { mutableStateOf(2500f) }
     var cameraY by remember { mutableStateOf(1200f) }
-    var zoom   by remember { mutableStateOf(0.027f) }
+    var zoom by remember { mutableStateOf(0.027f) }
 
     var selectedId by remember { mutableStateOf<String?>(null) }
     val cityMap = gameState.cities.associateBy { it.id }
 
     Box(modifier = Modifier.fillMaxSize().background(MapBg)) {
-
-        // ── 主地图 Canvas ──
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                // 缩放 + 平移
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, gestureZoom, _ ->
                         zoom = (zoom * gestureZoom).coerceIn(0.015f, 0.14f)
@@ -58,7 +55,6 @@ fun MapScreen(
                         cameraY = (cameraY - pan.y / zoom).coerceIn(0f, 8000f)
                     }
                 }
-                // 点击城池
                 .pointerInput(Unit) {
                     detectTapGestures { tap ->
                         val wx = tap.x / zoom + cameraX
@@ -80,41 +76,36 @@ fun MapScreen(
                     }
                 }
         ) {
-            // 1. 画背景网格（淡淡的，体现地图感）
             drawMapGrid(cameraX, cameraY, zoom)
 
-            // 2. 画道路
             MapData.roads.forEach { road ->
                 val from = MapData.nodeMap[road.fromId] ?: return@forEach
-                val to   = MapData.nodeMap[road.toId]   ?: return@forEach
+                val to = MapData.nodeMap[road.toId] ?: return@forEach
                 val fs = w2s(from.worldX, from.worldY, cameraX, cameraY, zoom)
-                val ts = w2s(to.worldX,   to.worldY,   cameraX, cameraY, zoom)
+                val ts = w2s(to.worldX, to.worldY, cameraX, cameraY, zoom)
                 val sw = (2.5f * zoom * 38f).coerceIn(1f, 6f)
 
                 val (color, pathFx) = when (road.type) {
-                    RoadType.RIVER    -> Color(0xFF4A90D9) to null
-                    RoadType.CANAL    -> Color(0xFF87CEEB) to PathEffect.dashPathEffect(floatArrayOf(12f, 6f))
-                    RoadType.SEA      -> Color(0xFF1B6FBA) to PathEffect.dashPathEffect(floatArrayOf(16f, 8f))
+                    RoadType.RIVER -> Color(0xFF4A90D9) to null
+                    RoadType.CANAL -> Color(0xFF87CEEB) to PathEffect.dashPathEffect(floatArrayOf(12f, 6f))
+                    RoadType.SEA -> Color(0xFF1B6FBA) to PathEffect.dashPathEffect(floatArrayOf(16f, 8f))
                     RoadType.MOUNTAIN -> Color(0xFF7A5C3A) to PathEffect.dashPathEffect(floatArrayOf(5f, 9f))
-                    RoadType.LAND     -> Color(0xFF9B8260) to null
-                    RoadType.PASS     -> Color(0xFF8B2500) to null
+                    RoadType.LAND -> Color(0xFF9B8260) to null
+                    RoadType.PASS -> Color(0xFF8B2500) to null
                 }
                 drawLine(color, fs, ts, strokeWidth = sw, pathEffect = pathFx, cap = StrokeCap.Round)
             }
 
-            // 3. 画城池节点
             MapData.nodes.forEach { node ->
-                val city   = cityMap[node.id]
+                val city = cityMap[node.id]
                 val screen = w2s(node.worldX, node.worldY, cameraX, cameraY, zoom)
-                val isJin  = city?.owner == "jin"
-                val isSel  = selectedId == node.id
-                val r      = ((if (node.isCapital) 14f else 9f) * zoom * 35f).coerceIn(5f, 22f)
+                val isJin = city?.owner == "jin"
+                val isSel = selectedId == node.id
+                val r = ((if (node.isCapital) 14f else 9f) * zoom * 35f).coerceIn(5f, 22f)
 
-                // 选中光晕
                 if (isSel) {
                     drawCircle(ImperialGold.copy(alpha = 0.25f), r * 2.6f, screen)
                 }
-                // 兵力光环
                 city?.troops?.let { t ->
                     if (t > 5000) {
                         val haloR = r + (t / 60000f * 10f).coerceIn(2f, 10f)
@@ -122,19 +113,16 @@ fun MapScreen(
                         drawCircle(haloColor.copy(alpha = 0.18f), haloR, screen)
                     }
                 }
-                // 外圈边框
                 val borderColor = if (isJin) Color(0xFFB22222) else if (node.isCapital) ImperialGold else Color(0xFF2E86C1)
                 drawCircle(Color(0xFF050504), r + 2.5f, screen)
                 drawCircle(borderColor, r, screen)
 
-                // 首都内部十字
                 if (node.isCapital) {
                     val cr = r * 0.45f
                     drawLine(Color.White.copy(alpha = 0.9f), Offset(screen.x - cr, screen.y), Offset(screen.x + cr, screen.y), 1.5f)
                     drawLine(Color.White.copy(alpha = 0.9f), Offset(screen.x, screen.y - cr), Offset(screen.x, screen.y + cr), 1.5f)
                 }
 
-                // 城池名称（缩放够大才显示）
                 val textScale = zoom * 38f
                 if (textScale > 0.55f) {
                     drawIntoCanvas { canvas ->
@@ -151,7 +139,6 @@ fun MapScreen(
             }
         }
 
-        // ── 右下角图例 ──
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -167,7 +154,6 @@ fun MapScreen(
             LegendRow(Color(0xFF9B8260), "━", "陆路")
         }
 
-        // ── 选中城池详情卡片 ──
         selectedId?.let { id ->
             MapData.nodeMap[id]?.let { node ->
                 CityDetailPanel(
@@ -181,7 +167,6 @@ fun MapScreen(
     }
 }
 
-// ── 背景网格 ──
 private fun DrawScope.drawMapGrid(camX: Float, camY: Float, zoom: Float) {
     val gridWorld = 2000f
     val gridColor = Color(0xFF1A2020)
@@ -201,7 +186,6 @@ private fun DrawScope.drawMapGrid(camX: Float, camY: Float, zoom: Float) {
     }
 }
 
-// 世界坐标 → 屏幕坐标
 private fun w2s(wx: Float, wy: Float, camX: Float, camY: Float, zoom: Float) =
     Offset((wx - camX) * zoom, (wy - camY) * zoom)
 
@@ -209,7 +193,7 @@ private fun w2s(wx: Float, wy: Float, camX: Float, camY: Float, zoom: Float) =
 private fun LegendRow(color: Color, symbol: String, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(symbol, color = color, fontSize = 11.sp)
-        Text(label,  color = Color(0xFF6A6A6A), fontSize = 10.sp)
+        Text(label, color = Color(0xFF6A6A6A), fontSize = 10.sp)
     }
 }
 
