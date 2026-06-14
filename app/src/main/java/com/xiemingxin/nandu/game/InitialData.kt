@@ -10,16 +10,16 @@ object InitialData {
     )
 
     val officers = listOf(
-        Officer("yue_fei",       "岳飞",   "军中小卒", command=99, force=98, strategy=93, politics=52, loyalty=100, currentCityId="xiangyang", status=OfficerStatus.HIDDEN),
-        Officer("han_shizhong",  "韩世忠", "低阶武官", command=94, force=95, strategy=85, politics=58, loyalty=95,  currentCityId="jiankang", status=OfficerStatus.SOLDIER),
-        Officer("li_gang",       "李纲",   "主战派", command=82, force=45, strategy=88, politics=92, loyalty=98,  currentCityId="linan"),
-        Officer("zong_ze",       "宗泽",   "主战派", command=90, force=65, strategy=92, politics=85, loyalty=100, currentCityId="kaifeng", status=OfficerStatus.WANDERING),
-        Officer("zhao_ding",     "赵鼎",   "文臣派", command=55, force=30, strategy=86, politics=95, loyalty=96,  currentCityId="linan"),
-        Officer("qin_hui",       "秦桧",   "寒门文士", command=35, force=25, strategy=85, politics=90, loyalty=30,  currentCityId="linan", status=OfficerStatus.HIDDEN),
-        Officer("wu_jie",        "吴玠",   "边地武人", command=90, force=85, strategy=88, politics=65, loyalty=95,  currentCityId="xinguan", status=OfficerStatus.HIDDEN),
-        Officer("zhang_jun",     "张浚",   "主战派", command=75, force=50, strategy=84, politics=82, loyalty=90,  currentCityId="linan"),
-        Officer("liu_qi",        "刘锜",   "军中小卒", command=88, force=88, strategy=80, politics=55, loyalty=92, currentCityId="huaihe", status=OfficerStatus.HIDDEN),
-        Officer("zhang_俊",      "张俊",   "低阶武官", command=78, force=75, strategy=60, politics=65, loyalty=55, currentCityId="linan", status=OfficerStatus.SOLDIER)
+        Officer("yue_fei", "岳飞", "军中小卒", command=99, force=98, strategy=93, politics=52, loyalty=100, currentCityId="xiangyang", status=OfficerStatus.HIDDEN, charm=75, ambition=40, rankLevel=0, origin="军户", skills=listOf("步战","骑战","严军","野战","北伐"), bio="相州汤阴人，少负气节，沉厚寡言。背刺精忠报国，志在收复中原。开局沉于行伍，待明主识拔。"),
+        Officer("han_shizhong", "韩世忠", "低阶武官", command=94, force=95, strategy=85, politics=58, loyalty=95, currentCityId="jiankang", status=OfficerStatus.SOLDIER, charm=80, ambition=45, rankLevel=2, origin="军户", skills=listOf("水战","江防","突袭","守江"), bio="延安人，行伍出身，勇冠三军。其妻梁红玉亦有巾帼之志。擅水战，黄天荡可建奇功。"),
+        Officer("li_gang", "李纲", "主战派", command=82, force=45, strategy=88, politics=92, loyalty=98, currentCityId="linan", charm=78, ambition=35, rankLevel=4, origin="士族", skills=listOf("守城","城防","民心","抗围城"), bio="邵武人，靖康年间力主抗金，守东京有功。刚直敢言，然易遭主和派排挤。"),
+        Officer("zong_ze", "宗泽", "主战派", command=90, force=65, strategy=92, politics=85, loyalty=100, currentCityId="kaifeng", status=OfficerStatus.WANDERING, charm=82, ambition=30, rankLevel=4, origin="寒门", skills=listOf("召义军","提振军心","中原反抗","抗金"), bio="婺州义乌人，老成持重。东京留守，招抚河北义军，三呼渡河而殁。其志可昭日月。"),
+        Officer("zhao_ding", "赵鼎", "文臣派", command=55, force=30, strategy=86, politics=95, loyalty=96, currentCityId="linan", charm=72, ambition=40, rankLevel=4, origin="寒门", skills=listOf("政务","筹粮","安民","理财"), bio="解州闻喜人，中兴贤相。长于治理，善理财赋，调和朝堂。然与秦桧政见相左。"),
+        Officer("qin_hui", "秦桧", "寒门文士", command=35, force=25, strategy=85, politics=90, loyalty=30, currentCityId="linan", status=OfficerStatus.HIDDEN, charm=70, ambition=80, rankLevel=2, origin="寒门", skills=listOf("外交","党争","议和","内斗"), bio="江宁人，工于心计。靖康中随二帝北狩，后自金营南归，其归诚真伪，朝野多有疑虑。"),
+        Officer("wu_jie", "吴玠", "边地武人", command=90, force=85, strategy=88, politics=65, loyalty=95, currentCityId="xinguan", status=OfficerStatus.HIDDEN, charm=68, ambition=42, rankLevel=3, origin="军户", skills=listOf("山地战","守关","克骑兵","川陕防线"), bio="德顺军陇干人，西北边军出身。仙人关、和尚原大破金军，川陕锁钥赖以不失。"),
+        Officer("zhang_jun", "张浚", "主战派", command=75, force=50, strategy=84, politics=82, loyalty=90, currentCityId="linan", charm=74, ambition=60, rankLevel=4, origin="士族", skills=listOf("都督诸军","北伐","调度","荐才"), bio="汉州绵竹人，志大才疏而忠勇可嘉。力主北伐，然富平之败为其所累，用之需权衡。"),
+        Officer("liu_qi", "刘锜", "军中小卒", command=88, force=88, strategy=80, politics=55, loyalty=92, currentCityId="huaihe", status=OfficerStatus.HIDDEN, charm=66, ambition=38, rankLevel=1, origin="将门", skills=listOf("守城","硬抗","反冲锋","顺昌大捷"), bio="德顺军人，泸川军节度使刘仲武之子。沉毅善守，顺昌之战大破金军铁浮屠，威震淮西。"),
+        Officer("zhang_jun2", "张俊", "低阶武官", command=78, force=75, strategy=60, politics=65, loyalty=55, currentCityId="linan", status=OfficerStatus.SOLDIER, charm=58, ambition=70, rankLevel=2, origin="军户", skills=listOf("野战","征伐","逐利"), bio="成纪人，中兴四将之一，然贪财好利，晚节附秦桧构陷岳飞。忠诚存疑，用之当防。")
     )
 
     val cities = listOf(
