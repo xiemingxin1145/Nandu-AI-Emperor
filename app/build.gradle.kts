@@ -12,8 +12,8 @@ android {
         applicationId = "com.xiemingxin.nandu"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "V0.5.6"
+        versionCode = 12
+        versionName = "V0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
