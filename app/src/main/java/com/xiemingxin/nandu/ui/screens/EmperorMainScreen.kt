@@ -22,7 +22,6 @@ import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
 import com.xiemingxin.nandu.ui.theme.*
 
-
 @Composable
 fun EmperorMainScreen(
     uiState: UiState,
@@ -40,11 +39,8 @@ fun EmperorMainScreen(
             .background(InkBlack)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-
-            // ── HUD 顶栏 ──
             GameHUD(state = uiState.gameState, onSettings = onOpenSettings)
 
-            // ── 主内容区 ──
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -59,9 +55,7 @@ fun EmperorMainScreen(
                             isLoading = uiState.phase == GamePhase.EXECUTING
                         )
                     }
-                    GamePhase.AI_PROCESSING -> {
-                        LoadingView()
-                    }
+                    GamePhase.AI_PROCESSING -> LoadingView()
                     GamePhase.AWAITING_CONFIRM -> {
                         uiState.lastEdictResult?.let { result ->
                             ConfirmEdictView(
@@ -84,7 +78,6 @@ fun EmperorMainScreen(
                 }
             }
 
-            // 错误提示
             uiState.errorMessage?.let { msg ->
                 Text(
                     text = "⚠ $msg",
@@ -107,24 +100,33 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "🐉 ${state.era} 第${state.turn}旬",
-            color = ImperialGold,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.weight(1.15f)) {
+            Text(
+                text = "🐉 ${state.calendar.displayText()}",
+                color = ImperialGold,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "${state.season.label} · ${state.weather.label}｜${state.weather.effectText}",
+                color = Color(0xFF8B7355),
+                fontSize = 9.sp,
+                maxLines = 1
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
             HudStat("💰", "${state.gold / 1000}k")
             HudStat("🌾", "${state.grain / 1000}k")
             HudStat("⚔", "${state.troopMorale}")
             HudStat("🏯", "${state.jinThreat}", if (state.jinThreat > 80) Color.Red else Color.White)
         }
-        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
                 Text("⚙", fontSize = 16.sp)
             }
             Text(
-                "V0.3",
+                "V0.4",
                 color = Color(0xFF3A3020),
                 fontSize = 8.sp
             )
@@ -161,7 +163,6 @@ fun IdleView(
             fontWeight = FontWeight.Bold
         )
 
-        // 圣旨输入框
         OutlinedTextField(
             value = edictText,
             onValueChange = onEdictChange,
@@ -170,7 +171,7 @@ fun IdleView(
                 .height(160.dp),
             placeholder = {
                 Text(
-                    "传朕旨意\u2026\n（如：命岳飞率三万兵从鄂州取襄阳，韩世忠守建康，秦桧暂退中枢）",
+                    "传朕旨意…\n（如：命岳飞率三万兵从鄂州取襄阳，韩世忠守建康，秦桧暂退中枢）",
                     color = Color(0xFF8B7355),
                     fontSize = 13.sp
                 )
@@ -185,7 +186,6 @@ fun IdleView(
             shape = RoundedCornerShape(4.dp)
         )
 
-        // 快捷提示
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val hints = listOf("调兵出征", "任命守将", "修缀城防", "筹粮备战", "压制主和", "赏赐名将")
             items(hints) { hint ->
@@ -201,7 +201,6 @@ fun IdleView(
             }
         }
 
-        // 朱批下发按钮
         Button(
             onClick = onSubmit,
             enabled = edictText.isNotBlank() && !isLoading,
@@ -250,7 +249,6 @@ fun ConfirmEdictView(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 圣旨摘要
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
             border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
@@ -267,7 +265,6 @@ fun ConfirmEdictView(
             }
         }
 
-        // 群臣反应
         if (result.npcResponses.isNotEmpty()) {
             Text("【御前议政】", color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             result.npcResponses.forEach { response ->
@@ -275,7 +272,6 @@ fun ConfirmEdictView(
             }
         }
 
-        // 命令预览
         if (result.commands.isNotEmpty()) {
             Text("【待执行命令】", color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             result.commands.forEach { cmd ->
@@ -300,7 +296,6 @@ fun ConfirmEdictView(
 
         Spacer(Modifier.height(8.dp))
 
-        // 三个按钮
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = onConfirm,
@@ -327,7 +322,8 @@ fun NpcResponseCard(officerId: String, attitude: String, text: String) {
         "li_gang"       -> "🏯" to "李纲"
         "zong_ze"       -> "🌅" to "宗泽"
         "wu_jie"        -> "🏔" to "吴玠"
-        "zhang_jun"     -> "⚖" to "张泼"
+        "zhang_jun"     -> "⚖" to "张浚"
+        "zhang_俊"      -> "⚖" to "张俊"
         else            -> "👤" to officerId
     }
     val attitudeColor = when (attitude) {
@@ -343,8 +339,13 @@ fun NpcResponseCard(officerId: String, attitude: String, text: String) {
         border = androidx.compose.foundation.BorderStroke(0.5.dp, attitudeColor.copy(alpha = 0.5f))
     ) {
         Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
-            Text("$icon $name", color = attitudeColor, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.width(72.dp))
+            Text(
+                "$icon $name",
+                color = attitudeColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.width(72.dp)
+            )
             Text("：$text", color = XuanCream, fontSize = 13.sp)
         }
     }
