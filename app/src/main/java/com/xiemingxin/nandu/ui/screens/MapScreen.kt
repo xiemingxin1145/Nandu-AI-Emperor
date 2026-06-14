@@ -162,11 +162,13 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
 
 private fun DrawScope.drawArmyRoutes(gameState: GameState, camX: Float, camY: Float, zoom: Float, phase: Float) {
     gameState.armies.filter { army ->
-        army.troops > 0 && army.supplyCityId.isNotBlank() && army.currentCityId.isNotBlank() &&
-            (army.supplyCityId != army.currentCityId || army.targetCityId.isNotBlank() || army.status.contains("进军"))
+        army.troops > 0 && army.currentCityId.isNotBlank() &&
+            (army.routeFromCityId.isNotBlank() || army.supplyCityId != army.currentCityId || army.targetCityId.isNotBlank() || army.status.contains("进军"))
     }.forEach { army ->
-        val fromNode = MapData.nodeMap[army.supplyCityId] ?: MapData.nodeMap[army.homeCityId] ?: return@forEach
-        val toNode = MapData.nodeMap[army.targetCityId.ifBlank { army.currentCityId }] ?: MapData.nodeMap[army.currentCityId] ?: return@forEach
+        val fromId = army.routeFromCityId.ifBlank { army.supplyCityId.ifBlank { army.currentCityId } }
+        val toId = army.targetCityId.ifBlank { army.currentCityId }
+        val fromNode = MapData.nodeMap[fromId] ?: MapData.nodeMap[army.homeCityId] ?: return@forEach
+        val toNode = MapData.nodeMap[toId] ?: return@forEach
         if (fromNode.id == toNode.id) return@forEach
         val start = w2s(fromNode.worldX, fromNode.worldY, camX, camY, zoom)
         val end = w2s(toNode.worldX, toNode.worldY, camX, camY, zoom)
@@ -205,14 +207,8 @@ private fun DrawScope.drawMarchRoute(start: Offset, end: Offset, color: Color, p
 
 private fun DrawScope.drawArrowHead(center: Offset, angle: Float, color: Color) {
     val size = 9f
-    val left = Offset(
-        center.x - cos(angle - 0.58f) * size,
-        center.y - sin(angle - 0.58f) * size
-    )
-    val right = Offset(
-        center.x - cos(angle + 0.58f) * size,
-        center.y - sin(angle + 0.58f) * size
-    )
+    val left = Offset(center.x - cos(angle - 0.58f) * size, center.y - sin(angle - 0.58f) * size)
+    val right = Offset(center.x - cos(angle + 0.58f) * size, center.y - sin(angle + 0.58f) * size)
     val path = Path().apply {
         moveTo(center.x + cos(angle) * size * 0.75f, center.y + sin(angle) * size * 0.75f)
         lineTo(left.x, left.y)
@@ -225,28 +221,57 @@ private fun DrawScope.drawArrowHead(center: Offset, angle: Float, color: Color) 
 
 private fun DrawScope.drawArmyCorpsFlags(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
     val officerMap = gameState.officers.associateBy { it.id }
-    gameState.armies.filter { it.troops > 0 }.groupBy { it.currentCityId }.forEach { (cityId, armies) ->
-        val node = MapData.nodeMap[cityId] ?: return@forEach
-        val base = w2s(node.worldX, node.worldY, camX, camY, zoom)
-        armies.sortedByDescending { it.troops }.take(5).forEachIndexed { index, army ->
-            val dx = if (army.ownerFactionId == "jin") -34f - (index % 2) * 25f else 24f + (index % 2) * 27f
-            val dy = -38f - (index / 2) * 25f
+    val slots = mutableMapOf<String, Int>()
+    gameState.armies
+        .filter { it.troops > 0 }
+        .sortedWith(compareBy<Army> { it.ownerFactionId }.thenByDescending { it.troops })
+        .forEach { army ->
+            val base = armyScreenPosition(army, camX, camY, zoom) ?: return@forEach
+            val slotKey = "${(base.x / 44f).toInt()}_${(base.y / 44f).toInt()}"
+            val slot = slots.getOrDefault(slotKey, 0)
+            slots[slotKey] = slot + 1
             val color = when (army.ownerFactionId) {
                 "jin" -> JinRed
                 "song" -> SongBright
                 else -> ImperialGold
             }
+            val isMoving = army.status.contains("进军") && army.targetCityId.isNotBlank()
+            val offsetX = if (army.ownerFactionId == "jin") -34f - (slot % 2) * 25f else 24f + (slot % 2) * 27f
+            val offsetY = -38f - (slot / 2) * 25f
             val commander = officerMap[army.commanderId]?.name ?: army.status
+            val subLabel = if (isMoving) "余${army.marchDaysRemaining}天" else "${army.troops / 1000}k"
+            val lineLabel = if (isMoving) "赴${MapData.nodeMap[army.targetCityId]?.name ?: army.targetCityId}" else commander
+            val scale = if (isMoving) 1.02f else if (army.troops >= 20000) 1.0f else 0.86f
             drawArmyFlag(
-                origin = Offset(base.x + dx, base.y + dy),
+                origin = Offset(base.x + offsetX, base.y + offsetY),
                 label = armyFlagLabel(army.name, army.ownerFactionId),
-                color = color,
-                scale = if (army.troops >= 20000) 1.0f else 0.86f,
-                subLabel = "${army.troops / 1000}k",
-                commander = commander
+                color = if (isMoving) color.copy(alpha = 1f) else color,
+                scale = scale,
+                subLabel = subLabel,
+                commander = lineLabel
             )
+            if (isMoving) {
+                drawCircle(ImperialGold.copy(alpha = 0.18f), 24f, base)
+                drawCircle(ImperialGold.copy(alpha = 0.58f), 9f, base, style = Stroke(width = 1.6f))
+            }
         }
+}
+
+private fun armyScreenPosition(army: Army, camX: Float, camY: Float, zoom: Float): Offset? {
+    val isMoving = army.status.contains("进军") && army.targetCityId.isNotBlank()
+    if (!isMoving) {
+        val node = MapData.nodeMap[army.currentCityId] ?: return null
+        return w2s(node.worldX, node.worldY, camX, camY, zoom)
     }
+    val fromId = army.routeFromCityId.ifBlank { army.supplyCityId.ifBlank { army.currentCityId } }
+    val from = MapData.nodeMap[fromId] ?: MapData.nodeMap[army.currentCityId] ?: return null
+    val to = MapData.nodeMap[army.targetCityId] ?: return w2s(from.worldX, from.worldY, camX, camY, zoom)
+    val total = army.marchDaysTotal.coerceAtLeast(1)
+    val passed = (total - army.marchDaysRemaining).coerceIn(0, total)
+    val progress = (passed.toFloat() / total.toFloat()).coerceIn(0.05f, 0.95f)
+    val wx = from.worldX + (to.worldX - from.worldX) * progress
+    val wy = from.worldY + (to.worldY - from.worldY) * progress
+    return w2s(wx, wy, camX, camY, zoom)
 }
 
 private fun armyFlagLabel(name: String, factionId: String): String {
@@ -573,7 +598,8 @@ private fun CityArmyRow(army: Army, commander: String) {
             Text(army.name, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Text("${army.troops / 1000}k", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        Text("统帅：$commander · 士气${army.morale} · ${army.status}", color = Color(0xFFB9AA82), fontSize = 10.sp)
+        val movement = if (army.status.contains("进军") && army.targetCityId.isNotBlank()) " · 目标${MapData.nodeMap[army.targetCityId]?.name ?: army.targetCityId} · 余${army.marchDaysRemaining}天" else ""
+        Text("统帅：$commander · 士气${army.morale} · ${army.status}$movement", color = Color(0xFFB9AA82), fontSize = 10.sp)
     }
     Spacer(Modifier.height(6.dp))
 }
