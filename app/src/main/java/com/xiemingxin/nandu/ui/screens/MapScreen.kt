@@ -12,10 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -76,6 +79,10 @@ fun MapScreen(
                     }
                 }
         ) {
+            drawRect(Color(0xFF122016))
+            drawTerrainRegions(cameraX, cameraY, zoom)
+            drawFactionRegions(cameraX, cameraY, zoom)
+            drawMajorRivers(cameraX, cameraY, zoom)
             drawMapGrid(cameraX, cameraY, zoom)
 
             MapData.roads.forEach { road ->
@@ -86,11 +93,11 @@ fun MapScreen(
                 val sw = (2.5f * zoom * 38f).coerceIn(1f, 6f)
 
                 val (color, pathFx) = when (road.type) {
-                    RoadType.RIVER -> Color(0xFF4A90D9) to null
-                    RoadType.CANAL -> Color(0xFF87CEEB) to PathEffect.dashPathEffect(floatArrayOf(12f, 6f))
-                    RoadType.SEA -> Color(0xFF1B6FBA) to PathEffect.dashPathEffect(floatArrayOf(16f, 8f))
-                    RoadType.MOUNTAIN -> Color(0xFF7A5C3A) to PathEffect.dashPathEffect(floatArrayOf(5f, 9f))
-                    RoadType.LAND -> Color(0xFF9B8260) to null
+                    RoadType.RIVER -> Color(0xFF68B7E8) to null
+                    RoadType.CANAL -> Color(0xFF9DD7EA) to PathEffect.dashPathEffect(floatArrayOf(12f, 6f))
+                    RoadType.SEA -> Color(0xFF2376C9) to PathEffect.dashPathEffect(floatArrayOf(16f, 8f))
+                    RoadType.MOUNTAIN -> Color(0xFFB08A54) to PathEffect.dashPathEffect(floatArrayOf(5f, 9f))
+                    RoadType.LAND -> Color(0xFFD0A66A) to null
                     RoadType.PASS -> Color(0xFF8B2500) to null
                 }
                 drawLine(color, fs, ts, strokeWidth = sw, pathEffect = pathFx, cap = StrokeCap.Round)
@@ -101,27 +108,21 @@ fun MapScreen(
                 val screen = w2s(node.worldX, node.worldY, cameraX, cameraY, zoom)
                 val isJin = city?.owner == "jin"
                 val isSel = selectedId == node.id
-                val r = ((if (node.isCapital) 14f else 9f) * zoom * 35f).coerceIn(5f, 22f)
+                val r = ((if (node.isCapital) 14f else 9f) * zoom * 35f).coerceIn(6f, 24f)
 
                 if (isSel) {
-                    drawCircle(ImperialGold.copy(alpha = 0.25f), r * 2.6f, screen)
+                    drawCircle(ImperialGold.copy(alpha = 0.30f), r * 2.7f, screen)
                 }
                 city?.troops?.let { t ->
                     if (t > 5000) {
                         val haloR = r + (t / 60000f * 10f).coerceIn(2f, 10f)
                         val haloColor = if (isJin) Color(0xFFB22222) else Color(0xFF2E86C1)
-                        drawCircle(haloColor.copy(alpha = 0.18f), haloR, screen)
+                        drawCircle(haloColor.copy(alpha = 0.20f), haloR, screen)
                     }
                 }
-                val borderColor = if (isJin) Color(0xFFB22222) else if (node.isCapital) ImperialGold else Color(0xFF2E86C1)
-                drawCircle(Color(0xFF050504), r + 2.5f, screen)
-                drawCircle(borderColor, r, screen)
 
-                if (node.isCapital) {
-                    val cr = r * 0.45f
-                    drawLine(Color.White.copy(alpha = 0.9f), Offset(screen.x - cr, screen.y), Offset(screen.x + cr, screen.y), 1.5f)
-                    drawLine(Color.White.copy(alpha = 0.9f), Offset(screen.x, screen.y - cr), Offset(screen.x, screen.y + cr), 1.5f)
-                }
+                val borderColor = if (isJin) Color(0xFFE24A4A) else if (node.isCapital) ImperialGold else Color(0xFF4DA3E6)
+                drawCityIcon(screen, r, borderColor, node.isCapital)
 
                 val textScale = zoom * 38f
                 if (textScale > 0.55f) {
@@ -133,7 +134,7 @@ fun MapScreen(
                             textAlign = android.graphics.Paint.Align.CENTER
                             setShadowLayer(3f, 0f, 1f, android.graphics.Color.argb(180, 0, 0, 0))
                         }
-                        canvas.nativeCanvas.drawText(node.name, screen.x, screen.y + r + p.textSize + 1f, p)
+                        canvas.nativeCanvas.drawText(node.name, screen.x, screen.y + r + p.textSize + 3f, p)
                     }
                 }
             }
@@ -147,11 +148,11 @@ fun MapScreen(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            LegendRow(Color(0xFF4A90D9), "━", "水路")
-            LegendRow(Color(0xFF87CEEB), "┅", "漕运")
-            LegendRow(Color(0xFF1B6FBA), "┅", "海路")
-            LegendRow(Color(0xFF7A5C3A), "┅", "山道")
-            LegendRow(Color(0xFF9B8260), "━", "陆路")
+            LegendRow(Color(0xFF2E86C1), "■", "宋控")
+            LegendRow(Color(0xFFB22222), "■", "金占")
+            LegendRow(Color(0xFF68B7E8), "━", "河流/水路")
+            LegendRow(Color(0xFFD0A66A), "━", "陆路")
+            LegendRow(Color(0xFFB08A54), "┅", "山道")
         }
 
         selectedId?.let { id ->
@@ -167,9 +168,132 @@ fun MapScreen(
     }
 }
 
+private fun DrawScope.drawTerrainRegions(camX: Float, camY: Float, zoom: Float) {
+    drawWorldRect(0f, 0f, 16000f, 10000f, Color(0xFF152417), camX, camY, zoom)
+    drawWorldRect(6400f, 1700f, 11200f, 4700f, Color(0xFF3A3A20).copy(alpha = 0.45f), camX, camY, zoom) // 北方平原
+    drawWorldRect(6700f, 5000f, 12100f, 7100f, Color(0xFF163C31).copy(alpha = 0.50f), camX, camY, zoom) // 江淮水网
+    drawWorldRect(3100f, 5600f, 6900f, 8400f, Color(0xFF244322).copy(alpha = 0.55f), camX, camY, zoom) // 川蜀盆地
+    drawWorldRect(4500f, 4300f, 7600f, 6000f, Color(0xFF4A3822).copy(alpha = 0.45f), camX, camY, zoom) // 秦岭山道
+    drawWorldRect(10300f, 7000f, 13600f, 9300f, Color(0xFF183B2D).copy(alpha = 0.45f), camX, camY, zoom) // 两浙闽地
+}
+
+private fun DrawScope.drawFactionRegions(camX: Float, camY: Float, zoom: Float) {
+    drawWorldRect(7000f, 1900f, 10400f, 4400f, Color(0xFFB22222).copy(alpha = 0.15f), camX, camY, zoom)
+    drawWorldRect(3300f, 5100f, 13300f, 9000f, Color(0xFF2E86C1).copy(alpha = 0.10f), camX, camY, zoom)
+}
+
+private fun DrawScope.drawMajorRivers(camX: Float, camY: Float, zoom: Float) {
+    drawWorldPath(
+        listOf(
+            Offset(2500f, 6900f), Offset(4200f, 6750f), Offset(6000f, 6650f),
+            Offset(7600f, 6600f), Offset(9200f, 6550f), Offset(10800f, 6650f), Offset(13000f, 7050f)
+        ),
+        Color(0xFF2D9CDB).copy(alpha = 0.65f),
+        8f,
+        camX,
+        camY,
+        zoom
+    )
+    drawWorldPath(
+        listOf(
+            Offset(7200f, 5200f), Offset(7900f, 5700f), Offset(7600f, 6600f), Offset(7000f, 7000f)
+        ),
+        Color(0xFF49B6E8).copy(alpha = 0.55f),
+        5f,
+        camX,
+        camY,
+        zoom
+    )
+    drawWorldPath(
+        listOf(
+            Offset(8500f, 5250f), Offset(9600f, 5400f), Offset(10800f, 5600f), Offset(11600f, 6000f)
+        ),
+        Color(0xFF5BC0EB).copy(alpha = 0.55f),
+        6f,
+        camX,
+        camY,
+        zoom
+    )
+    drawWorldPath(
+        listOf(
+            Offset(6500f, 3800f), Offset(8200f, 3900f), Offset(9000f, 3900f), Offset(10400f, 3600f)
+        ),
+        Color(0xFF496F9A).copy(alpha = 0.35f),
+        5f,
+        camX,
+        camY,
+        zoom
+    )
+}
+
+private fun DrawScope.drawWorldRect(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    color: Color,
+    camX: Float,
+    camY: Float,
+    zoom: Float
+) {
+    val topLeft = w2s(left, top, camX, camY, zoom)
+    val bottomRight = w2s(right, bottom, camX, camY, zoom)
+    drawRect(
+        color = color,
+        topLeft = topLeft,
+        size = Size(bottomRight.x - topLeft.x, bottomRight.y - topLeft.y)
+    )
+}
+
+private fun DrawScope.drawWorldPath(
+    points: List<Offset>,
+    color: Color,
+    baseWidth: Float,
+    camX: Float,
+    camY: Float,
+    zoom: Float
+) {
+    if (points.size < 2) return
+    val path = Path()
+    val first = w2s(points.first().x, points.first().y, camX, camY, zoom)
+    path.moveTo(first.x, first.y)
+    points.drop(1).forEach { p ->
+        val sp = w2s(p.x, p.y, camX, camY, zoom)
+        path.lineTo(sp.x, sp.y)
+    }
+    drawPath(
+        path = path,
+        color = color,
+        style = Stroke(width = (baseWidth * zoom * 35f).coerceIn(2f, 14f), cap = StrokeCap.Round)
+    )
+}
+
+private fun DrawScope.drawCityIcon(center: Offset, r: Float, color: Color, isCapital: Boolean) {
+    drawRect(
+        color = Color(0xFF050504),
+        topLeft = Offset(center.x - r * 1.25f, center.y - r * 0.95f),
+        size = Size(r * 2.5f, r * 1.75f)
+    )
+    drawRect(
+        color = color,
+        topLeft = Offset(center.x - r, center.y - r * 0.75f),
+        size = Size(r * 2f, r * 1.35f)
+    )
+    drawRect(
+        color = Color(0xFF11100C),
+        topLeft = Offset(center.x - r * 0.36f, center.y - r * 0.18f),
+        size = Size(r * 0.72f, r * 0.78f)
+    )
+    drawLine(color = Color.White.copy(alpha = 0.5f), start = Offset(center.x - r, center.y - r * 0.75f), end = Offset(center.x, center.y - r * 1.25f), strokeWidth = 1.4f)
+    drawLine(color = Color.White.copy(alpha = 0.5f), start = Offset(center.x, center.y - r * 1.25f), end = Offset(center.x + r, center.y - r * 0.75f), strokeWidth = 1.4f)
+    if (isCapital) {
+        drawCircle(ImperialGold.copy(alpha = 0.35f), r * 1.9f, center)
+    }
+}
+
 private fun DrawScope.drawMapGrid(camX: Float, camY: Float, zoom: Float) {
     val gridWorld = 2000f
-    val gridColor = Color(0xFF1A2020)
+    val gridColor = Color(0xFF233029).copy(alpha = 0.55f)
     val startX = (camX / gridWorld).toInt() * gridWorld
     val startY = (camY / gridWorld).toInt() * gridWorld
     var wx = startX
@@ -193,7 +317,7 @@ private fun w2s(wx: Float, wy: Float, camX: Float, camY: Float, zoom: Float) =
 private fun LegendRow(color: Color, symbol: String, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(symbol, color = color, fontSize = 11.sp)
-        Text(label, color = Color(0xFF6A6A6A), fontSize = 10.sp)
+        Text(label, color = Color(0xFF9A9078), fontSize = 10.sp)
     }
 }
 
