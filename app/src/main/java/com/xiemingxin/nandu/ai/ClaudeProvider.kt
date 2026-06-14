@@ -2,6 +2,7 @@ package com.xiemingxin.nandu.ai
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -42,8 +43,11 @@ yue_fei忠烈主战铿锵 qin_hui主和阴柔暗指风险 zhao_ding稳重理财�
         gameContext: GameContext
     ): Result<EdictResult> = withContext(Dispatchers.IO) {
         try {
+            if (!isConfigured) {
+                return@withContext Result.failure(Exception("Claude API Key未配置"))
+            }
+
             val systemPrompt = buildSystemPrompt(gameContext)
-            // 手动构建JSON，避免序列化问题
             val systemEscaped = systemPrompt
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"")
@@ -73,7 +77,6 @@ yue_fei忠烈主战铿锵 qin_hui主和阴柔暗指风险 zhao_ding稳重理财�
                 return@withContext Result.failure(Exception("API错误 ${response.code}: $responseText"))
             }
 
-            // 提取content[0].text
             val parsed = json.parseToJsonElement(responseText).jsonObject
             val rawText = parsed["content"]
                 ?.jsonArray?.firstOrNull()
@@ -81,7 +84,6 @@ yue_fei忠烈主战铿锵 qin_hui主和阴柔暗指风险 zhao_ding稳重理财�
                 ?.jsonPrimitive?.content
                 ?: return@withContext Result.failure(Exception("无法提取响应文本"))
 
-            // 清理可能的markdown代码块
             val cleanJson = rawText.trim()
                 .removePrefix("```json").removePrefix("```")
                 .removeSuffix("```").trim()
@@ -91,7 +93,6 @@ yue_fei忠烈主战铿锵 qin_hui主和阴柔暗指风险 zhao_ding稳重理财�
             Result.success(result.copy(
                 commands = result.commands.filter { EdictCommand.isValid(it.type) }
             ))
-
         } catch (e: Exception) {
             Result.failure(e)
         }
