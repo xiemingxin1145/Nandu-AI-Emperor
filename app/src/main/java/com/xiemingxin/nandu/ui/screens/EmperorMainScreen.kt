@@ -4,7 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -155,7 +154,7 @@ fun IdleView(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "御笔下诏",
+            text = "御笔下评",
             color = ImperialGold,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
@@ -170,7 +169,7 @@ fun IdleView(
                 .height(160.dp),
             placeholder = {
                 Text(
-                    "传朕旨意……\n（如：命岳飞率三万兵从鄂州取襄阳，韩世忠守建康，秦桧暂退中枢）",
+                    "传朕旨意\u2026\n（如：命岳飞率三万兵从鄂州取襄阳，韩世忠守建康，秦桧暂退中枢）",
                     color = Color(0xFF8B7355),
                     fontSize = 13.sp
                 )
@@ -187,7 +186,7 @@ fun IdleView(
 
         // 快捷提示
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val hints = listOf("调兵出征", "任命守将", "修缮城防", "筹粮备战", "压制主和", "赏赐名将")
+            val hints = listOf("调兵出征", "任命守将", "修缀城防", "筹粮备战", "压制主和", "赏赐名将")
             items(hints) { hint ->
                 FilterChip(
                     selected = false,
@@ -213,7 +212,7 @@ fun IdleView(
             shape = RoundedCornerShape(4.dp)
         ) {
             Text(
-                if (isLoading) "执行中…" else "🖌 朱批下发",
+                if (isLoading) "执行中…" else "🔌 朱批下发",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -253,7 +252,7 @@ fun ConfirmEdictView(
         // 圣旨摘要
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
-            border = BorderStroke(1.dp, ImperialGold)
+            border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text("📜 御前推演官解读", color = ImperialGold, fontSize = 12.sp)
@@ -311,7 +310,7 @@ fun ConfirmEdictView(
             OutlinedButton(
                 onClick = onCancel,
                 modifier = Modifier.weight(1f).height(44.dp),
-                border = BorderStroke(1.dp, ImperialGold)
+                border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
             ) { Text("改旨", color = ImperialGold) }
         }
     }
@@ -327,7 +326,7 @@ fun NpcResponseCard(officerId: String, attitude: String, text: String) {
         "li_gang"       -> "🏯" to "李纲"
         "zong_ze"       -> "🌅" to "宗泽"
         "wu_jie"        -> "🏔" to "吴玠"
-        "zhang_jun"     -> "⚖" to "张浚"
+        "zhang_jun"     -> "⚖" to "张泼"
         else            -> "👤" to officerId
     }
     val attitudeColor = when (attitude) {
@@ -340,7 +339,7 @@ fun NpcResponseCard(officerId: String, attitude: String, text: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF12100A)),
         modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(0.5.dp, attitudeColor.copy(alpha = 0.5f))
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, attitudeColor.copy(alpha = 0.5f))
     ) {
         Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
             Text("$icon $name", color = attitudeColor, fontSize = 13.sp, fontWeight = FontWeight.Bold,
@@ -378,7 +377,7 @@ fun ResultView(outcomes: List<String>, rejected: List<String>, onDismiss: () -> 
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth().height(44.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A1F12)),
-            border = BorderStroke(1.dp, ImperialGold)
+            border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
         ) { Text("下一旬", color = ImperialGold, fontWeight = FontWeight.Bold) }
     }
 }
