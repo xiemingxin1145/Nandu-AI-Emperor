@@ -29,7 +29,19 @@ data class City(
     val grain: Int,
     val gold: Int,
     val popularSupport: Int = 80,
-    val controlState: String = "STABLE"
+    val controlState: String = "STABLE",
+    // V0.8 地理与经营扩展（全部带默认值，兼容旧存档）
+    val route: String = "",            // 所属路，如 两浙西路
+    val cityLevel: String = "州",       // 府/州/军/监/关
+    val terrain: String = "plain",     // plain平原 / river水network / mountain山地 / pass关隘 / coast沿海
+    val population: Int = 100000,      // 人口
+    val commerce: Int = 50,            // 商业度
+    val agriculture: Int = 50,         // 农业度
+    val isCapital: Boolean = false,    // 是否都城
+    val isWaterNode: Boolean = false,  // 是否水运节点
+    val isPass: Boolean = false,       // 是否关隘
+    val x: Int = 0,                    // 地图坐标X
+    val y: Int = 0                     // 地图坐标Y
 )
 
 data class Faction(
