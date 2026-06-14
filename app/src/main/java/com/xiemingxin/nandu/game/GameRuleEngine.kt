@@ -196,7 +196,7 @@ object GameRuleEngine {
                         currentState = result.first
                         outcomes.add(result.second!!)
                     } else {
-                        rejected.add("【调兵失败】兵力不足、城池不存在、将领未被朝廷登记或正在行军。")
+                        rejected.add("【调兵失败】兵力不足、城池不存在、将领未被朝廷登记、正在行军或无统兵资格。")
                     }
                 }
                 "assign_officer" -> {
@@ -279,10 +279,13 @@ object GameRuleEngine {
         if (officer.status != OfficerStatus.IN_COURT && officer.status != OfficerStatus.DEPLOYED) return state to null
         val fromCity = state.cities.find { it.id == cmd.fromCityId } ?: return state to null
         val toCity = state.cities.find { it.id == cmd.toCityId } ?: return state to null
-        val actualTroops = cmd.troops.coerceAtMost(fromCity.troops - 5000)
-        if (actualTroops <= 0) return state to null
         val existingArmy = state.armies.find { it.commanderId == officer.id }
         if (existingArmy?.status?.contains("进军") == true) return state to null
+
+        val cityAvailable = (fromCity.troops - 5000).coerceAtLeast(0)
+        val officerLimit = officer.commandLimit()
+        val actualTroops = cmd.troops.coerceAtMost(cityAvailable).coerceAtMost(officerLimit)
+        if (actualTroops <= 0) return state to null
 
         val armyType = existingArmy?.armyType ?: "field_army"
         val marchDays = estimateMarchDays(cmd.fromCityId, cmd.toCityId, armyType, state.season, state.weather)
@@ -293,6 +296,9 @@ object GameRuleEngine {
             WeatherType.RAIN -> "道路湿滑，"
             else -> ""
         }
+        val capNote = if (cmd.troops > actualTroops) {
+            "原拟${cmd.troops}兵，因${officer.name}当前可统${officerLimit}兵、${fromCity.name}需留守，实发${actualTroops}兵。"
+        } else ""
 
         val newCities = state.cities.map { city ->
             if (city.id == cmd.fromCityId) city.copy(troops = city.troops - actualTroops) else city
@@ -341,7 +347,7 @@ object GameRuleEngine {
             troopMorale = (state.troopMorale + 5).coerceAtMost(100),
             jinThreat = (state.jinThreat + 5).coerceAtMost(100)
         )
-        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}启程赴${toCity.name}，预计${marchDays}日抵达，军心+5。"
+        return newState to "【调兵】${weatherDelay}${officer.name}率${actualTroops}兵马由${fromCity.name}启程赴${toCity.name}，预计${marchDays}日抵达，军心+5。$capNote"
     }
 
     private fun estimateMarchDays(fromCityId: String, toCityId: String, armyType: String, season: Season, weather: WeatherType): Int {
@@ -482,9 +488,11 @@ object GameRuleEngine {
     private fun executeRaiseGrain(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
         val officer = state.officers.find { it.id == cmd.officerId }
         val amount = cmd.amount.coerceIn(10000, 500000)
+        val skillBonus = officer?.profile()?.skills?.let { SkillEffects.domainModifier(it, "grain") } ?: 0f
         val seasonBonus = if (state.season == Season.AUTUMN) amount / 10 else 0
+        val skillGain = (amount * skillBonus).toInt() / 2
         val stabilityPenalty = if (amount > 100000) -8 else -3
-        return state.copy(grain = state.grain + amount / 2 + seasonBonus, courtStability = (state.courtStability + stabilityPenalty).coerceIn(0, 100)) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2 + seasonBonus}石，朝堂稳定${stabilityPenalty}。"
+        return state.copy(grain = state.grain + amount / 2 + seasonBonus + skillGain, courtStability = (state.courtStability + stabilityPenalty).coerceIn(0, 100)) to "【筹粮】${officer?.name ?: "户部"}奉旨筹粮，首旬得粮${amount / 2 + seasonBonus + skillGain}石，朝堂稳定${stabilityPenalty}。"
     }
 
     private fun executeSuppressOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
@@ -492,10 +500,12 @@ object GameRuleEngine {
         val isPeaceFaction = officer.faction == "主和派"
         val stabilityChange = if (cmd.severity == "severe") -15 else -8
         val factionShift = if (isPeaceFaction && cmd.severity != "light") 10 else 0
+        val intrigueBonus = SkillEffects.domainModifier(officer.profile().skills, "court_intrigue")
+        val adjustedFactionShift = (factionShift * (1f + intrigueBonus)).toInt()
         val newOfficers = state.officers.map {
             if (it.id == cmd.officerId && cmd.severity == "severe") it.copy(status = OfficerStatus.DISMISSED) else it
         }
-        return state.copy(officers = newOfficers, courtStability = (state.courtStability + stabilityChange).coerceIn(0, 100), warFactionPower = (state.warFactionPower + factionShift).coerceIn(0, 100), peaceFactionPower = (state.peaceFactionPower - factionShift).coerceIn(0, 100)) to "【处置】${officer.name}遭御前压制，朝堂稳定${stabilityChange}，主战派声势+${factionShift}。"
+        return state.copy(officers = newOfficers, courtStability = (state.courtStability + stabilityChange).coerceIn(0, 100), warFactionPower = (state.warFactionPower + adjustedFactionShift).coerceIn(0, 100), peaceFactionPower = (state.peaceFactionPower - adjustedFactionShift).coerceIn(0, 100)) to "【处置】${officer.name}遭御前压制，朝堂稳定${stabilityChange}，主战派声势+${adjustedFactionShift}。"
     }
 
     private fun executeRewardOfficer(state: GameState, cmd: EdictCommand): Pair<GameState, String> {
