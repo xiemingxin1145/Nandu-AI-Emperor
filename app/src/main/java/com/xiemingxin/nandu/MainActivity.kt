@@ -76,6 +76,9 @@ fun NanduApp() {
                     onConfirmEdict = { viewModel.confirmEdict(edictText) },
                     onCancelEdict = { viewModel.cancelEdict() },
                     onDismissResult = { viewModel.dismissResult() },
+                    onAdvanceTurn = { viewModel.advanceTurn() },
+                    onStoryChoice = { choiceId -> viewModel.chooseStoryOption(choiceId) },
+                    onDismissStoryOutcome = { viewModel.dismissStoryOutcome() },
                     onOpenSettings = { showSettings = true }
                 )
                 1 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
