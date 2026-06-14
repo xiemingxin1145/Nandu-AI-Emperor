@@ -4,15 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xiemingxin.nandu.ai.AiProvider
 import com.xiemingxin.nandu.ai.AiProviderType
+import com.xiemingxin.nandu.ai.CityContext
 import com.xiemingxin.nandu.ai.ClaudeProvider
 import com.xiemingxin.nandu.ai.CustomApiProvider
 import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.ai.GameContext
 import com.xiemingxin.nandu.ai.GeminiProvider
 import com.xiemingxin.nandu.ai.MockProvider
+import com.xiemingxin.nandu.ai.OfficerContext
 import com.xiemingxin.nandu.ai.OpenAiProvider
 import com.xiemingxin.nandu.ai.OpenRouterProvider
-import com.xiemingxin.nandu.game.*
+import com.xiemingxin.nandu.game.GameRuleEngine
+import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.OfficerStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -30,11 +34,11 @@ data class UiState(
 )
 
 enum class GamePhase {
-    IDLE,               // 等待皇帝下旨
-    AI_PROCESSING,      // AI解析中
-    AWAITING_CONFIRM,   // 等待皇帝"照准"
-    EXECUTING,          // 规则引擎执行中
-    SHOWING_RESULT      // 显示结果
+    IDLE,
+    AI_PROCESSING,
+    AWAITING_CONFIRM,
+    EXECUTING,
+    SHOWING_RESULT
 }
 
 class EmperorViewModel : ViewModel() {
@@ -42,7 +46,6 @@ class EmperorViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
-    // 当前AI Provider
     private var currentProvider: AiProvider = MockProvider()
 
     fun updateProviderSettings(type: AiProviderType, apiKey: String, customModel: String = "") {
@@ -61,7 +64,6 @@ class EmperorViewModel : ViewModel() {
         )
     }
 
-    // 玩家写好圣旨，点击"朱批下发"
     fun submitEdict(edictText: String) {
         if (edictText.isBlank()) return
 
@@ -89,7 +91,6 @@ class EmperorViewModel : ViewModel() {
         }
     }
 
-    // 皇帝点击"照准"，本地规则执行
     fun confirmEdict(edictText: String) {
         val edictResult = _uiState.value.lastEdictResult ?: return
         _uiState.value = _uiState.value.copy(phase = GamePhase.EXECUTING)
@@ -108,7 +109,6 @@ class EmperorViewModel : ViewModel() {
         )
     }
 
-    // 改旨 / 暂缓
     fun cancelEdict() {
         _uiState.value = _uiState.value.copy(
             phase = GamePhase.IDLE,
