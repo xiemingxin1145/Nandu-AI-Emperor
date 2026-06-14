@@ -20,6 +20,8 @@ import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.commandLimit
+import com.xiemingxin.nandu.game.profile
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -42,9 +44,9 @@ fun MilitaryScreen(gameState: GameState) {
     ) {
         item {
             PanelCard {
-                Text("军务府 V0.5.4", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("军务府 V0.6.1", color = ImperialGold, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("军团行军已按距离、兵种、季节、天气计算预计天数。每过一旬，行军天数自动扣减，归零后才抵达。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("人物已接入身份、出身、魅力、野心、名望、经验、技能和可统兵上限。后续调兵会逐步按上限约束。", color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
         item {
@@ -87,7 +89,11 @@ fun MilitaryScreen(gameState: GameState) {
         item {
             PanelCard {
                 SectionTitle("御前可用")
-                inCourt.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) }
+                if (inCourt.isEmpty()) {
+                    Text("御前暂无可用将吏。可先寻访、招募、拔擢人才。", color = Color(0xFFB9AA82), fontSize = 12.sp)
+                } else {
+                    inCourt.forEach { officer -> OfficerRow(officer, cityMap[officer.currentCityId]?.name ?: officer.currentCityId) }
+                }
             }
         }
         item {
@@ -171,12 +177,18 @@ private fun ArmyRow(army: Army, commanderName: String, cityName: String, targetC
 
 @Composable
 private fun OfficerRow(officer: Officer, cityName: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Column {
-            Text(officer.name, color = XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            Text("${officer.faction} · $cityName · ${officer.status.name}", color = Color(0xFF8B7355), fontSize = 10.sp)
+    val profile = officer.profile()
+    Column(Modifier.fillMaxWidth().background(Color(0xFF1A1208), RoundedCornerShape(8.dp)).padding(10.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text(officer.name, color = XuanCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("${profile.rank} · ${profile.origin} · $cityName", color = Color(0xFF8B7355), fontSize = 10.sp)
+            }
+            Text("可统 ${officer.commandLimit() / 1000}k", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        Text("统${officer.command} 武${officer.force} 智${officer.strategy} 忠${officer.loyalty}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+        Spacer(Modifier.height(4.dp))
+        Text("武${officer.force} 统${officer.command} 谋${officer.strategy} 政${officer.politics} 魅${profile.charm}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+        Text("忠${officer.loyalty} 野${profile.ambition} 名${profile.fame} 经${profile.experience} · ${profile.skills.joinToString("/")}", color = Color(0xFF8B7355), fontSize = 10.sp)
     }
     Spacer(Modifier.height(8.dp))
 }
