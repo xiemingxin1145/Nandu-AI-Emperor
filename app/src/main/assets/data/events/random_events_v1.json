@@ -1,0 +1,522 @@
+[
+  {
+    "id": "rc_war_faction_petition_001",
+    "title": "诸将联名请战",
+    "type": "random_court",
+    "weight": 60,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "枢密院转呈一封联署奏疏，岳飞、韩世忠、吴玠等将领联名上书，请朝廷定下北伐期限，不可久拖。主战派在朝堂振臂附和，主和派则眉目传情，面色凝重。",
+    "choices": [
+      { "id": "endorse", "text": "嘉许来疏，命诸将整军备战", "effects": { "warFactionPower": 8, "troopMorale": 10, "courtStability": -5 }, "add_flags": ["war_endorsed"] },
+      { "id": "hold", "text": "留中不发，俟时而动", "effects": { "courtStability": 3 } },
+      { "id": "rebuke", "text": "申斥轻敌冒进，令各将守镇", "effects": { "warFactionPower": -8, "troopMorale": -5, "courtStability": 8, "peaceFactionPower": 5 } }
+    ]
+  },
+  {
+    "id": "rc_peace_memorial_002",
+    "title": "主和疏议再起",
+    "type": "random_court",
+    "weight": 60,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "中书舍人联同数位文臣缮就奏疏，言称北伐劳民伤财、师出无名，请陛下以民力为重，与金国修好通商。主和派在廊庑间眼神递送，显然早已串通一气。",
+    "choices": [
+      { "id": "accept", "text": "准其所奏，议和之事可徐徐图之", "effects": { "peaceFactionPower": 10, "courtStability": 8, "warFactionPower": -8, "troopMorale": -5 } },
+      { "id": "hold", "text": "留中不发", "effects": { "courtStability": 2 } },
+      { "id": "rebuke", "text": "驳回严斥，靖康之耻未雪，何言议和", "effects": { "peaceFactionPower": -10, "warFactionPower": 8, "courtStability": -5, "troopMorale": 8 } }
+    ]
+  },
+  {
+    "id": "rc_corruption_001",
+    "title": "京官受贿密报",
+    "type": "random_court",
+    "weight": 55,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "皇城司呈来密报，临安某主管盐铁的京官与江南大商勾连，私吞盐税，数目不小。消息若外泄，只怕朝中人心惶惶。",
+    "choices": [
+      { "id": "punish", "text": "严拿下狱，依律惩处", "effects": { "courtStability": 10, "gold": 2000 } },
+      { "id": "reprimand", "text": "秘密训诫，令其吐出所贪", "effects": { "gold": 1000, "courtStability": 3 } },
+      { "id": "suppress", "text": "压下此事，勿生波澜", "effects": { "courtStability": -5, "gold": 500 } }
+    ]
+  },
+  {
+    "id": "rc_imperial_clan_001",
+    "title": "宗室求授要职",
+    "type": "random_court",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "一位皇室远支宗亲持着太后懿旨登门，请陛下念宗亲之情，授以实职。此人才具平平，但宗室向来是烫手山芋。",
+    "choices": [
+      { "id": "grant", "text": "念其宗亲，授以闲职以安其心", "effects": { "courtStability": 5, "gold": -800 } },
+      { "id": "reward", "text": "厚赐金帛，婉言托以他故", "effects": { "gold": -2000, "courtStability": 3 } },
+      { "id": "refuse", "text": "温言推拒，以才能为由", "effects": { "courtStability": -3 } }
+    ]
+  },
+  {
+    "id": "rc_censor_001",
+    "title": "御史台风闻奏事",
+    "type": "random_court",
+    "weight": 55,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "御史台一名言官据风闻上疏，弹劾某边将『拥兵自重、专擅军务』，措辞激烈。此疏若准，前线将心必然不稳；若驳，言官体统从何而来？",
+    "choices": [
+      { "id": "investigate", "text": "命人彻查，据实裁断", "effects": { "courtStability": 5, "troopMorale": -5 } },
+      { "id": "transfer", "text": "明升暗降，将其外调他处", "effects": { "courtStability": 3, "troopMorale": -3 } },
+      { "id": "reject", "text": "驳回奏疏，斥言官风闻生事", "effects": { "courtStability": -5, "troopMorale": 5, "warFactionPower": 3 } }
+    ]
+  },
+  {
+    "id": "rc_tax_dispute_001",
+    "title": "赋税增减之争",
+    "type": "random_court",
+    "weight": 65,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "政事堂为今年税制争论不休。户部主张加税以充军费；地方官员连番上书，言称百姓已不堪重负；主战派怒斥减税是在临阵软脚。",
+    "choices": [
+      { "id": "raise", "text": "加征赋税，军费优先", "effects": { "gold": 4000, "popularSupport": -8, "courtStability": -3 } },
+      { "id": "steady", "text": "税制维持，各方约束开支", "effects": { "courtStability": 3 } },
+      { "id": "reduce", "text": "适当减税，与民休息", "effects": { "gold": -2000, "popularSupport": 10, "courtStability": 5 } }
+    ]
+  },
+  {
+    "id": "rc_scholar_petition_001",
+    "title": "太学生伏阙上书",
+    "type": "random_court",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "数百太学生聚于宫门，联名请求北伐，誓言愿投笔从戎。临安百姓驻足观望，街头一时沸腾。",
+    "choices": [
+      { "id": "commend", "text": "召见代表，嘉许其忠义", "effects": { "warFactionPower": 8, "troopMorale": 5, "popularSupport": 8 } },
+      { "id": "disperse", "text": "温言相劝，令其散去", "effects": { "courtStability": 3 } },
+      { "id": "suppress", "text": "命禁卫驱散，不得生事", "effects": { "courtStability": -8, "warFactionPower": -5, "popularSupport": -5 } }
+    ]
+  },
+  {
+    "id": "rc_eunuch_001",
+    "title": "内侍弄权",
+    "type": "random_court",
+    "weight": 45,
+    "repeatable": true,
+    "trigger": { "year_gte": 1128 },
+    "description": "朝中传言，御前一名近侍在外私自接受官员馈赠，以宫中消息换取好处。若坐实，有损天颜；若不查，内廷积弊将愈演愈烈。",
+    "choices": [
+      { "id": "punish", "text": "内廷严查，当众杖责以儆效尤", "effects": { "courtStability": 8, "gold": 500 } },
+      { "id": "warn", "text": "私下警告，令其收手", "effects": { "courtStability": 2 } },
+      { "id": "tolerate", "text": "睁一只眼闭一只眼", "effects": { "courtStability": -5, "gold": 800 } }
+    ]
+  },
+  {
+    "id": "rc_exam_fraud_001",
+    "title": "贡院科举舞弊",
+    "type": "random_court",
+    "weight": 40,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "礼部密报，今岁科举考场出现夹带舞弊之人，且与某主考官有所往来。消息已在士子间流传，若坐视不理，大宋文教颜面何存？",
+    "choices": [
+      { "id": "investigate", "text": "彻查到底，严惩主考官", "effects": { "courtStability": 8, "peaceFactionPower": -3 } },
+      { "id": "quiet", "text": "悄然处置，撤换主考官了事", "effects": { "courtStability": 3 } },
+      { "id": "cover", "text": "压下消息，以稳大局", "effects": { "courtStability": -5, "popularSupport": -3 } }
+    ]
+  },
+  {
+    "id": "rc_hanlin_001",
+    "title": "翰林学士进言赈民",
+    "type": "random_court",
+    "weight": 40,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "翰林学士院数位学士联名上疏，建议兴办义仓、赈抚流民，安定人心。此事耗费不小，但长远或有裨益。",
+    "choices": [
+      { "id": "adopt", "text": "采纳建议，拨款兴建义仓", "effects": { "gold": -3000, "popularSupport": 12, "courtStability": 5 } },
+      { "id": "trial", "text": "小规模试行，先看成效", "effects": { "gold": -1000, "popularSupport": 5 } },
+      { "id": "reject", "text": "以军费为先，暂且搁置", "effects": { "courtStability": -3 } }
+    ]
+  },
+  {
+    "id": "rc_general_feud_001",
+    "title": "宿将相争",
+    "type": "random_court",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "两位前线重将因守地划分产生嫌隙，在枢密院互相弹劾，措辞激烈。若放任，前线内耗；若强行压制，两人皆有寒心之虞。",
+    "choices": [
+      { "id": "mediate", "text": "各打五十大板，重新划定防区", "effects": { "courtStability": 5, "troopMorale": -3 } },
+      { "id": "favor", "text": "明确支持其中一方，另一方外调", "effects": { "courtStability": -3, "troopMorale": 5 } },
+      { "id": "ignore", "text": "置之不理，让他们自行解决", "effects": { "troopMorale": -8, "courtStability": -3 } }
+    ]
+  },
+  {
+    "id": "rc_spy_officer_001",
+    "title": "皇城司密报大臣",
+    "type": "random_court",
+    "weight": 45,
+    "repeatable": true,
+    "trigger": { "year_gte": 1128 },
+    "description": "皇城司密报称，某位朝中重臣近日频繁与外地豪绅私下会面，账目往来不清。此人在朝颇有党羽，若非铁证，贸然处置恐引震动。",
+    "choices": [
+      { "id": "monitor", "text": "继续暗中监视，等待实证", "effects": { "courtStability": 2 } },
+      { "id": "question", "text": "召来密问，看其反应", "effects": { "courtStability": -3 } },
+      { "id": "dismiss", "text": "斥皇城司风闻生事，压下密报", "effects": { "courtStability": 3, "gold": -500 } }
+    ]
+  },
+  {
+    "id": "rm_troop_mutiny_001",
+    "title": "厢军索饷哗变",
+    "type": "random_military",
+    "weight": 70,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "某地厢军已三月未发足军饷，校尉约束不住，数百士卒聚集营门，击鼓喧哗。若不尽快处置，恐生更大乱子。",
+    "choices": [
+      { "id": "pay", "text": "足额补发欠饷，稳住军心", "effects": { "gold": -3000, "troopMorale": 10 } },
+      { "id": "suppress", "text": "遣精锐弹压，擒首恶斩示", "effects": { "troopMorale": -10, "courtStability": -3 } },
+      { "id": "appease", "text": "派官员安抚，允诺下旬补发", "effects": { "troopMorale": 3, "courtStability": 2 } }
+    ]
+  },
+  {
+    "id": "rm_bandit_supply_001",
+    "title": "山贼劫粮",
+    "type": "random_military",
+    "weight": 60,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "一支押粮队在山中遭山贼伏击，损失粮草若干，余者狼狈逃回。山贼据说曾是流离失所的厢军老兵，盘踞要道，专袭辎重。",
+    "choices": [
+      { "id": "purge", "text": "遣精兵剿匪，扫清道路", "effects": { "grain": -500, "troopMorale": 5 } },
+      { "id": "recruit", "text": "遣使招安，编入厢军", "effects": { "troopMorale": 3, "courtStability": -2 } },
+      { "id": "reroute", "text": "绕道押运，多费时日", "effects": { "grain": -300 } }
+    ]
+  },
+  {
+    "id": "rm_border_skirmish_001",
+    "title": "边境小冲突",
+    "type": "random_military",
+    "weight": 70,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "淮北边境一处哨所与金军斥候发生冲突，双方各有伤亡，金军已后撤。此事是偶发摩擦还是金军试探，尚不明朗。",
+    "choices": [
+      { "id": "counterattack", "text": "命边将反击，给金军颜色看看", "effects": { "troopMorale": 10, "jinThreat": 5, "grain": -500 } },
+      { "id": "hold", "text": "严守阵地，不主动扩大", "effects": { "courtStability": 3 } },
+      { "id": "protest", "text": "遣使交涉，令金方解释", "effects": { "peaceFactionPower": 3, "courtStability": 2 } }
+    ]
+  },
+  {
+    "id": "rm_rebel_surrender_001",
+    "title": "义军来降",
+    "type": "random_military",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "活跃于淮北的一支义军遣使南下，请求归顺朝廷。此众约三千人，装备简陋但士气颇高；然义军骄悍，整编殊非易事。",
+    "choices": [
+      { "id": "integrate", "text": "接受归顺，编入正军", "effects": { "troopMorale": 5, "grain": -2000, "warFactionPower": 5 } },
+      { "id": "observe", "text": "先观察一段时间，再定去留", "effects": {} },
+      { "id": "decline", "text": "委婉拒绝，不纳游散之众", "effects": { "troopMorale": -3 } }
+    ]
+  },
+  {
+    "id": "rm_epidemic_002",
+    "title": "暑热军中疫起",
+    "type": "random_military",
+    "weight": 55,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "夏季水患刚过，某处驻军营中疫病蔓延，已有数十人病倒。军中医者药石匮乏，若不及时处置，恐怕难以遏制。",
+    "choices": [
+      { "id": "isolate", "text": "立刻隔离病营，防止蔓延", "effects": { "troopMorale": -8, "grain": -300 } },
+      { "id": "medicine", "text": "从临安调派医者和药材", "effects": { "gold": -2000, "troopMorale": 3 } },
+      { "id": "pray", "text": "祭天祈福，静待转机", "effects": { "troopMorale": -5, "courtStability": -2 } }
+    ]
+  },
+  {
+    "id": "rm_spy_caught_001",
+    "title": "擒获金国细作",
+    "type": "random_military",
+    "weight": 55,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "皇城司在临安市井中拿获一名疑似金国细作，其所携密信涉及城防与粮道布置。如何处置此人，大有讲究。",
+    "choices": [
+      { "id": "execute", "text": "严刑拷问，取得口供后处决", "effects": { "jinThreat": -5, "courtStability": 3 } },
+      { "id": "double", "text": "策反此人，传递假情报", "effects": { "jinThreat": -10, "courtStability": 5 } },
+      { "id": "publicize", "text": "押送临安公开审判", "effects": { "warFactionPower": 5, "jinThreat": 5 } }
+    ]
+  },
+  {
+    "id": "rm_weapon_shortage_001",
+    "title": "军器匮乏上报",
+    "type": "random_military",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "军器监上报，前线弓弩损耗严重，箭矢储备仅余三成，神臂弓更是所剩无几。若不尽快补充，下次作战将大受影响。",
+    "choices": [
+      { "id": "fund", "text": "拨款紧急督造，优先补充箭矢", "effects": { "gold": -4000, "troopMorale": 5 } },
+      { "id": "collect", "text": "向民间征集铁料，以战养战", "effects": { "popularSupport": -5, "troopMorale": 3 } },
+      { "id": "make_do", "text": "暂且将就，令将士节省使用", "effects": { "troopMorale": -8 } }
+    ]
+  },
+  {
+    "id": "rm_navy_drill_001",
+    "title": "水师请战演练",
+    "type": "random_military",
+    "weight": 40,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "水师都统呈上请战折，言称淮河水师已整备完毕，战船修缮一新，请批准水上大演以振军心、震慑金军。",
+    "choices": [
+      { "id": "approve_grand", "text": "批准演练，御驾亲临观操", "effects": { "troopMorale": 12, "grain": -800, "warFactionPower": 5 } },
+      { "id": "approve_quiet", "text": "批准演练，低调进行", "effects": { "troopMorale": 8, "grain": -500 } },
+      { "id": "delay", "text": "暂缓，以免引起金军警觉", "effects": { "troopMorale": -3 } }
+    ]
+  },
+  {
+    "id": "rm_general_reward_001",
+    "title": "将领争功",
+    "type": "random_military",
+    "weight": 45,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "上次作战后，两名将领各执一词，争夺首功，互相在枢密院告状。若处置不当，军中上下皆寒心。",
+    "choices": [
+      { "id": "reward_both", "text": "各有封赏，以示一视同仁", "effects": { "gold": -3000, "troopMorale": 5 } },
+      { "id": "judge", "text": "据实查明，赏罚分明", "effects": { "courtStability": 5, "troopMorale": 3 } },
+      { "id": "rebuke", "text": "两人皆训斥，令其专心备战", "effects": { "troopMorale": -5 } }
+    ]
+  },
+  {
+    "id": "fr_rumor_peace_deal_001",
+    "title": "割地密约传言",
+    "type": "folk_rumor",
+    "weight": 65,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "临安茶肆间传言：皇帝已秘密同意向金国割让河南土地以换和议。传言有鼻子有眼，连割让城池都说得清楚，街头议论纷纷。",
+    "choices": [
+      { "id": "deny", "text": "公开辟谣，申斥造谣生事者", "effects": { "courtStability": 5, "warFactionPower": 3, "popularSupport": 3 } },
+      { "id": "ignore", "text": "置之不理，流言自会平息", "effects": { "courtStability": -3 } },
+      { "id": "exploit", "text": "借机向主和派施压，以此为筹码", "effects": { "peaceFactionPower": -5, "warFactionPower": 5 } }
+    ]
+  },
+  {
+    "id": "fr_omen_fish_001",
+    "title": "钱塘异鱼现世",
+    "type": "folk_rumor",
+    "weight": 35,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "钱塘江有渔夫网获一条怪鱼，鱼鳞排列隐约如『宋』字。消息传开，百姓议论纷纷，有说祥瑞，有说厄兆，士子们也引经据典争论不休。",
+    "choices": [
+      { "id": "auspicious", "text": "命礼官以祥瑞上报，顺势鼓舞民心", "effects": { "popularSupport": 8, "courtStability": 5 } },
+      { "id": "dismiss", "text": "斥为无稽，不予理会", "effects": { "courtStability": 2 } },
+      { "id": "pardon", "text": "大赦轻罪犯人，以应天命", "effects": { "gold": -1000, "popularSupport": 5, "courtStability": 3 } }
+    ]
+  },
+  {
+    "id": "fr_northern_hero_001",
+    "title": "义士刺杀金官",
+    "type": "folk_rumor",
+    "weight": 55,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "从北方辗转传来消息，一名汉人义士在燕京街头刺杀了一名金国官员后逃入山野。此事在南渡百姓中迅速流传，临安人都在议论这位义士的名字。",
+    "choices": [
+      { "id": "secretly_praise", "text": "暗中褒奖其忠义之举", "effects": { "warFactionPower": 8, "troopMorale": 5, "jinThreat": 3 } },
+      { "id": "low_profile", "text": "不置可否，低调处理", "effects": {} },
+      { "id": "feign_condemn", "text": "假意谴责，以安金国", "effects": { "peaceFactionPower": 3, "warFactionPower": -5, "courtStability": -3 } }
+    ]
+  },
+  {
+    "id": "fr_prophecy_001",
+    "title": "童谣图谶",
+    "type": "folk_rumor",
+    "weight": 40,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "临安街头近日流传一首童谣，词句隐晦，似乎预言『三十年后河山复』。有人说是先知，有人说是金国散布扰民之词，也有人当作正谶大肆传扬。",
+    "choices": [
+      { "id": "use_auspice", "text": "以天命附会，大力宣扬振奋人心", "effects": { "popularSupport": 10, "warFactionPower": 5, "troopMorale": 5 } },
+      { "id": "ban", "text": "着令查禁，防止谣言扰乱", "effects": { "courtStability": 3 } },
+      { "id": "investigate", "text": "查明来源，看是否有人在背后操纵", "effects": { "courtStability": 5 } }
+    ]
+  },
+  {
+    "id": "fr_escaped_captive_001",
+    "title": "北地归人",
+    "type": "folk_rumor",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "一名从金国辗转逃回的汉人被带到临安，声称在北方亲眼目睹大批汉人秘密集结，只待朝廷大军一到便里应外合。",
+    "choices": [
+      { "id": "secret", "text": "秘密接见，详加盘问", "effects": { "warFactionPower": 5, "jinThreat": 3 } },
+      { "id": "public", "text": "公开接见，以示朝廷关怀北地汉人", "effects": { "warFactionPower": 8, "jinThreat": 8, "popularSupport": 5 } },
+      { "id": "expel", "text": "遣散此人，以防金国细作混入", "effects": { "courtStability": 3 } }
+    ]
+  },
+  {
+    "id": "fr_daoist_001",
+    "title": "道士献延寿丹",
+    "type": "folk_rumor",
+    "weight": 30,
+    "repeatable": true,
+    "trigger": { "year_gte": 1127 },
+    "description": "一名自称武当山人的道士声称炼成了延寿丹药，托人送至御前。礼部大臣已明显皱起了眉头。",
+    "choices": [
+      { "id": "test", "text": "召见道士，命御医验明后再定", "effects": { "gold": -500, "courtStability": -2 } },
+      { "id": "reward_dismiss", "text": "赐银打发，不作深究", "effects": { "gold": -500 } },
+      { "id": "reject", "text": "公开斥为方术惑众，命礼部驱逐", "effects": { "courtStability": 5 } }
+    ]
+  },
+  {
+    "id": "jin_internal_strife_001",
+    "title": "金国宗室争权",
+    "type": "jin_event",
+    "weight": 50,
+    "repeatable": false,
+    "trigger": { "year_gte": 1129, "year_lte": 1135 },
+    "description": "密报传来，金国完颜宗翰与完颜宗弼因军功分配产生嫌隙，宗室内部正在暗中较劲。这是南宋难得的喘息机会，但如何利用大有讲究。",
+    "choices": [
+      { "id": "observe", "text": "坐观其变，静待金国内部生乱", "effects": { "jinThreat": -5, "courtStability": 3 } },
+      { "id": "contact", "text": "遣使探问，顺势与弱势一方私下接触", "effects": { "jinThreat": -8, "peaceFactionPower": 5 } },
+      { "id": "harass", "text": "趁乱在边境骚扰，消耗金军注意力", "effects": { "troopMorale": 10, "jinThreat": 5, "grain": -1000 } }
+    ]
+  },
+  {
+    "id": "jin_tribute_001",
+    "title": "金使索取岁币",
+    "type": "jin_event",
+    "weight": 70,
+    "repeatable": true,
+    "trigger": { "year_gte": 1130 },
+    "description": "金国使者抵达临安，态度傲慢，奉完颜宗弼之命索取岁币。主战派气得拍案，主和派低头沉默。若拒绝，金军可能南下；若答应，这钱只会越索越多。",
+    "choices": [
+      { "id": "pay", "text": "如数奉上，暂求和平", "effects": { "gold": -5000, "courtStability": 5, "peaceFactionPower": 8, "warFactionPower": -8, "jinThreat": -5 } },
+      { "id": "negotiate", "text": "讨价还价，争取减半", "effects": { "gold": -2500, "courtStability": 2 } },
+      { "id": "refuse", "text": "断然拒绝，靖康未雪，绝不低头", "effects": { "warFactionPower": 12, "troopMorale": 10, "jinThreat": 15, "courtStability": -8 } }
+    ]
+  },
+  {
+    "id": "jin_challenge_001",
+    "title": "兀术亲书战书",
+    "type": "jin_event",
+    "weight": 55,
+    "repeatable": false,
+    "trigger": { "year_gte": 1130, "year_lte": 1140 },
+    "description": "完颜宗弼亲笔书就一封战书，措辞激烈，声言若大宋不割让淮南，便将亲率精骑南下。朝野震动，有人胆寒，有人摩拳擦掌。",
+    "choices": [
+      { "id": "ignore", "text": "置之不理，连战书也不拆开", "effects": { "warFactionPower": 5, "troopMorale": 5 } },
+      { "id": "show_court", "text": "公示朝堂，激励主战士气", "effects": { "warFactionPower": 15, "troopMorale": 15, "jinThreat": 5, "peaceFactionPower": -5 } },
+      { "id": "reply", "text": "遣使回书，言词不卑不亢", "effects": { "courtStability": 5, "jinThreat": -3 } }
+    ]
+  },
+  {
+    "id": "jin_peace_feeler_001",
+    "title": "金境私使来探",
+    "type": "jin_event",
+    "weight": 50,
+    "repeatable": true,
+    "trigger": { "year_gte": 1130 },
+    "description": "有人秘密转告，金国一位中层将领私下遣人来探，愿开放榷场，以货物换取宋方停止袭扰。此人意图难以判明。",
+    "choices": [
+      { "id": "contact", "text": "秘密接触，看看对方底牌", "effects": { "peaceFactionPower": 5, "gold": 1000 } },
+      { "id": "refuse", "text": "拒绝，不与金国小吏私相授受", "effects": { "warFactionPower": 3 } },
+      { "id": "play", "text": "虚与委蛇，探取情报", "effects": { "jinThreat": -3, "courtStability": 2 } }
+    ]
+  },
+  {
+    "id": "jin_famine_001",
+    "title": "金国饥荒传言",
+    "type": "jin_event",
+    "weight": 40,
+    "repeatable": true,
+    "trigger": { "year_gte": 1129 },
+    "description": "有消息称金国北方连续歉收，囤粮短缺，完颜宗弼不得不暂缓整军。此事未经证实，但若是真的，眼下或许是北伐的难得窗口期。",
+    "choices": [
+      { "id": "prepare", "text": "立即命前线将领整军，准备北进", "effects": { "troopMorale": 10, "grain": -2000, "warFactionPower": 8 } },
+      { "id": "verify", "text": "先遣皇城司核实消息再定", "effects": { "courtStability": 3 } },
+      { "id": "ignore", "text": "不以传言改变部署", "effects": {} }
+    ]
+  },
+  {
+    "id": "jin_han_rebel_001",
+    "title": "金占汉军哗变",
+    "type": "jin_event",
+    "weight": 45,
+    "repeatable": false,
+    "trigger": { "year_gte": 1128, "year_lte": 1138 },
+    "description": "消息传来，金国强征的汉人军队在河北发生哗变，数千人击杀金国监军后逃散，部分人正向朝廷控制区靠拢，请求归附。",
+    "choices": [
+      { "id": "recruit", "text": "遣兵接应，收编这批战力", "effects": { "troopMorale": 8, "grain": -3000, "warFactionPower": 5, "jinThreat": 5 } },
+      { "id": "support", "text": "遣使联络，给予物资支援但不直接接收", "effects": { "warFactionPower": 3, "jinThreat": 3, "gold": -1000 } },
+      { "id": "nothing", "text": "不介入，以防引起金国大规模报复", "effects": { "courtStability": 3, "troopMorale": -3 } }
+    ]
+  },
+  {
+    "id": "chain_qinhui_shadow_001",
+    "title": "秦桧私联金使",
+    "type": "main_story",
+    "weight": 80,
+    "repeatable": false,
+    "trigger": { "year_gte": 1132 },
+    "description": "皇城司密报：秦桧近日与金国使团中一名随行官员在临安某处私下会面，谈话逾两个时辰。皇城司只获得只言片语，但『议和』两字清晰可辨。此事若公之于众，后果难料。",
+    "choices": [
+      { "id": "investigate", "text": "命皇城司继续暗查，收集铁证", "effects": { "jinThreat": -3 }, "add_flags": ["qinhui_investigate"] },
+      { "id": "leverage", "text": "秘密召见秦桧，以此为把柄", "effects": { "peaceFactionPower": -5, "courtStability": 3 }, "add_flags": ["qinhui_leveraged"] },
+      { "id": "ignore", "text": "装作不知，看秦桧下一步打算", "effects": { "peaceFactionPower": 5 }, "add_flags": ["qinhui_watched"] }
+    ],
+    "chain_next": ["chain_qinhui_shadow_002"]
+  },
+  {
+    "id": "chain_qinhui_shadow_002",
+    "title": "秦桧的后招",
+    "type": "main_story",
+    "weight": 100,
+    "repeatable": false,
+    "trigger": { "year_gte": 1132 },
+    "description": "不出数日，秦桧在政事堂主动提出『与金议和乃养民之策』，言辞比以往更加笃定，显然在试探陛下态度——他可能知道你已知晓此事，也可能只是按计划行事。",
+    "choices": [
+      { "id": "confront", "text": "当廷质问，令其就私下会见作出解释", "effects": { "peaceFactionPower": -15, "courtStability": -8, "warFactionPower": 8 } },
+      { "id": "deflect", "text": "以『容后再议』打发，给秦桧留一线", "effects": { "courtStability": 3, "peaceFactionPower": 3 } },
+      { "id": "support", "text": "当廷表态支持议和方向", "effects": { "peaceFactionPower": 15, "warFactionPower": -12, "courtStability": 5, "jinThreat": -8 } }
+    ]
+  },
+  {
+    "id": "chain_yuefei_resign_001",
+    "title": "岳飞乞骸骨",
+    "type": "main_story",
+    "weight": 75,
+    "repeatable": false,
+    "trigger": { "year_gte": 1134 },
+    "description": "岳飞上奏请辞枢密副使，言称『臣屡请北伐，朝廷屡有掣肘，臣愿归田，不复言兵』。奏疏措辞激烈，朝中哗然。此时放他辞去，将士寒心；挽留而不给北伐，他恐怕不会罢休。",
+    "choices": [
+      { "id": "retain_promise", "text": "亲笔回书挽留，承诺来年北伐", "effects": { "troopMorale": 12, "warFactionPower": 8, "jinThreat": 5, "grain": -2000 }, "add_flags": ["yuefei_promise_given"] },
+      { "id": "retain_only", "text": "挽留但不承诺北伐期限", "effects": { "troopMorale": 5 } },
+      { "id": "approve", "text": "准其所请，另授闲职", "effects": { "troopMorale": -15, "warFactionPower": -12, "peaceFactionPower": 8 }, "add_flags": ["yuefei_dismissed"] }
+    ],
+    "chain_next": ["chain_yuefei_resign_002"]
+  },
+  {
+    "id": "chain_yuefei_resign_002",
+    "title": "岳飞去留之后",
+    "type": "main_story",
+    "weight": 100,
+    "repeatable": false,
+    "trigger": { "year_gte": 1134 },
+    "description": "岳飞此番上书，无论结局如何，朝堂都已震动。主战派将领私下议论纷纷，主和派却显得异常平静——秦桧门下甚至有人悄悄叫好。接下来如何稳住局面，考验陛下权术。",
+    "choices": [
+      { "id": "reward_war", "text": "大赏诸将，以实际行动安抚主战派", "effects": { "troopMorale": 8, "warFactionPower": 5, "gold": -4000 } },
+      { "id": "balance", "text": "同时向两派示好，稳住大局", "effects": { "courtStability": 8 } },
+      { "id": "purge_peace", "text": "趁机敲打主和派中借机生事者", "effects": { "peaceFactionPower": -8, "warFactionPower": 5, "courtStability": -3 } }
+    ]
+  }
+]
