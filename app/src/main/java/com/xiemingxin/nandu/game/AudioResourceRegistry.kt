@@ -48,6 +48,8 @@ object AudioResourceRegistry {
         const val cityNight = "$BASE/ambience/amb_city_night.ogg"
         const val campNight = "$BASE/ambience/amb_camp_night.ogg"
         const val river = "$BASE/ambience/amb_river.ogg"
+        const val tavern = "$BASE/ambience/amb_tavern.ogg"     // V1.4.1 酒楼人声环境
+        const val market = "$BASE/ambience/amb_market.ogg"     // V1.4.1 市集喧闹
     }
 
     object Voice {
@@ -55,6 +57,7 @@ object AudioResourceRegistry {
         const val militaryReport = "$BASE/voice/voice_military_report.ogg"
         const val courtResponse = "$BASE/voice/voice_court_response.ogg"
         const val enemyWarning = "$BASE/voice/voice_enemy_warning.ogg"
+        const val battleCry = "$BASE/voice/voice_battle_cry.ogg"  // V1.4.1 叫阵（需TTS/录音，占位空）
     }
 
     fun bgmForScene(scene: String): String = when (scene) {

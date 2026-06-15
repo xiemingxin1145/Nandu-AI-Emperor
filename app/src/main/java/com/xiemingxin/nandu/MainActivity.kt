@@ -48,6 +48,44 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+private fun GameAudioController(
+    showIntro: Boolean,
+    ending: GameEnding,
+    currentTab: Int,
+    inCity: Boolean,
+    battleSignal: String?
+) {
+    val player = com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer()
+    val scene = when {
+        ending != GameEnding.ONGOING && ending.rank == "亡" -> "defeat"
+        ending != GameEnding.ONGOING -> "victory"
+        showIntro -> "main_menu"
+        inCity -> "map"
+        currentTab == 2 || currentTab == 4 -> "map"   // 山河 / 军务
+        else -> "court"                               // 皇宫 / 朝议 / 国政
+    }
+    com.xiemingxin.nandu.ui.components.PlayBgmEffect(
+        path = com.xiemingxin.nandu.game.AudioResourceRegistry.bgmForScene(scene),
+        sceneKey = scene,
+        volume = 0.7f,
+        player = player
+    )
+    // 攻城战：战鼓 + 号角齐鸣（battleReport 变化即触发一次）
+    com.xiemingxin.nandu.ui.components.PlaySfxEffect(
+        path = com.xiemingxin.nandu.game.AudioResourceRegistry.Sfx.drumWar,
+        triggerKey = battleSignal,
+        volume = 0.85f,
+        player = player
+    )
+    com.xiemingxin.nandu.ui.components.PlaySfxEffect(
+        path = com.xiemingxin.nandu.game.AudioResourceRegistry.Sfx.battleStart,
+        triggerKey = battleSignal,
+        volume = 0.7f,
+        player = player
+    )
+}
+
+@Composable
 fun NanduApp() {
     val viewModel: EmperorViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -58,6 +96,15 @@ fun NanduApp() {
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
+
+    // V1.4.1 全局场景音频：根据当前所在场景切换 BGM，并在攻城时触发战场音效
+    GameAudioController(
+        showIntro = showIntro,
+        ending = uiState.ending,
+        currentTab = currentTab,
+        inCity = interiorCityId != null,
+        battleSignal = uiState.battleReport
+    )
 
     // V1.1 结局画面（最高优先级）
     if (uiState.ending != GameEnding.ONGOING) {

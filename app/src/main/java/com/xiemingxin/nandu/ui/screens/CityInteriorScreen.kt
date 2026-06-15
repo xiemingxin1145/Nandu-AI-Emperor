@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.AudioResourceRegistry
 import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BuildingDef
 import com.xiemingxin.nandu.game.City
@@ -53,6 +54,8 @@ import com.xiemingxin.nandu.game.CityVisitAction
 import com.xiemingxin.nandu.game.Rumor
 import com.xiemingxin.nandu.game.TavernSystem
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.PlayAmbienceEffect
+import com.xiemingxin.nandu.ui.components.PlaySfxEffect
 import com.xiemingxin.nandu.ui.components.RecruitPanel
 import com.xiemingxin.nandu.ui.components.TavernPanel
 
@@ -104,6 +107,12 @@ fun CityInteriorScreen(
     val advice = cityAdvice(city)
 
     Box(modifier = modifier.fillMaxSize().background(CiInk)) {
+        // V1.4.1 城内环境音：进酒楼切人声喧闹，否则市井白日声
+        val ambiencePath = if (showTavern) AudioResourceRegistry.Ambience.tavern else AudioResourceRegistry.Ambience.cityDay
+        PlayAmbienceEffect(path = ambiencePath, volume = 0.42f)
+        // 走访见闻到达时一声"叮"
+        PlaySfxEffect(path = AudioResourceRegistry.Sfx.reportArrive, triggerKey = lastVisitNarration, volume = 0.55f)
+
         AssetImage(
             path = ArtResourceRegistry.cityBackground(city.id),
             fallbackPath = ArtResourceRegistry.Fallback.city,

@@ -14,6 +14,8 @@ class GameAudioPlayer(private val context: Context) {
     private val soundPool: SoundPool
     private val soundIds = mutableMapOf<String, Int>()
     private var bgmPlayer: MediaPlayer? = null
+    private var ambiencePlayer: MediaPlayer? = null
+    private var currentAmbiencePath: String? = null
     var masterEnabled: Boolean = true
     var bgmEnabled: Boolean = true
     var sfxEnabled: Boolean = true
@@ -70,8 +72,39 @@ class GameAudioPlayer(private val context: Context) {
         bgmPlayer = null
     }
 
+    /** 循环环境音通道，与 BGM 并行（如酒楼人声、市集喧闹、雨雪风）。相同路径不重启。 */
+    fun playAmbience(path: String, volume: Float = 0.5f) {
+        if (!masterEnabled || !bgmEnabled) return
+        if (path == currentAmbiencePath && ambiencePlayer != null) return
+        stopAmbience()
+        val file = materializeAsset(path) ?: return
+        currentAmbiencePath = path
+        ambiencePlayer = MediaPlayer().apply {
+            setDataSource(file.absolutePath)
+            isLooping = true
+            setVolume(volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f))
+            setOnPreparedListener { it.start() }
+            setOnErrorListener { mp, _, _ ->
+                mp.release()
+                if (ambiencePlayer === mp) { ambiencePlayer = null; currentAmbiencePath = null }
+                true
+            }
+            prepareAsync()
+        }
+    }
+
+    fun stopAmbience() {
+        ambiencePlayer?.runCatching {
+            stop()
+            release()
+        }
+        ambiencePlayer = null
+        currentAmbiencePath = null
+    }
+
     fun release() {
         stopBgm()
+        stopAmbience()
         soundPool.release()
         soundIds.clear()
     }
