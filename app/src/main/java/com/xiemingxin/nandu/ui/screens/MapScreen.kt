@@ -80,7 +80,11 @@ private val FocusRegions = listOf(
     MapFocusRegion("海贸", 12800f, 7900f, 0.072f, Color(0xFF2376C9))
 )
 
-private val TradeRouteIds = setOf("quanzhou", "mingzhou", "guangzhou", "chaozhou", "lianzhou_port", "qiongzhou", "jiaozhi_route", "south_sea", "goryeo_route", "xingqing", "lingzhou", "lanzhou", "dali", "shanchan", "chengdu")
+private val TradeRouteIds = setOf(
+    "quanzhou", "mingzhou", "guangzhou", "chaozhou", "lianzhou_port", "qiongzhou",
+    "jiaozhi_route", "south_sea", "goryeo_route", "xingqing", "lingzhou", "lanzhou",
+    "dali", "shanchan", "chengdu"
+)
 
 @Composable
 fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
@@ -103,6 +107,16 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MapBg)) {
+        AssetImage(
+            path = ArtResourceRegistry.mapBackground(activeLayer),
+            fallbackPath = "images/map/song_world_parchment.webp",
+            contentDescription = activeLayer.label,
+            contentScale = ContentScale.Crop,
+            placeholderText = activeLayer.label.take(1),
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(modifier = Modifier.fillMaxSize().background(Color(0x88000000)))
+
         Canvas(
             modifier = Modifier.fillMaxSize()
                 .pointerInput(Unit) {
@@ -126,7 +140,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                     }
                 }
         ) {
-            drawRect(Color(0xFF10190F))
+            drawRect(Color(0x33000000))
             drawWorldBase(cameraX, cameraY, zoom)
             drawMapGrid(cameraX, cameraY, zoom)
             drawMajorRivers(cameraX, cameraY, zoom)
@@ -207,7 +221,7 @@ private fun MapStatusChip(gameState: GameState, layer: MapLayerMode, modifier: M
     Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color(0xC9090806)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)), shape = RoundedCornerShape(10.dp)) {
         Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)) {
             Text(gameState.calendar.displayText(), color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("${gameState.season.label} · ${gameState.weather.label} · V2.1 · ${layer.label}", color = Color(0xFFC6A96C), fontSize = 9.sp)
+            Text("${gameState.season.label} · ${gameState.weather.label} · V2.3 · ${layer.label}", color = Color(0xFFC6A96C), fontSize = 9.sp)
         }
     }
 }
@@ -225,12 +239,12 @@ private fun MapLegend(layer: MapLayerMode, modifier: Modifier = Modifier) {
 }
 
 private fun DrawScope.drawWorldBase(camX: Float, camY: Float, zoom: Float) {
-    drawWorldRect(0f, 0f, 16000f, 10000f, Color(0xFF152417), camX, camY, zoom)
-    drawWorldRect(3000f, 6100f, 11800f, 9300f, SongBright.copy(alpha = 0.13f), camX, camY, zoom)
-    drawWorldRect(6200f, 4550f, 11200f, 6500f, ImperialGold.copy(alpha = 0.12f), camX, camY, zoom)
-    drawWorldRect(6100f, 1750f, 10700f, 4650f, JinRed.copy(alpha = 0.16f), camX, camY, zoom)
-    drawWorldRect(800f, 1300f, 3900f, 3600f, Color(0xFFB38A48).copy(alpha = 0.14f), camX, camY, zoom)
-    drawWorldRect(1450f, 6900f, 3600f, 9550f, Color(0xFF3F7A4D).copy(alpha = 0.12f), camX, camY, zoom)
+    drawWorldRect(0f, 0f, 16000f, 10000f, Color(0x55152417), camX, camY, zoom)
+    drawWorldRect(3000f, 6100f, 11800f, 9300f, SongBright.copy(alpha = 0.10f), camX, camY, zoom)
+    drawWorldRect(6200f, 4550f, 11200f, 6500f, ImperialGold.copy(alpha = 0.10f), camX, camY, zoom)
+    drawWorldRect(6100f, 1750f, 10700f, 4650f, JinRed.copy(alpha = 0.13f), camX, camY, zoom)
+    drawWorldRect(800f, 1300f, 3900f, 3600f, Color(0xFFB38A48).copy(alpha = 0.10f), camX, camY, zoom)
+    drawWorldRect(1450f, 6900f, 3600f, 9550f, Color(0xFF3F7A4D).copy(alpha = 0.10f), camX, camY, zoom)
 }
 
 private fun DrawScope.drawMajorRivers(camX: Float, camY: Float, zoom: Float) { TerrainFeatures.rivers.forEach { drawWorldPath(it.points.map { p -> Offset(p.first, p.second) }, Color(0xFF5BC0EB).copy(alpha = 0.62f), 5.5f, camX, camY, zoom) } }
