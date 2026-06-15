@@ -1,11 +1,12 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V1.5 宫殿待办系统骨架。
+ * V1.5+ 宫殿待办系统骨架。
  *
  * 设计原则：
  * - 暂不改存档结构，先从 GameState 派生每旬待办，避免破坏旧存档。
  * - 每个宫殿都有可显示的待办和推荐处理入口。
+ * - V1.6 接入天下战略：外交、外贸、西夏、大理、海贸等先以派生待办出现。
  * - 后续版本再把 PalaceTask 持久化进 GameState，并加入完成/逾期/连锁后果。
  */
 data class PalaceTask(
@@ -34,6 +35,8 @@ enum class TaskSource(val label: String) {
     FISCAL("钱粮"),
     TALENT("人才"),
     RUMOR("密折"),
+    DIPLOMACY("外交"),
+    TRADE("外贸"),
     PALACE("内廷"),
     RITUAL("礼制")
 }
@@ -63,8 +66,8 @@ object PalaceRegistry {
         PalaceInfo(PalaceIds.CHUIGONG, "垂拱殿", "AI圣旨 / 群臣奏议", "📜", 1),
         PalaceInfo(PalaceIds.WENDE, "文德殿", "任官招贤 / 文臣事务", "🎓", 3),
         PalaceInfo(PalaceIds.SHUMI, "枢密院", "军令战报 / 调兵设防", "⚔", 4),
-        PalaceInfo(PalaceIds.ZHENGSHI, "政事堂", "钱粮民心 / 财政民政", "⚖", 3),
-        PalaceInfo(PalaceIds.YUSHU, "御书房", "密折起居 / 风险复盘", "🕯", 1),
+        PalaceInfo(PalaceIds.ZHENGSHI, "政事堂", "钱粮民心 / 财政民政 / 外贸", "⚖", 3),
+        PalaceInfo(PalaceIds.YUSHU, "御书房", "密折起居 / 外交情报", "🕯", 1),
         PalaceInfo(PalaceIds.HUANGCHENG, "皇城司", "侦缉暗线 / 情报验证", "🕵", 2),
         PalaceInfo(PalaceIds.HOUYUAN, "后苑内廷", "宫廷事件 / 内廷建议", "🏮", 1),
         PalaceInfo(PalaceIds.TAIMIAO, "太庙", "正统国运 / 史评功业", "🐉", 3)
@@ -134,6 +137,30 @@ object PalaceTaskSystem {
                 relatedCityIds = lowGrainCity?.let { listOf(it.id) } ?: emptyList(),
                 recommendedTab = 3,
                 edictDraft = "传朕旨意：赵鼎会同转运司核天下钱粮，先保军粮与民食，漕运、屯田、赈济分轻重具奏。"
+            )
+        }
+
+        WorldStrategySystem.diplomacyBriefs(state).forEachIndexed { index, brief ->
+            val isTrade = brief.relatedRouteIds.any { it.contains("quanzhou") || it.contains("guangzhou") || it.contains("mingzhou") }
+            tasks += PalaceTask(
+                id = "foreign_${state.turn}_$index",
+                palaceId = if (isTrade) PalaceIds.ZHENGSHI else PalaceIds.YUSHU,
+                title = brief.title,
+                description = brief.description,
+                severity = brief.severity,
+                source = if (isTrade) TaskSource.TRADE else TaskSource.DIPLOMACY,
+                relatedCityIds = brief.relatedRouteIds.mapNotNull { routeId ->
+                    when {
+                        routeId.contains("quanzhou") -> "quanzhou"
+                        routeId.contains("mingzhou") -> "mingzhou"
+                        routeId.contains("guangzhou") -> "guangzhou"
+                        routeId.contains("xixia") -> "xingqing"
+                        routeId.contains("dali") -> "dali"
+                        else -> null
+                    }
+                },
+                recommendedTab = if (isTrade) 3 else 1,
+                edictDraft = brief.edictDraft
             )
         }
 
@@ -212,7 +239,7 @@ object PalaceTaskSystem {
         return tasks
             .distinctBy { it.id }
             .sortedWith(compareByDescending<PalaceTask> { it.severity.ordinal }.thenBy { it.palaceId })
-            .take(10)
+            .take(12)
     }
 
     fun tasksForPalace(state: GameState, palaceId: String): List<PalaceTask> =
