@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.TerrainFeatures
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
@@ -100,6 +101,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             drawTerrainRegions(cameraX, cameraY, zoom)
             drawFactionRegions(cameraX, cameraY, zoom)
             drawMajorRivers(cameraX, cameraY, zoom)
+            drawMountainRanges(cameraX, cameraY, zoom)
             drawMapGrid(cameraX, cameraY, zoom)
             drawRoads(cameraX, cameraY, zoom)
             drawArmyRoutes(gameState, cameraX, cameraY, zoom, weatherPhase)
@@ -127,6 +129,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             }
 
             drawArmyCorpsFlags(gameState, cameraX, cameraY, zoom)
+            drawTerrainLabels(cameraX, cameraY, zoom)
             drawWeatherParticles(gameState.weather, weatherPhase)
         }
 
@@ -414,10 +417,58 @@ private fun DrawScope.drawFactionRegions(camX: Float, camY: Float, zoom: Float) 
 }
 
 private fun DrawScope.drawMajorRivers(camX: Float, camY: Float, zoom: Float) {
-    drawWorldPath(listOf(Offset(2500f, 6900f), Offset(4200f, 6750f), Offset(6000f, 6650f), Offset(7600f, 6600f), Offset(9200f, 6550f), Offset(10800f, 6650f), Offset(13000f, 7050f)), Color(0xFF2D9CDB).copy(alpha = 0.70f), 9f, camX, camY, zoom)
-    drawWorldPath(listOf(Offset(7200f, 5200f), Offset(7900f, 5700f), Offset(7600f, 6600f), Offset(7000f, 7000f)), Color(0xFF49B6E8).copy(alpha = 0.60f), 5.5f, camX, camY, zoom)
-    drawWorldPath(listOf(Offset(8500f, 5250f), Offset(9600f, 5400f), Offset(10800f, 5600f), Offset(11600f, 6000f)), Color(0xFF5BC0EB).copy(alpha = 0.60f), 6f, camX, camY, zoom)
-    drawWorldPath(listOf(Offset(6500f, 3800f), Offset(8200f, 3900f), Offset(9000f, 3900f), Offset(10400f, 3600f)), Color(0xFF496F9A).copy(alpha = 0.40f), 5f, camX, camY, zoom)
+    // V0.8 精确水系：用TerrainFeatures数据，与城池坐标对应
+    TerrainFeatures.rivers.forEach { river ->
+        val pts = river.points.map { Offset(it.first, it.second) }
+        val color = when (river.name) {
+            "黄河" -> Color(0xFFB8995A).copy(alpha = 0.75f)   // 黄河泛黄
+            "长江" -> Color(0xFF2D9CDB).copy(alpha = 0.78f)
+            else -> Color(0xFF5BC0EB).copy(alpha = 0.62f)
+        }
+        val width = if (river.name == "长江" || river.name == "黄河") 9f else 5.5f
+        drawWorldPath(pts, color, width, camX, camY, zoom)
+    }
+}
+
+private fun DrawScope.drawMountainRanges(camX: Float, camY: Float, zoom: Float) {
+    // V0.8 山脉：棕色锯齿线表示山脊
+    TerrainFeatures.mountains.forEach { mtn ->
+        val pts = mtn.points.map { Offset(it.first, it.second) }
+        drawWorldPath(pts, Color(0xFF7A5C38).copy(alpha = 0.68f), 7f, camX, camY, zoom)
+        // 山脊上加小三角表示山峰
+        pts.forEach { p ->
+            val s = w2s(p.x, p.y, camX, camY, zoom)
+            val sz = (10f * zoom * 35f).coerceIn(4f, 12f)
+            val peak = androidx.compose.ui.graphics.Path().apply {
+                moveTo(s.x, s.y - sz)
+                lineTo(s.x - sz * 0.7f, s.y + sz * 0.5f)
+                lineTo(s.x + sz * 0.7f, s.y + sz * 0.5f)
+                close()
+            }
+            drawPath(peak, Color(0xFF8B6B43).copy(alpha = 0.7f))
+            drawPath(peak, Color(0xFF5A4329).copy(alpha = 0.8f), style = Stroke(width = 1f))
+        }
+    }
+}
+
+private fun DrawScope.drawTerrainLabels(camX: Float, camY: Float, zoom: Float) {
+    // V0.8 地理标志名称标注
+    if (zoom * 38f <= 0.7f) return
+    TerrainFeatures.all.forEach { feature ->
+        val s = w2s(feature.labelX, feature.labelY, camX, camY, zoom)
+        drawIntoCanvas { canvas ->
+            val p = android.graphics.Paint().apply {
+                color = if (feature.kind == "river") android.graphics.Color.argb(220, 150, 200, 235)
+                        else android.graphics.Color.argb(220, 200, 170, 130)
+                textSize = (11f * zoom * 38f).coerceIn(13f, 30f)
+                isAntiAlias = true
+                textAlign = android.graphics.Paint.Align.CENTER
+                setShadowLayer(5f, 0f, 2f, android.graphics.Color.argb(230, 0, 0, 0))
+                isFakeBoldText = true
+            }
+            canvas.nativeCanvas.drawText(feature.name, s.x, s.y, p)
+        }
+    }
 }
 
 private fun DrawScope.drawWeatherWash(weather: WeatherType, phase: Float) {
