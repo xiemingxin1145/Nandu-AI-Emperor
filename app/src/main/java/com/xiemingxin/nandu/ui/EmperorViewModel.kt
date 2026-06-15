@@ -23,6 +23,8 @@ import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BattleResolver
 import com.xiemingxin.nandu.game.BattleUnitCatalog
 import com.xiemingxin.nandu.game.JinAI
+import com.xiemingxin.nandu.game.VictoryJudge
+import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -45,7 +47,8 @@ data class UiState(
     val saveMessage: String = "",
     val currentStoryEvent: StoryEvent? = null,
     val storyOutcomes: List<String> = emptyList(),
-    val battleReport: String? = null
+    val battleReport: String? = null,
+    val ending: GameEnding = GameEnding.ONGOING
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -226,13 +229,15 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                 else c.copy(grain = c.grain - deduct)
             } else if (c.id == targetCityId) newTarget else c
         }
+        val newGameState = state.copy(
+            cities = citiesAfterGrain,
+            armies = newArmies,
+            storyFlags = state.storyFlags + "sieged_this_turn"
+        )
         _uiState.value = _uiState.value.copy(
-            gameState = state.copy(
-                cities = citiesAfterGrain,
-                armies = newArmies,
-                storyFlags = state.storyFlags + "sieged_this_turn"
-            ),
-            battleReport = outcome.report
+            gameState = newGameState,
+            battleReport = outcome.report,
+            ending = VictoryJudge.judge(newGameState)
         )
     }
 
@@ -290,6 +295,9 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             flags = nextState.storyFlags
         )
 
+        // V1.1 结局判定
+        val ending = VictoryJudge.judge(nextState)
+
         // 金军行动战报（若有）汇总到 storyOutcomes 显示
         _uiState.value = _uiState.value.copy(
             gameState = nextState,
@@ -297,8 +305,14 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             lastOutcomes = emptyList(),
             lastRejected = emptyList(),
             currentStoryEvent = event,
-            storyOutcomes = jinResult.reports
+            storyOutcomes = jinResult.reports,
+            ending = ending
         )
+    }
+
+    /** V1.1 重开一局：重置游戏状态 */
+    fun restartGame() {
+        _uiState.value = UiState()
     }
 
     /** V0.7.1 玩家在剧情弹窗中做出选择 */
