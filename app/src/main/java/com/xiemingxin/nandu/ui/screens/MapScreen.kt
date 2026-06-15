@@ -637,7 +637,9 @@ fun CityDetailPanel(
                     CityActionButton("修城", Modifier.weight(1f)) { onDraft("repair") }
                     CityActionButton("调兵", Modifier.weight(1f)) { onDraft("dispatch") }
                     CityActionButton("筹粮", Modifier.weight(1f)) { onDraft("grain") }
-                    CityActionButton(if (city.owner == "jin") "进取" else "备战", Modifier.weight(1f)) { onDraft("attack") }
+                    CityActionButton(if (city.owner == "jin") "进取" else "备战", Modifier.weight(1f)) {
+                        onDraft(if (city.owner == "jin") "siege" else "attack")
+                    }
                 }
                 if (city.owner == "song") {
                     Spacer(Modifier.height(7.dp))
