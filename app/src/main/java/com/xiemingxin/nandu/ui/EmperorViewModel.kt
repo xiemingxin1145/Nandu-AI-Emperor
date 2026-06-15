@@ -22,6 +22,7 @@ import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BattleResolver
 import com.xiemingxin.nandu.game.BattleUnitCatalog
+import com.xiemingxin.nandu.game.JinAI
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -263,24 +264,36 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     /** V0.7.1 推进一旬：日历前进，并检查是否触发剧情事件 */
     fun advanceTurn() {
         val state = _uiState.value.gameState
-        val nextState = state.copy(
-            turn = state.turn + 1,
-            calendar = state.calendar.advance()
+
+        // V0.7 金军每旬战略行动（反攻/增兵/袭扰）
+        val jinResult = JinAI.executeTurn(state, state.jinThreat)
+        var working = jinResult.newState
+
+        // 清除本旬攻势标记，新一旬可再次出征
+        val clearedFlags = working.storyFlags - "sieged_this_turn"
+
+        val nextState = working.copy(
+            turn = working.turn + 1,
+            calendar = working.calendar.advance(),
+            storyFlags = clearedFlags
         )
-        // 用EventDirector筛出本旬可触发的第一个事件
+
+        // EventDirector筛剧情事件
         val event = EventDirector.firstCandidate(
             state = nextState,
             events = storyEvents,
             firedEventIds = nextState.firedEventIds,
             flags = nextState.storyFlags
         )
+
+        // 金军行动战报（若有）汇总到 storyOutcomes 显示
         _uiState.value = _uiState.value.copy(
             gameState = nextState,
             phase = GamePhase.IDLE,
             lastOutcomes = emptyList(),
             lastRejected = emptyList(),
             currentStoryEvent = event,
-            storyOutcomes = emptyList()
+            storyOutcomes = jinResult.reports
         )
     }
 
