@@ -196,6 +196,7 @@ fun NanduApp() {
             state = uiState.gameState,
             palaceId = palaceId,
             onBack = { activePalaceId = null },
+            onCouncilChoice = { scene, choice -> viewModel.applyCouncilChoice(scene, choice) },
             onDraftEdict = { draft ->
                 edictText = draft
                 activePalaceId = null
