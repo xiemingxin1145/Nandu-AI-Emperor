@@ -53,6 +53,7 @@ private fun GameAudioController(
     ending: GameEnding,
     currentTab: Int,
     inCity: Boolean,
+    inPalaceTask: Boolean,
     battleSignal: String?
 ) {
     val player = com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer()
@@ -61,6 +62,7 @@ private fun GameAudioController(
         ending != GameEnding.ONGOING -> "victory"
         showIntro -> "main_menu"
         inCity -> "map"
+        inPalaceTask -> "court"
         currentTab == 2 || currentTab == 4 -> "map"
         else -> "court"
     }
@@ -93,6 +95,7 @@ fun NanduApp() {
 
     var showIntro by remember { mutableStateOf(true) }
     var interiorCityId by remember { mutableStateOf<String?>(null) }
+    var activePalaceId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
@@ -102,6 +105,7 @@ fun NanduApp() {
         ending = uiState.ending,
         currentTab = currentTab,
         inCity = interiorCityId != null,
+        inPalaceTask = activePalaceId != null,
         battleSignal = uiState.battleReport
     )
 
@@ -114,6 +118,7 @@ fun NanduApp() {
                 viewModel.recordAndRestart(context)
                 showIntro = true
                 interiorCityId = null
+                activePalaceId = null
                 currentTab = 0
             }
         )
@@ -166,6 +171,7 @@ fun NanduApp() {
         }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
         edictText = buildCityDraft(city, action)
+        activePalaceId = null
         currentTab = 1
     }
 
@@ -185,6 +191,24 @@ fun NanduApp() {
         return
     }
 
+    activePalaceId?.let { palaceId ->
+        PalaceTasksScreen(
+            state = uiState.gameState,
+            palaceId = palaceId,
+            onBack = { activePalaceId = null },
+            onDraftEdict = { draft ->
+                edictText = draft
+                activePalaceId = null
+                currentTab = 1
+            },
+            onOpenTab = { tab ->
+                activePalaceId = null
+                currentTab = tab
+            }
+        )
+        return
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(InkBlack)) {
         Box(modifier = Modifier.weight(1f)) {
             when (currentTab) {
@@ -193,6 +217,7 @@ fun NanduApp() {
                     aiStatus = uiState.providerStatusMessage,
                     isRealAiEnabled = uiState.isRealAiEnabled,
                     onOpenSettings = { showSettings = true },
+                    onOpenPalace = { palaceId -> activePalaceId = palaceId },
                     onNavigate = { tab -> currentTab = tab + 1 }
                 )
                 1 -> EmperorMainScreen(
@@ -217,7 +242,7 @@ fun NanduApp() {
             listOf("皇宫" to 0, "朝议" to 1, "山河" to 2, "国政" to 3, "军务" to 4).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
-                    onClick = { currentTab = idx },
+                    onClick = { activePalaceId = null; currentTab = idx },
                     icon = {},
                     label = { Text(label, fontSize = 12.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
