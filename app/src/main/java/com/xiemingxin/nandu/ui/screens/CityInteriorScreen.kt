@@ -43,6 +43,7 @@ import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BuildingDef
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.RecruitPanel
 
 private val CiGold = Color(0xFFC9A227)
 private val CiCream = Color(0xFFE8DCC0)
@@ -57,11 +58,12 @@ private val CiSub = Color(0xFF9A8862)
 fun CityInteriorScreen(
     city: City,
     onBuild: (String) -> Unit,
-    onRecruit: () -> Unit,
+    onRecruit: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedBuilding by remember { mutableStateOf<BuildingDef?>(null) }
+    var showRecruit by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize().background(CiInk)) {
         // 城池背景
@@ -139,7 +141,7 @@ fun CityInteriorScreen(
             Spacer(Modifier.height(8.dp))
             if (city.owner == "song") {
                 Button(
-                    onClick = onRecruit,
+                    onClick = { showRecruit = true },
                     modifier = Modifier.fillMaxWidth().height(44.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CiGold)
@@ -154,6 +156,17 @@ fun CityInteriorScreen(
                 BuildingUpgradeCard(def, level, city,
                     onBuild = { onBuild(def.id); selectedBuilding = null },
                     onDismiss = { selectedBuilding = null })
+            }
+        }
+
+        // V1.0 城内募兵弹窗（募完留在城内，数据即时刷新）
+        if (showRecruit) {
+            Dialog(onDismissRequest = { showRecruit = false }) {
+                RecruitPanel(
+                    city = city,
+                    onRecruit = { unitId -> onRecruit(unitId) },
+                    onDismiss = { showRecruit = false }
+                )
             }
         }
     }
