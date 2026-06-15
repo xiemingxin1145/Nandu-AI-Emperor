@@ -370,12 +370,12 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             storyFlags = clearedFlags,
             cityActionPoints = TavernSystem.MAX_ACTION_POINTS
         )
-        val event = EventDirector.firstCandidate(
+        val event = EventDirector.selectForTurn(
             state = nextState,
             events = storyEvents,
             firedEventIds = nextState.firedEventIds,
             flags = nextState.storyFlags
-        )
+        ).firstOrNull()
         val ending = VictoryJudge.judgeDefeat(nextState)
         val earned = _uiState.value.earnedAchievements
         val newAch = AchievementSystem.checkNewAchievements(nextState, earned)
@@ -418,16 +418,19 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val event = _uiState.value.currentStoryEvent ?: return
         val state = _uiState.value.gameState
         val result = StoryEventEffectApplier.applyChoice(state, event, choiceId)
-        val newFired = state.firedEventIds + event.eventId
+        // 可重复事件不进入已触发集合
+        val newFired = if (event.repeatable) state.firedEventIds else state.firedEventIds + event.eventId
         val newFlags = state.storyFlags + result.flags
         val finalState = result.newState.copy(
             firedEventIds = newFired,
             storyFlags = newFlags
         )
+        // 连锁事件：玩家做出选择后立刻触发后续事件
+        val chainEvent = EventDirector.chainCandidates(event, storyEvents, newFired).firstOrNull()
         _uiState.value = _uiState.value.copy(
             gameState = finalState,
-            currentStoryEvent = null,
-            storyOutcomes = result.outcomes
+            currentStoryEvent = chainEvent,
+            storyOutcomes = if (chainEvent == null) result.outcomes else emptyList()
         )
     }
 

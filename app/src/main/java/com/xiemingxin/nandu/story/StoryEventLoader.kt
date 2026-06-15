@@ -24,7 +24,11 @@ data class StoryEvent(
     @SerialName("risk_tags") val riskTags: List<String> = emptyList(),
     @SerialName("art_hint") val artHint: String = "",
     @SerialName("related_characters") val relatedCharacters: List<String> = emptyList(),
-    @SerialName("related_cities") val relatedCities: List<String> = emptyList()
+    @SerialName("related_cities") val relatedCities: List<String> = emptyList(),
+    // V1.0 随机事件扩展
+    val weight: Int = 50,
+    @SerialName("chain_next") val chainNext: List<String> = emptyList(),
+    val repeatable: Boolean = false
 )
 
 @Serializable
@@ -48,10 +52,13 @@ private data class NanduEventDef(
     val title: String,
     val type: String = "history_event",
     val priority: Int = 50,
+    val weight: Int = 50,
     val once: Boolean = true,
+    val repeatable: Boolean = false,
     val trigger: JsonObject = JsonObject(emptyMap()),
     val description: String,
-    val choices: List<NanduChoiceDef> = emptyList()
+    val choices: List<NanduChoiceDef> = emptyList(),
+    @SerialName("chain_next") val chainNext: List<String> = emptyList()
 )
 
 @Serializable
@@ -74,11 +81,14 @@ object StoryEventLoader {
 
     const val JIANYAN_01_PATH = "story/story_events_jianyan_01.json"
     const val NANDU_HISTORY_V1_PATH = "data/events/history_events_v1.json"
+    const val RANDOM_EVENTS_V1_PATH = "data/events/random_events_v1.json"
 
     fun loadJianyan01(context: Context): List<StoryEvent> = load(context, JIANYAN_01_PATH)
 
     fun loadDefaultEvents(context: Context): List<StoryEvent> {
-        return loadJianyan01(context) + loadNanduEventPack(context, NANDU_HISTORY_V1_PATH)
+        return loadJianyan01(context) +
+            loadNanduEventPack(context, NANDU_HISTORY_V1_PATH) +
+            loadNanduEventPack(context, RANDOM_EVENTS_V1_PATH)
     }
 
     fun load(context: Context, assetPath: String): List<StoryEvent> {
@@ -114,7 +124,10 @@ object StoryEventLoader {
                     effects = choice.effects,
                     flags = (choice.flags + choice.addFlags).distinct()
                 )
-            }
+            },
+            weight = weight,
+            chainNext = chainNext,
+            repeatable = repeatable
         )
     }
 
