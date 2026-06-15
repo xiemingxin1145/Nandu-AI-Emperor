@@ -77,11 +77,13 @@ fun PlaySfxEffect(
     triggerKey: Any?,
     enabled: Boolean = true,
     volume: Float = 1f,
+    variant: Boolean = false,
     player: GameAudioPlayer = currentAudioPlayer()
 ) {
     LaunchedEffect(triggerKey, path, enabled, volume) {
         if (enabled && triggerKey != null) {
-            player.playSfx(path = path, volume = volume)
+            if (variant) player.playSfxVariant(basePath = path, volume = volume)
+            else player.playSfx(path = path, volume = volume)
         }
     }
 }

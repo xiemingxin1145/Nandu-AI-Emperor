@@ -75,6 +75,7 @@ private fun GameAudioController(
         path = com.xiemingxin.nandu.game.AudioResourceRegistry.Sfx.drumWar,
         triggerKey = battleSignal,
         volume = 0.85f,
+        variant = true,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(

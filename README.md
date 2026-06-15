@@ -108,91 +108,21 @@ GameState更新 + 起居注记录
 
 - **AI 集成**：通过 `AiProvider` 接口替换或扩展模型（支持 OpenAI 兼容格式）。
 - **事件系统**：`npcResponses` 与 `riskTags` 可触发事件（如粮草危机、官员态度变化）。
-- **音频/多媒体**：当前未提及，但 `npcResponses` 中的 `text` 可扩展为语音合成输入点。
+- **音频/多媒体**：已接入（见下文音频系统）；`npcResponses` 中的 `text` 可进一步扩展为语音合成输入点。
 - **规则扩展**：`GameRuleEngine` 支持新增业务规则，控制命令执行条件。
 
-## 古风音效系统集成 (已完成 - 专为吴王添加沉浸式体验)
+## 音频系统（V1.4.1，已接线）
 
-已为游戏完整集成了《古风音效管理器》，支持战场、朝堂、勾栏听曲、大气碧碴等多种场景的分类音效和背景音乐。
+游戏音频由 `audio/GameAudioPlayer.kt` 驱动（SoundPool 播短音效 + 双路 MediaPlayer：BGM 与环境音并行），所有槽位在 `game/AudioResourceRegistry.kt` 统一登记，Compose 钩子见 `ui/components/GameAudioEffects.kt`。已接入的触发点：
 
-### 核心功能
-- **SoundCategory** 枚举：BATTLEFIELD / COURT / GOULAN / EPIC / UI / AMBIENT
-- **随机播放** `playRandom(category)` 
-- **事件触发** `playForGameEvent(eventType, riskTags)` — 在 GameRuleEngine 执行命令后自动播放对应音效
-- **背景音乐** `startAmbient(category, fileName)` + 循环
-- **音量控制** 和资源释放
+- **BGM 随场景切换**：皇宫/朝议/国政（court）、山河/军务/城内（map）、开局（main_menu）、胜利/亡国结局。
+- **攻城战**：战鼓 + 号角齐鸣。
+- **城内**：市井环境音，进酒楼切人声喧闹；走访得情报时提示音。
+- 同一音效支持多变体随机播放（`playSfxVariant`），同名加 `_2`/`_3` 后缀即自动进随机池。
 
-### 集成方式 (建议在 GameRuleEngine.kt 中调用)
+当前 `assets/audio/` 内是程序合成的**零版权占位音效**（缺文件静默不崩，换一个生效一个）。真素材替换清单、授权要求、免费来源、中文叫阵 TTS 指引，统一见 **`docs/AUDIO_TASKS.md`**。
 
-```kotlin
-// 在 GameRuleEngine 执行命令后
-soundManager.playForGameEvent(command.type, result.riskTags)
-
-// 或在 npcResponses 处理后
-if (npc.attitude == "oppose") soundManager.playRandom(SoundCategory.COURT)
-
-// 背景音乐示例（在主界面或地图屏开始时）
-soundManager.startAmbient(SoundCategory.COURT, "guzheng_ambient.ogg")
-```
-
-### 音效资产放置结构
-```
-app/src/main/assets/sounds/
-  battlefield/
-    war_drum1.ogg
-    cavalry_gallop.ogg
-    sword_clash.ogg
-    ...
-  court/
-    court_bell.ogg
-    scroll_unroll.ogg
-    guzheng_ambient.ogg
-  goulan/
-    pipa_solo.ogg
-    erhu_melody.ogg
-  epic/
-    grand_drums.ogg
-    imperial_fanfare.ogg
-  ui/
-    wood_click.ogg
-  ambient/
-    city_ambient.ogg
-```
-
-### 免费古风音效来源推荐 (几百种任选，建议精选50-100个高质量放入assets)
-
-1. **Pixabay Chinese Culture** (340+个免费古风/中国风格音效)：  
-   https://pixabay.com/sound-effects/search/chinese%20culture/  
-   包含古风转场、古筝、琴琶、传统乐器过场音乐等。
-
-2. **Freesound.org** (大量CC0免费下载)：  
-   搜索关键词：
-   - 战场："chinese war drum" "ancient battle horn" "sword clash" "cavalry charge" "battlefield ambient" "arrow impact"
-   - 朝堂："chinese bell" "bianzhong" "court music" "ancient palace footsteps" "scroll sound" "ink brush"
-   - 勾栏/乐器："pipa" "guzheng" "erhu" "traditional chinese music" "pipa solo" "soft guzheng"
-   - 大气碧碴："epic chinese orchestral" "suona" "grand chinese drums" "imperial fanfare" "majestic traditional"
-
-3. **启动包推荐文件名示例** (可直接搜索下载后改名放入对应文件夹)：
-   - **战场** : war_drum_loop.ogg, cavalry_gallop.ogg, sword_clash1.ogg, arrow_whoosh.ogg, battle_horn_suona.ogg, siege_fire_crackle.ogg
-   - **朝堂** : court_bell_chime.ogg, scroll_unroll_paper.ogg, palace_stone_footsteps.ogg, guzheng_court_ambient.ogg, woodblock_announce.ogg, ink_brush_writing.ogg
-   - **勾栏听曲** : pipa_rapid_solo.ogg, erhu_melodic.ogg, guzheng_traditional_piece.ogg, soft_pipa_dance_music.ogg
-   - **大气碧碴** : epic_grand_drums_gongs.ogg, imperial_suona_fanfare.ogg, majestic_chinese_orchestra.ogg, heroic_guzheng_epic.ogg
-
-**提示**：下载后用 Audacity 或在线工具转为 .ogg 格式，体积更小。多个文件可以随机播放增加变化感。
-
-### 初始化示例
-
-```kotlin
-val soundManager = SoundManager.createAndLoadDefault(this)  // this = Context
-// 在地图或主界面开始时
-soundManager.startAmbient(SoundCategory.COURT, "guzheng_court_ambient.ogg")
-// 在命令执行后
-soundManager.playForGameEvent("dispatch_army")
-```
-
-**已将 SoundManager.kt 推送到仓库** 。直接在项目中使用即可为游戏添加沉浸式古风音效，让朝堂决策、战场指挥、群臣对话都更有南宋风情。
-
-如果需要调整分类、增加更多音效或与具体UI绑定，随时告诉我继续完善。
+> 注：早前另一支线引入的 `com.nanduaiemperor.audio.SoundManager` 因放在不参与编译的 `src/main/kotlin/` 目录、包名与项目（`com.xiemingxin.nandu`）不符、且无任何素材与接线，已移除；其有价值的素材来源链接已并入 `docs/AUDIO_TASKS.md`。
 
 ---
 

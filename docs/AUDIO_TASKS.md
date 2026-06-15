@@ -29,6 +29,8 @@
 
 ---
 
+> 💡 **多变体随机**：想让某个音效不那么单调，把同名文件加 `_2` / `_3` 后缀丢进同目录即可（如 `sfx_drum_war.ogg`、`sfx_drum_war_2.ogg`、`sfx_drum_war_3.ogg`），系统会自动随机挑一个播，无需改代码。攻城战鼓、走访提示音已启用此机制。
+
 ## 三、槽位清单与替换指引
 
 ### UI 音效 `assets/audio/ui/`（短、干脆，<0.3s）
@@ -98,7 +100,26 @@
 
 ---
 
-## 五、第一版优先级（先换这 8 个，性价比最高）
+## 五、免费素材来源与搜索关键词（已核授权方向）
+
+> 下载时务必逐个看 license，优先 CC0；记录作者/来源/授权到 `docs/AUDIO_CREDITS.md`。
+
+**Pixabay 古风音效**（340+，Pixabay Content License，免费可商用，留意自定义条款）
+https://pixabay.com/sound-effects/search/chinese%20culture/
+
+**Freesound.org**（可按 CC0 过滤，海量）——按场景搜：
+- 战场：`chinese war drum`、`ancient battle horn`、`sword clash`、`cavalry charge`、`battlefield ambient`、`arrow impact`
+- 朝堂：`chinese bell`、`bianzhong`（编钟）、`court music`、`ancient palace footsteps`、`scroll sound`、`ink brush`
+- 乐器/勾栏：`pipa`（琵琶）、`guzheng`（古筝）、`erhu`（二胡）、`traditional chinese music`、`soft guzheng`
+- 磅礴 BGM：`epic chinese orchestral`、`suona`（唢呐）、`grand chinese drums`、`imperial fanfare`、`majestic traditional`
+
+**OpenGameArt**：有 CC0 的中式素材，但授权混杂，逐个看 license。
+
+> 这批来源是从早前一支线的整理里挑出来的有用部分。注意它们的命名/分类和本项目槽位不同，下载后**务必改成第三节的标准文件名**再放进 `assets/audio/`，不要新建 `assets/sounds/` 之类的目录。
+
+---
+
+## 六、第一版优先级（先换这 8 个，性价比最高）
 
 按 GPT 给的判断，先把最常听到的换掉：
 1. `ui_click.ogg`（每次点击都响）

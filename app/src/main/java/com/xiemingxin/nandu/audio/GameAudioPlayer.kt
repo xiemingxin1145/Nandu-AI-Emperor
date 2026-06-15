@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.SoundPool
 import java.io.File
+import kotlin.random.Random
 
 /**
  * V0.6.6 安全音频播放器骨架。
@@ -43,6 +44,38 @@ class GameAudioPlayer(private val context: Context) {
         if (!masterEnabled || !sfxEnabled) return
         val soundId = soundIds[path] ?: loadSfx(path)?.also { soundIds[path] = it } ?: return
         soundPool.play(soundId, volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f), 1, 0, 1f)
+    }
+
+    private val variantCache = mutableMapOf<String, List<String>>()
+
+    /**
+     * 同类音效随机播放：给定基础路径（如 audio/sfx/sfx_drum_war.ogg），
+     * 自动收集同目录下 sfx_drum_war.ogg / sfx_drum_war_2.ogg / _3.ogg ... 随机挑一个播。
+     * 何老师只需丢入带 _2/_3 后缀的同名文件即可扩充随机池，无需改代码。缺文件则回退基础路径。
+     */
+    fun playSfxVariant(basePath: String, volume: Float = 1f) {
+        if (!masterEnabled || !sfxEnabled) return
+        val variants = variantCache.getOrPut(basePath) { resolveVariants(basePath) }
+        val pick = if (variants.isEmpty()) basePath else variants[Random.nextInt(variants.size)]
+        playSfx(pick, volume)
+    }
+
+    private fun resolveVariants(basePath: String): List<String> {
+        val slash = basePath.lastIndexOf('/')
+        val dir = if (slash >= 0) basePath.substring(0, slash) else ""
+        val file = basePath.substring(slash + 1)
+        val dot = file.lastIndexOf('.')
+        val stem = if (dot >= 0) file.substring(0, dot) else file
+        val ext = if (dot >= 0) file.substring(dot) else ""
+        return try {
+            val all = context.assets.list(dir)?.toList() ?: emptyList()
+            val re = Regex("${Regex.escape(stem)}(_\\d+)?${Regex.escape(ext)}")
+            val matched = all.filter { re.matches(it) }
+                .map { if (dir.isEmpty()) it else "$dir/$it" }
+            matched.ifEmpty { listOf(basePath) }
+        } catch (_: Throwable) {
+            listOf(basePath)
+        }
     }
 
     fun playBgm(path: String, loop: Boolean = true, volume: Float = 0.75f) {

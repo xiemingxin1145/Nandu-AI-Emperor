@@ -111,7 +111,7 @@ fun CityInteriorScreen(
         val ambiencePath = if (showTavern) AudioResourceRegistry.Ambience.tavern else AudioResourceRegistry.Ambience.cityDay
         PlayAmbienceEffect(path = ambiencePath, volume = 0.42f)
         // 走访见闻到达时一声"叮"
-        PlaySfxEffect(path = AudioResourceRegistry.Sfx.reportArrive, triggerKey = lastVisitNarration, volume = 0.55f)
+        PlaySfxEffect(path = AudioResourceRegistry.Sfx.reportArrive, triggerKey = lastVisitNarration, volume = 0.55f, variant = true)
 
         AssetImage(
             path = ArtResourceRegistry.cityBackground(city.id),
