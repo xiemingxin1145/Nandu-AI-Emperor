@@ -64,7 +64,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
 
     private var currentProvider: AiProvider = MockProvider()
 
-    // V1.3.1：旧剧情库 + assets/data/events/history_events_v1.json 数据包
+    // V1.3.1: bundled story file + editable JSON event pack
     private val storyEvents: List<StoryEvent> = StoryEventLoader.loadDefaultEvents(application)
 
     fun updateProviderSettings(type: AiProviderType, apiKey: String, customModel: String = "") {
@@ -122,7 +122,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE)
     }
 
-    /** V0.9 城池营建：即时扣钱粮、升级建筑、应用效果 */
     fun buildInCity(cityId: String, buildingId: String) {
         val state = _uiState.value.gameState
         val city = state.cities.firstOrNull { it.id == cityId } ?: return
@@ -132,27 +131,109 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         if (def.requireWaterNode && !city.isWaterNode) return
         val (goldCost, grainCost) = BuildingCatalog.upgradeCost(def, level)
         if (city.gold < goldCost || city.grain < grainCost) return
-        var newCity = city.copy(
+
+        var newDefense = city.defense
+        var newCommerce = city.commerce
+        var newAgriculture = city.agriculture
+        var newSupport = city.popularSupport
+        when (buildingId) {
+            "city_wall" -> newDefense = (newDefense + 15).coerceAtMost(100)
+            "market" -> newCommerce = (newCommerce + 10).coerceAtMost(100)
+            "granary" -> newAgriculture = (newAgriculture + 10).coerceAtMost(100)
+            "academy", "temple", "taoist_temple" -> newSupport = (newSupport + 6).coerceAtMost(100)
+        }
+
+        val newCity = city.copy(
             gold = city.gold - goldCost,
             grain = city.grain - grainCost,
+            defense = newDefense,
+            commerce = newCommerce,
+            agriculture = newAgriculture,
+            popularSupport = newSupport,
             buildings = city.buildings + (buildingId to level + 1)
         )
-        when (buildingId) {
-            "city_wall" -> newCity = newCity.copy(defense = (newCity.defense + 15).coerceAtMost(100))
-            "market" -> newCity = newCity.copy(commerce = (newCity.commerce + 10).coerceAtMost(100))
-            "granary" -> newCity = newCity.copy(agriculture = (newCity.agriculture + 10).coerceAtMost(100))
-            "academy", "temple", "taoist_temple" -> newCity = newCity.copy(popularSupport = (newCity.popularSupport + 5).coerceAtMost(100))
-        }
         val newCities = state.cities.map { if (it.id == cityId) newCity else it }
-        _uiState.value = _uiState.value.copy(gameState = state.copy(cities = newCities))
+        _uiState.value = _uiState.value.copy(
+            gameState = state.copy(cities = newCities)
+        )
     }
 
-    fun siegeCity(cityId: String) {
+    fun siegeCity(targetCityId: String) {
         val state = _uiState.value.gameState
-        val result = BattleResolver.siege(state, cityId)
+        val target = state.cities.firstOrNull { it.id == targetCityId } ?: return
+        if (target.owner == "song" && target.controlState == "STABLE") return
+
+        if (state.storyFlags.contains("sieged_this_turn")) {
+            _uiState.value = _uiState.value.copy(battleReport = "大军一旬之内已发动攻势，将士疲惫、粮道未稳，须待下一旬整备后再战。")
+            return
+        }
+        val songGrain = state.cities.filter { it.owner == "song" }.sumOf { it.grain }
+        val warGrainCost = 20000
+        if (songGrain < warGrainCost) {
+            _uiState.value = _uiState.value.copy(battleReport = "粮草不足两万石，大军无法出征。当务之急是屯田筹粮。")
+            return
+        }
+
+        val songArmies = state.armies.filter { it.ownerFactionId == "song" }
+        val attackerTroops = songArmies.sumOf { it.troops }.coerceAtLeast(5000)
+        val avgMorale = if (songArmies.isNotEmpty()) songArmies.sumOf { it.morale } / songArmies.size else 50
+        val commander = state.officers
+            .filter { it.faction == "song" || it.faction.contains("战") }
+            .maxByOrNull { it.command }
+        val command = commander?.command ?: 60
+
+        val outcome = BattleResolver.resolveSiege(
+            attackerTroops = attackerTroops,
+            attackerMorale = avgMorale,
+            commanderCommand = command,
+            city = target,
+            season = state.season,
+            weather = state.weather
+        )
+
+        val newOwner = if (outcome.newControlState == "STABLE" || outcome.newControlState == "FRONTLINE") {
+            if (outcome.attackerWins && target.owner == "jin") "song" else target.owner
+        } else target.owner
+        val newTarget = target.copy(
+            controlState = outcome.newControlState,
+            owner = newOwner,
+            troops = (target.troops - outcome.defenderLosses).coerceAtLeast(0)
+        )
+
+        val totalAtk = attackerTroops.coerceAtLeast(1)
+        val moraleShift = if (outcome.attackerWins) 8 else -12
+        val newArmies = state.armies.map { army ->
+            if (army.ownerFactionId == "song") {
+                val share = (outcome.attackerLosses.toDouble() * army.troops / totalAtk).toInt()
+                army.copy(
+                    troops = (army.troops - share).coerceAtLeast(0),
+                    morale = (army.morale + moraleShift).coerceIn(10, 100)
+                )
+            } else army
+        }
+
+        var remainingCost = warGrainCost
+        val citiesAfterGrain = state.cities.map { c ->
+            if (c.owner == "song" && remainingCost > 0) {
+                val deduct = minOf(c.grain, remainingCost)
+                remainingCost -= deduct
+                if (c.id == targetCityId) newTarget.copy(grain = (newTarget.grain - deduct).coerceAtLeast(0))
+                else c.copy(grain = c.grain - deduct)
+            } else if (c.id == targetCityId) newTarget else c
+        }
+        val newGameState = state.copy(
+            cities = citiesAfterGrain,
+            armies = newArmies,
+            storyFlags = state.storyFlags + "sieged_this_turn"
+        )
+        val earned = _uiState.value.earnedAchievements
+        val newAch = AchievementSystem.checkNewAchievements(newGameState, earned)
         _uiState.value = _uiState.value.copy(
-            gameState = result.newState,
-            battleReport = result.report
+            gameState = newGameState,
+            battleReport = outcome.report,
+            ending = VictoryJudge.judgeDefeat(newGameState),
+            earnedAchievements = earned + newAch,
+            newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement
         )
     }
 
@@ -160,7 +241,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(battleReport = null)
     }
 
-    /** V0.9 募兵：在城池招募1000名指定兵种，扣金粮、增驻军 */
     fun recruitInCity(cityId: String, unitId: String) {
         val state = _uiState.value.gameState
         val city = state.cities.firstOrNull { it.id == cityId } ?: return
@@ -183,36 +263,25 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(gameState = state.copy(cities = newCities))
     }
 
-    /** V0.7.1 推进一旬：日历前进，并检查是否触发剧情事件 */
     fun advanceTurn() {
         val state = _uiState.value.gameState
-
-        // V0.7 金军每旬战略行动（反攻/增兵/袭扰）
         val jinResult = JinAI.executeTurn(state, state.jinThreat)
         var working = jinResult.newState
-
-        // 清除本旬攻势标记，新一旬可再次出征
         val clearedFlags = working.storyFlags - "sieged_this_turn"
-
         val nextState = working.copy(
             turn = working.turn + 1,
             calendar = working.calendar.advance(),
             storyFlags = clearedFlags
         )
-
-        // EventDirector筛剧情事件
         val event = EventDirector.firstCandidate(
             state = nextState,
             events = storyEvents,
             firedEventIds = nextState.firedEventIds,
             flags = nextState.storyFlags
         )
-
-        // V1.2 亡国判定（成就不结束游戏）
         val ending = VictoryJudge.judgeDefeat(nextState)
         val earned = _uiState.value.earnedAchievements
         val newAch = AchievementSystem.checkNewAchievements(nextState, earned)
-
         _uiState.value = _uiState.value.copy(
             gameState = nextState,
             phase = GamePhase.IDLE,
@@ -226,23 +295,19 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    /** V1.2 关闭成就庆祝弹窗 */
     fun dismissAchievement() {
         _uiState.value = _uiState.value.copy(newAchievement = null)
     }
 
-    /** V1.2 主动禅位归隐（体面收场，按功业评庙号） */
     fun abdicate() {
         val ending = VictoryJudge.judgeAbdication(_uiState.value.gameState)
         _uiState.value = _uiState.value.copy(ending = ending)
     }
 
-    /** V1.2 重开一局：记录传承后重置 */
     fun restartGame() {
         _uiState.value = UiState()
     }
 
-    /** V1.2 带传承的重开：记录本局功业，应用先辈余荫 */
     fun recordAndRestart(context: android.content.Context) {
         val cur = _uiState.value
         val songCities = cur.gameState.cities.count { it.owner == "song" }
@@ -252,7 +317,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = UiState(gameState = freshState)
     }
 
-    /** V0.7.1 玩家在剧情弹窗中做出选择 */
     fun chooseStoryOption(choiceId: String) {
         val event = _uiState.value.currentStoryEvent ?: return
         val state = _uiState.value.gameState
@@ -270,7 +334,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    /** 关闭剧情结果提示 */
     fun dismissStoryOutcome() {
         _uiState.value = _uiState.value.copy(storyOutcomes = emptyList())
     }
@@ -292,61 +355,32 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                     saveMessage = "读档成功：${loaded.calendar.displayText()}。",
                     phase = GamePhase.IDLE,
                     lastEdictResult = null,
-                    errorMessage = null
+                    lastOutcomes = emptyList(),
+                    lastRejected = emptyList()
                 )
             },
-            onFailure = { err ->
-                _uiState.value = _uiState.value.copy(saveMessage = "读档失败：${err.message ?: "存档码无效"}")
+            onFailure = { error ->
+                _uiState.value = _uiState.value.copy(saveMessage = "读档失败：${error.message ?: "存档码损坏"}")
             }
         )
     }
 
-    private fun parseCustomConfig(raw: String): Pair<String, String> {
-        val parts = raw.split("|", limit = 2)
-        return if (parts.size == 2) parts[0].trim() to parts[1].trim() else "" to raw.trim()
+    private fun parseCustomConfig(value: String): Pair<String, String> {
+        val parts = value.split("|", limit = 2)
+        return if (parts.size == 2) parts[0].trim() to parts[1].trim() else "" to value.trim()
     }
 
-    private fun buildGameContext(state: GameState): GameContext {
-        return GameContext(
-            year = state.year,
-            month = state.month,
-            gold = state.gold,
-            grain = state.grain,
-            troopMorale = state.troopMorale,
-            popularSupport = state.popularSupport,
-            courtStability = state.courtStability,
-            jinThreat = state.jinThreat,
-            warFactionPower = state.warFactionPower,
-            peaceFactionPower = state.peaceFactionPower,
-            cities = state.cities.map { city ->
-                CityContext(
-                    id = city.id,
-                    name = city.name,
-                    owner = city.owner,
-                    troops = city.troops,
-                    defense = city.defense,
-                    grain = city.grain,
-                    gold = city.gold,
-                    popularSupport = city.popularSupport
-                )
-            },
-            officers = state.officers
-                .filter { it.status != OfficerStatus.HIDDEN }
-                .map { officer ->
-                    OfficerContext(
-                        id = officer.id,
-                        name = officer.name,
-                        position = officer.position,
-                        faction = officer.faction,
-                        loyalty = officer.loyalty,
-                        command = officer.command,
-                        politics = officer.politics,
-                        stance = officer.stance,
-                        status = officer.status.name
-                    )
-                },
-            storyFlags = state.storyFlags.toList(),
-            recentEvents = state.recentEvents
-        )
-    }
+    private fun buildGameContext(state: GameState) = GameContext(
+        currentTurn = state.turn,
+        era = "${state.calendar.displayText()} / ${state.season.label} / 天气${state.weather.label}",
+        gold = state.gold,
+        grain = state.grain,
+        troopMorale = state.troopMorale,
+        courtStability = state.courtStability,
+        jinThreat = state.jinThreat,
+        activeCities = state.cities.map { CityContext(it.id, it.name, it.owner, it.troops, it.defense) },
+        availableOfficers = state.officers
+            .filter { it.status == OfficerStatus.IN_COURT || it.status == OfficerStatus.DEPLOYED }
+            .map { OfficerContext(it.id, it.name, it.faction, it.currentCityId, it.status.name) }
+    )
 }
