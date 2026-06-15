@@ -5,10 +5,6 @@ package com.xiemingxin.nandu.game
  *
  * 作用：让“入殿听奏”的皇帝裁断不再只是生成圣旨草稿，
  * 而是立即对朝局、钱粮、军心、名望、人物态度产生轻量影响。
- *
- * 注意：
- * - 这里先做轻量即时后果，不推进旬期，不替代 GameRuleEngine 的圣旨执行。
- * - 后续可扩展为持久化任务、连续事件、派系关系网。
  */
 data class CouncilConsequenceResult(
     val newState: GameState,
@@ -101,7 +97,7 @@ object CouncilConsequenceSystem {
                     setState(goldDelta = -3000, grainDelta = -4000, moraleDelta = 2, stabilityDelta = 2, jinDelta = -2)
                     boostCities(setOf("jiankang", "hefei", "shouchun", "xiangyang"), defenseDelta = 3, grainDelta = -800)
                     adjustOfficer("han_shizhong", loyaltyDelta = 2, meritDelta = 1)
-                    outcomes += "枢密院加固江淮防线：要城防御略升，金军威胁稍缓。"
+                    outcomes += "枢密院加固江淮防线：要城防御略升，北方压力稍缓。"
                 }
                 "train" -> {
                     setState(goldDelta = -2500, grainDelta = -5000, moraleDelta = 6, jinDelta = 1)
@@ -120,8 +116,12 @@ object CouncilConsequenceSystem {
                 "trade" -> {
                     setState(goldDelta = 6000, grainDelta = -1000, stabilityDelta = -1, prestigeDelta = 1)
                     boostCities(setOf("quanzhou", "mingzhou", "guangzhou"), goldDelta = 1500, commerceDelta = 4)
+                    current = DiplomacyTradeSystem.updateDiplomacy(current, WorldPowerIds.SEA_TRADE, relationDelta = 6, trustDelta = 4, status = "港市议利")
+                    current = DiplomacyTradeSystem.updateTradeRoute(current, "quanzhou_spice", incomeDelta = 8, controlDelta = 6, smugglingDelta = -3)
+                    current = DiplomacyTradeSystem.updateTradeRoute(current, "mingzhou_ship", incomeDelta = 4, controlDelta = 4)
+                    current = DiplomacyTradeSystem.updateTradeRoute(current, "guangzhou_south", incomeDelta = 6, riskDelta = 2, controlDelta = 3)
                     current = current.copy(storyFlags = current.storyFlags + "sea_trade_opened")
-                    outcomes += "政事堂整顿市舶：国库收入上升，东南港市商业更盛。"
+                    outcomes += "政事堂整顿市舶：国库收入上升，东南港市商业更盛，外贸关系已入账。"
                 }
                 "grain" -> {
                     setState(goldDelta = -1500, grainDelta = 9000, moraleDelta = 1, stabilityDelta = 2)
@@ -131,7 +131,8 @@ object CouncilConsequenceSystem {
                 "light_tax" -> {
                     setState(goldDelta = -2500, grainDelta = -1000, stabilityDelta = 4, prestigeDelta = 3)
                     boostCities(current.cities.filter { it.owner == "song" }.map { it.id }.toSet(), supportDelta = 2)
-                    outcomes += "政事堂安民轻敛：民心略升，短期财政吃紧。"
+                    current = DiplomacyTradeSystem.updateTradeRoute(current, "guangzhou_south", riskDelta = -2, smugglingDelta = -4)
+                    outcomes += "政事堂安民轻敛：民心略升，短期财政吃紧，南海私商风险略降。"
                 }
             }
 
@@ -155,8 +156,10 @@ object CouncilConsequenceSystem {
             PalaceIds.YUSHU -> when (choice.id) {
                 "envoy" -> {
                     setState(goldDelta = -1800, stabilityDelta = 1, jinDelta = -2, prestigeDelta = 2)
+                    current = DiplomacyTradeSystem.updateDiplomacy(current, WorldPowerIds.XIXIA, relationDelta = 8, pressureDelta = -2, trustDelta = 5, status = "遣使通问")
+                    current = DiplomacyTradeSystem.updateDiplomacy(current, WorldPowerIds.GORYEO, relationDelta = 5, trustDelta = 4, status = "海东使节")
                     current = current.copy(storyFlags = current.storyFlags + "foreign_envoy_sent")
-                    outcomes += "御书房遣使探问：西夏与海东外交线索开启，金国压力稍缓。"
+                    outcomes += "御书房遣使探问：西夏与海东外交线索开启，北方压力稍缓。"
                 }
                 "verify" -> {
                     setState(goldDelta = -500, stabilityDelta = 2)
@@ -165,6 +168,7 @@ object CouncilConsequenceSystem {
                 }
                 "shelve" -> {
                     setState(stabilityDelta = 1, prestigeDelta = -1)
+                    current = DiplomacyTradeSystem.updateDiplomacy(current, WorldPowerIds.XIXIA, trustDelta = -1)
                     outcomes += "御书房留中不发：短期无风波，但机事可能延误。"
                 }
             }
