@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xiemingxin.nandu.game.City
+import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.screens.*
 import com.xiemingxin.nandu.ui.theme.*
@@ -54,6 +55,22 @@ fun NanduApp() {
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
+
+    // V1.1 结局画面（最高优先级）
+    if (uiState.ending != GameEnding.ONGOING) {
+        val songCities = uiState.gameState.cities.count { it.owner == "song" }
+        EndingScreen(
+            ending = uiState.ending,
+            controlledCities = songCities,
+            onRestart = {
+                viewModel.restartGame()
+                showIntro = true
+                interiorCityId = null
+                currentTab = 0
+            }
+        )
+        return
+    }
 
     // V1.0 开局画面
     if (showIntro) {
