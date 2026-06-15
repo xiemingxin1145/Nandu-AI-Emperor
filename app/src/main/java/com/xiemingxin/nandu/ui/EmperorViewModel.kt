@@ -166,9 +166,9 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         }
         // V0.7 攻城需消耗粮草作为军需，国库粮草不足则无法出征
         val songGrain = state.cities.filter { it.owner == "song" }.sumOf { it.grain }
-        val warGrainCost = 30000
+        val warGrainCost = 20000
         if (songGrain < warGrainCost) {
-            _uiState.value = _uiState.value.copy(battleReport = "粮草不足三万石，大军无法出征。当务之急是屯田筹粮。")
+            _uiState.value = _uiState.value.copy(battleReport = "粮草不足两万石，大军无法出征。当务之急是屯田筹粮。")
             return
         }
 
@@ -216,7 +216,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // 扣除军需粮草（从宋城按比例扣）
-        val warGrainCost2 = 30000
+        val warGrainCost2 = 20000
         var remainingCost = warGrainCost2
         val citiesAfterGrain = state.cities.map { c ->
             if (c.owner == "song" && remainingCost > 0) {
