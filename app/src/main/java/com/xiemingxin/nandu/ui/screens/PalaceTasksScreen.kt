@@ -40,9 +40,9 @@ import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.CouncilChoice
 import com.xiemingxin.nandu.game.CouncilLine
 import com.xiemingxin.nandu.game.CouncilScene
+import com.xiemingxin.nandu.game.CourtCouncilSystem
 import com.xiemingxin.nandu.game.CourtFactionMemorySystem
 import com.xiemingxin.nandu.game.CourtFactionSnapshot
-import com.xiemingxin.nandu.game.CourtCouncilSystem
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerMemoryNote
 import com.xiemingxin.nandu.game.PalaceRegistry
@@ -90,12 +90,7 @@ fun PalaceTasksScreen(
         )
 
         Column(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xD70E0A05)),
-                border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.55f)),
-                shape = RoundedCornerShape(16.dp)
-            ) {
+            FramedPanel(frameId = "palace_tab", borderColor = TaskGold.copy(alpha = 0.55f)) {
                 Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(palace.icon, fontSize = 28.sp)
                     Spacer(Modifier.width(10.dp))
@@ -146,13 +141,37 @@ fun PalaceTasksScreen(
 }
 
 @Composable
-private fun EmptyPalaceTaskCard(palaceName: String) {
+private fun FramedPanel(
+    frameId: String,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    borderColor: Color = TaskGold.copy(alpha = 0.42f),
+    overlayColor: Color = Color(0xB9120B05),
+    content: @Composable () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)),
-        border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(16.dp)
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, borderColor),
+        shape = RoundedCornerShape(15.dp)
     ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            AssetImage(
+                path = ArtResourceRegistry.uiImage(frameId),
+                fallbackPath = ArtResourceRegistry.uiImage("dialog_frame"),
+                contentDescription = frameId,
+                contentScale = ContentScale.Crop,
+                placeholderText = "框",
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(modifier = Modifier.fillMaxSize().background(overlayColor))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun EmptyPalaceTaskCard(palaceName: String) {
+    FramedPanel(frameId = "dialog_frame", borderColor = TaskGold.copy(alpha = 0.35f)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("暂无急务", color = TaskGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text("$palaceName 本旬无专属待办。可回皇宫查看其他宫殿，或进入垂拱殿主动下旨。", color = TaskCream, fontSize = 13.sp, lineHeight = 20.sp)
@@ -168,7 +187,7 @@ private fun PalaceTaskCard(task: PalaceTask, state: GameState, onOpenCouncil: ()
         TaskSeverity.MEDIUM -> TaskGold
         TaskSeverity.LOW -> Color(0xFF8FB573)
     }
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xDF1A1208)), border = BorderStroke(1.dp, severityColor.copy(alpha = 0.58f)), shape = RoundedCornerShape(16.dp)) {
+    FramedPanel(frameId = "dialog_frame", borderColor = severityColor.copy(alpha = 0.58f), overlayColor = Color(0xCC1A1208)) {
         Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -207,7 +226,7 @@ private fun PalaceTaskCard(task: PalaceTask, state: GameState, onOpenCouncil: ()
 private fun CouncilSceneCard(state: GameState, scene: CouncilScene, modifier: Modifier, onBack: () -> Unit, onChoiceSelected: (CouncilChoice) -> Unit) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier) {
         item {
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xE40E0A05)), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.58f)), shape = RoundedCornerShape(16.dp)) {
+            FramedPanel(frameId = "edict_bar", borderColor = TaskGold.copy(alpha = 0.58f), overlayColor = Color(0xC50E0A05)) {
                 Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -224,14 +243,27 @@ private fun CouncilSceneCard(state: GameState, scene: CouncilScene, modifier: Mo
         }
         item { FactionMemoryPanel(CourtFactionMemorySystem.snapshots(state)) }
         items(scene.lines) { line -> CouncilLineCard(state = state, line = line) }
-        item { Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)) }
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                AssetImage(
+                    path = ArtResourceRegistry.uiImage("edict_scroll"),
+                    fallbackPath = ArtResourceRegistry.uiImage("edict_bar"),
+                    contentDescription = "陛下裁断",
+                    contentScale = ContentScale.Fit,
+                    placeholderText = "旨",
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
         items(scene.choices) { choice -> CouncilChoiceCard(choice = choice, onChoiceSelected = { onChoiceSelected(choice) }) }
     }
 }
 
 @Composable
 private fun FactionMemoryPanel(snapshots: List<CourtFactionSnapshot>) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xD20E0A05)), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.32f)), shape = RoundedCornerShape(14.dp)) {
+    FramedPanel(frameId = "faction_tag", borderColor = TaskGold.copy(alpha = 0.32f), overlayColor = Color(0xC80E0A05)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("朝中派系风向", color = TaskGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             snapshots.forEach { faction ->
@@ -256,7 +288,7 @@ private fun CouncilLineCard(state: GameState, line: CouncilLine) {
         else -> TaskBlue
     }
     val memory = CourtFactionMemorySystem.noteForSpeaker(state, line.speakerId)
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)), border = BorderStroke(1.dp, attitudeColor.copy(alpha = 0.48f)), shape = RoundedCornerShape(14.dp)) {
+    FramedPanel(frameId = "npc_card_frame", borderColor = attitudeColor.copy(alpha = 0.48f), overlayColor = Color(0xC91A1208)) {
         Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
             AssetImage(
                 path = ArtResourceRegistry.portraitForOfficer(line.speakerId),
@@ -295,7 +327,7 @@ private fun MemoryNoteText(note: OfficerMemoryNote) {
 
 @Composable
 private fun CouncilChoiceCard(choice: CouncilChoice, onChoiceSelected: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xDF201108)), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.42f)), shape = RoundedCornerShape(14.dp)) {
+    FramedPanel(frameId = "choice_button", borderColor = TaskGold.copy(alpha = 0.42f), overlayColor = Color(0xD0201108)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text(choice.label, color = TaskGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(choice.preview, color = TaskCream, fontSize = 12.sp, lineHeight = 18.sp)
