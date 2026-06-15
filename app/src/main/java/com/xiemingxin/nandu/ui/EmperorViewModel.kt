@@ -21,6 +21,7 @@ import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BattleResolver
+import com.xiemingxin.nandu.game.BattleUnitCatalog
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -205,6 +206,21 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
 
     fun dismissBattleReport() {
         _uiState.value = _uiState.value.copy(battleReport = null)
+    }
+
+    /** V0.9 募兵：在城池招募1000名指定兵种，扣金粮、增驻军 */
+    fun recruitInCity(cityId: String, unitId: String) {
+        val state = _uiState.value.gameState
+        val city = state.cities.firstOrNull { it.id == cityId } ?: return
+        val def = BattleUnitCatalog.byId(unitId) ?: return
+        if (city.gold < def.recruitGold || city.grain < def.recruitGrain) return
+        val newCity = city.copy(
+            gold = city.gold - def.recruitGold,
+            grain = city.grain - def.recruitGrain,
+            troops = city.troops + 1000
+        )
+        val newCities = state.cities.map { if (it.id == cityId) newCity else it }
+        _uiState.value = _uiState.value.copy(gameState = state.copy(cities = newCities))
     }
 
     /** V0.7.1 推进一旬：日历前进，并检查是否触发剧情事件 */
