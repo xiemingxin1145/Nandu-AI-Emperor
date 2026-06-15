@@ -37,7 +37,9 @@ object CourtFactionMemorySystem {
 
         val warPower = (state.warFactionPower + warChoices * 6 - peaceChoices * 3).coerceIn(0, 100)
         val peacePower = (state.peaceFactionPower + peaceChoices * 7 - warChoices * 2).coerceIn(0, 100)
-        val fiscalPower = (45 + fiscalChoices * 7 + if (state.grain < 130000) 8 else 0 + if (state.gold < 40000) 8 else 0).coerceIn(0, 100)
+        val grainPressure = if (state.grain < 130000) 8 else 0
+        val goldPressure = if (state.gold < 40000) 8 else 0
+        val fiscalPower = (45 + fiscalChoices * 7 + grainPressure + goldPressure).coerceIn(0, 100)
         val innerPower = (25 + innerChoices * 8 + if (state.storyFlags.contains("inner_palace_frugal")) -6 else 0).coerceIn(0, 100)
         val bureauPower = (22 + bureauChoices * 7 + state.flagCount("secret_memorial") * 3).coerceIn(0, 100)
 
