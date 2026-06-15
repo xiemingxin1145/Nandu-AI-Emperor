@@ -1,0 +1,156 @@
+[
+  {
+    "id": "jingkang_aftermath_001",
+    "title": "靖康余烬",
+    "type": "history_event",
+    "priority": 100,
+    "once": true,
+    "trigger": {
+      "year_gte": 1127,
+      "blocked_flags": ["jingkang_aftermath_done"]
+    },
+    "description": "汴京陷落，宗室南渡，天下震动。江南士民望向行在，问大宋是否还有中兴之日。",
+    "choices": [
+      {
+        "id": "stabilize_jiangnan",
+        "text": "拥立行在，稳住江南",
+        "ai_hint": "稳健保守，提升朝局稳定。",
+        "effects": {
+          "court_stability": 15,
+          "gold": 3000,
+          "grain": 10000
+        },
+        "add_flags": ["jingkang_aftermath_done", "jiangnan_first"]
+      },
+      {
+        "id": "call_for_recovery",
+        "text": "号召勤王，图谋恢复",
+        "ai_hint": "主战派赞成，外部压力上升。",
+        "effects": {
+          "troop_morale": 15,
+          "jin_threat": 10,
+          "court_stability": -5
+        },
+        "add_flags": ["jingkang_aftermath_done", "recovery_first"]
+      }
+    ]
+  },
+  {
+    "id": "linan_food_crisis_001",
+    "title": "临安粮荒",
+    "type": "city_event",
+    "priority": 80,
+    "once": true,
+    "trigger": {
+      "year_gte": 1128,
+      "city_owner": { "linan": "song" },
+      "blocked_flags": ["linan_food_crisis_solved"]
+    },
+    "description": "临安城中米价腾贵，百姓聚于市口，请求朝廷开仓。",
+    "choices": [
+      {
+        "id": "open_granary",
+        "text": "开仓赈灾",
+        "ai_hint": "民生优先，稳住都城。",
+        "effects": {
+          "gold": -2000,
+          "grain": -20000,
+          "city": {
+            "linan": { "popularSupport": 15, "commerce": -3 }
+          }
+        },
+        "add_flags": ["linan_food_crisis_solved"]
+      },
+      {
+        "id": "strict_purchase",
+        "text": "官府平价收买粮食",
+        "ai_hint": "折中方案，消耗金钱较多。",
+        "effects": {
+          "gold": -5000,
+          "grain": 10000,
+          "city": {
+            "linan": { "popularSupport": 5 }
+          }
+        },
+        "add_flags": ["linan_food_crisis_solved"]
+      }
+    ]
+  },
+  {
+    "id": "huai_front_warning_001",
+    "title": "江淮告急",
+    "type": "history_event",
+    "priority": 75,
+    "once": false,
+    "trigger": {
+      "year_gte": 1128,
+      "jin_threat_gte": 70,
+      "blocked_flags": ["huai_front_secured"]
+    },
+    "description": "淮上诸城急递入行在，称北方军马频繁调动，沿淮军民皆惧。",
+    "choices": [
+      {
+        "id": "repair_huai_defense",
+        "text": "加固江淮城防",
+        "ai_hint": "守势稳健，适合国力不足时。",
+        "effects": {
+          "gold": -6000,
+          "grain": -15000,
+          "court_stability": 5,
+          "city": {
+            "chuzhou": { "defense": 8 },
+            "shouchun": { "defense": 8 },
+            "hefei": { "defense": 8 }
+          }
+        },
+        "add_flags": ["huai_defense_repaired"]
+      },
+      {
+        "id": "forward_mobilize",
+        "text": "前线动员",
+        "ai_hint": "主战派方案，军心提升但消耗较大。",
+        "effects": {
+          "gold": -8000,
+          "grain": -25000,
+          "troop_morale": 10,
+          "jin_threat": 5
+        },
+        "add_flags": ["huai_forward_mobilized"]
+      }
+    ]
+  },
+  {
+    "id": "xixia_envoy_001",
+    "title": "西夏来使",
+    "type": "diplomacy_event",
+    "priority": 60,
+    "once": true,
+    "trigger": {
+      "year_gte": 1130,
+      "blocked_flags": ["xixia_envoy_done"]
+    },
+    "description": "河陇之外，西夏来使入境，请开互市，并探问宋金形势。",
+    "choices": [
+      {
+        "id": "open_border_trade",
+        "text": "许开边贸",
+        "ai_hint": "以贸易换马匹和情报，为后续西夏系统占坑。",
+        "effects": {
+          "gold": 4000,
+          "court_stability": 3
+        },
+        "add_flags": ["xixia_envoy_done", "xixia_trade_open"]
+      },
+      {
+        "id": "keep_distance",
+        "text": "厚赐而不深交",
+        "ai_hint": "保守外交，避免卷入西北。",
+        "effects": {
+          "gold": -2000,
+          "court_stability": 2
+        },
+        "add_flags": ["xixia_envoy_done", "xixia_neutral"]
+      }
+    ]
+  }
+]
