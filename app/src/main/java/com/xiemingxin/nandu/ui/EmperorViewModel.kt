@@ -25,6 +25,8 @@ import com.xiemingxin.nandu.game.BattleUnitCatalog
 import com.xiemingxin.nandu.game.JinAI
 import com.xiemingxin.nandu.game.VictoryJudge
 import com.xiemingxin.nandu.game.GameEnding
+import com.xiemingxin.nandu.game.AchievementSystem
+import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -48,7 +50,9 @@ data class UiState(
     val currentStoryEvent: StoryEvent? = null,
     val storyOutcomes: List<String> = emptyList(),
     val battleReport: String? = null,
-    val ending: GameEnding = GameEnding.ONGOING
+    val ending: GameEnding = GameEnding.ONGOING,
+    val earnedAchievements: Set<String> = emptySet(),
+    val newAchievement: String? = null
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -234,10 +238,15 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             armies = newArmies,
             storyFlags = state.storyFlags + "sieged_this_turn"
         )
+        // V1.2 检测新成就（不结束游戏）
+        val earned = _uiState.value.earnedAchievements
+        val newAch = AchievementSystem.checkNewAchievements(newGameState, earned)
         _uiState.value = _uiState.value.copy(
             gameState = newGameState,
             battleReport = outcome.report,
-            ending = VictoryJudge.judge(newGameState)
+            ending = VictoryJudge.judgeDefeat(newGameState),
+            earnedAchievements = earned + newAch,
+            newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement
         )
     }
 
@@ -295,10 +304,11 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             flags = nextState.storyFlags
         )
 
-        // V1.1 结局判定
-        val ending = VictoryJudge.judge(nextState)
+        // V1.2 亡国判定（成就不结束游戏）
+        val ending = VictoryJudge.judgeDefeat(nextState)
+        val earned = _uiState.value.earnedAchievements
+        val newAch = AchievementSystem.checkNewAchievements(nextState, earned)
 
-        // 金军行动战报（若有）汇总到 storyOutcomes 显示
         _uiState.value = _uiState.value.copy(
             gameState = nextState,
             phase = GamePhase.IDLE,
@@ -306,13 +316,37 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             lastRejected = emptyList(),
             currentStoryEvent = event,
             storyOutcomes = jinResult.reports,
-            ending = ending
+            ending = ending,
+            earnedAchievements = earned + newAch,
+            newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement
         )
     }
 
-    /** V1.1 重开一局：重置游戏状态 */
+    /** V1.2 关闭成就庆祝弹窗 */
+    fun dismissAchievement() {
+        _uiState.value = _uiState.value.copy(newAchievement = null)
+    }
+
+    /** V1.2 主动禅位归隐（体面收场，按功业评庙号） */
+    fun abdicate() {
+        val ending = VictoryJudge.judgeAbdication(_uiState.value.gameState)
+        _uiState.value = _uiState.value.copy(ending = ending)
+    }
+
+    /** V1.2 重开一局：记录传承后重置 */
     fun restartGame() {
+        // 传承记录需要context，由MainActivity在重开时调用recordAndRestart
         _uiState.value = UiState()
+    }
+
+    /** V1.2 带传承的重开：记录本局功业，应用先辈余荫 */
+    fun recordAndRestart(context: android.content.Context) {
+        val cur = _uiState.value
+        val songCities = cur.gameState.cities.count { it.owner == "song" }
+        LegacySystem.recordReign(context, cur.earnedAchievements, songCities)
+        val legacy = LegacySystem.load(context)
+        val freshState = LegacySystem.applyLegacyBonus(GameState(), legacy)
+        _uiState.value = UiState(gameState = freshState)
     }
 
     /** V0.7.1 玩家在剧情弹窗中做出选择 */
