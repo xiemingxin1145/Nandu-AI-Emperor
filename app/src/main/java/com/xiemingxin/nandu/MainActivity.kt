@@ -3,6 +3,17 @@ package com.xiemingxin.nandu
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -113,6 +124,29 @@ fun NanduApp() {
                         indicatorColor = Color(0xFF1E1508)
                     )
                 )
+            }
+        }
+
+        // V0.9 战役战报弹窗
+        uiState.battleReport?.let { report ->
+            Dialog(onDismissRequest = { viewModel.dismissBattleReport() }) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
+                    border = BorderStroke(1.dp, ImperialGold),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Text("【军 报】", color = ImperialGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(10.dp))
+                        Text(report, color = Color(0xFFE8DCC0), fontSize = 13.sp)
+                        Spacer(Modifier.height(14.dp))
+                        Button(
+                            onClick = { viewModel.dismissBattleReport() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = ImperialGold)
+                        ) { Text("朕已阅", color = InkBlack, fontWeight = FontWeight.Bold) }
+                    }
+                }
             }
         }
     }
