@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameEnding
+import com.xiemingxin.nandu.game.AchievementSystem
+import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.screens.*
 import com.xiemingxin.nandu.ui.theme.*
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
 fun NanduApp() {
     val viewModel: EmperorViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     var showIntro by remember { mutableStateOf(true) }
     var interiorCityId by remember { mutableStateOf<String?>(null) }
@@ -63,7 +66,7 @@ fun NanduApp() {
             ending = uiState.ending,
             controlledCities = songCities,
             onRestart = {
-                viewModel.restartGame()
+                viewModel.recordAndRestart(context)
                 showIntro = true
                 interiorCityId = null
                 currentTab = 0
@@ -178,6 +181,37 @@ fun NanduApp() {
                         indicatorColor = Color(0xFF1E1508)
                     )
                 )
+            }
+        }
+
+        // V1.2 成就庆祝弹窗
+        uiState.newAchievement?.let { achId ->
+            val ach = AchievementSystem.byId(achId)
+            if (ach != null) {
+                Dialog(onDismissRequest = { viewModel.dismissAchievement() }) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
+                        border = BorderStroke(2.dp, Color(0xFFFFD700)),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                        ) {
+                            Text("✦ 功 业 达 成 ✦", color = Color(0xFFFFD700), fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Text(ach.title, color = Color(0xFFFFD700), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(10.dp))
+                            Text(ach.desc, color = Color(0xFFE8DCC0), fontSize = 13.sp)
+                            Spacer(Modifier.height(18.dp))
+                            Button(
+                                onClick = { viewModel.dismissAchievement() },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700))
+                            ) { Text("铭 记 此 功", color = InkBlack, fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                }
             }
         }
 
