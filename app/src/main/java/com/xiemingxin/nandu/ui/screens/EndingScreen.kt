@@ -40,14 +40,13 @@ private val EndInk = Color(0xFF0A0703)
  */
 @Composable
 fun EndingScreen(ending: GameEnding, controlledCities: Int, onRestart: () -> Unit) {
-    val rankColor = when (ending.rank) {
-        "S" -> Color(0xFFFFD700)
-        "A" -> Color(0xFF8FB573)
-        "B" -> Color(0xFFD4A437)
-        "C" -> Color(0xFF8A9BB5)
-        else -> Color(0xFFCC6655)
+    val isAbdication = ending.rank == "禅"
+    val rankColor = when {
+        isAbdication && ending.posthumous == "中兴之主" -> Color(0xFFFFD700)
+        isAbdication -> Color(0xFF8FB573)
+        else -> Color(0xFFCC6655)  // 亡国
     }
-    val isVictory = ending.rank in listOf("S", "A", "B")
+    val isVictory = isAbdication
     val bgImage = if (isVictory) "images/cities/city_imperial_capital_dawn_01.webp"
                   else "images/cities/city_kaifeng_crisis_01.webp"
 
@@ -72,7 +71,7 @@ fun EndingScreen(ending: GameEnding, controlledCities: Int, onRestart: () -> Uni
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(if (isVictory) "大 业 有 成" else "国 祚 已 终", color = EndCream, fontSize = 16.sp)
+            Text(if (isVictory) "禅 位 归 隐" else "国 祚 已 终", color = EndCream, fontSize = 16.sp)
             Spacer(Modifier.height(20.dp))
 
             // 评级大字
@@ -82,11 +81,13 @@ fun EndingScreen(ending: GameEnding, controlledCities: Int, onRestart: () -> Uni
                     .border(BorderStroke(2.dp, rankColor), RoundedCornerShape(48.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(ending.rank, color = rankColor, fontSize = 52.sp, fontWeight = FontWeight.Bold)
+                Text(ending.posthumous.take(1), color = rankColor, fontSize = 44.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(Modifier.height(20.dp))
             Text(ending.title, color = rankColor, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("史称 · ${ending.posthumous}", color = rankColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             Text("终局控城 $controlledCities / 36", color = EndCream, fontSize = 13.sp)
 
