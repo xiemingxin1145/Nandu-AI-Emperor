@@ -46,6 +46,12 @@ fun NanduApp() {
         val parts = payload.split("|", limit = 2)
         val cityId = parts.getOrNull(0).orEmpty()
         val action = parts.getOrNull(1) ?: "auto"
+        // V0.9 营建动作即时生效，不走圣旨
+        if (action.startsWith("build:")) {
+            val buildingId = action.removePrefix("build:")
+            viewModel.buildInCity(cityId, buildingId)
+            return
+        }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
         edictText = buildCityDraft(city, action)
         currentTab = 0
