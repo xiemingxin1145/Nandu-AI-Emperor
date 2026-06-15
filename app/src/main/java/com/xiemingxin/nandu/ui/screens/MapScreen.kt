@@ -53,9 +53,10 @@ import kotlin.math.sqrt
 
 @Composable
 fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
-    var cameraX by remember { mutableStateOf(2500f) }
-    var cameraY by remember { mutableStateOf(1200f) }
-    var zoom by remember { mutableStateOf(0.027f) }
+    // V1.0 初始镜头对准城池密集区(中心约8700,5500)，开局即可看到大部分城池
+    var cameraX by remember { mutableStateOf(986f) }
+    var cameraY by remember { mutableStateOf(2500f) }
+    var zoom by remember { mutableStateOf(0.07f) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var manageCityId by remember { mutableStateOf<String?>(null) }
     var recruitCityId by remember { mutableStateOf<String?>(null) }
