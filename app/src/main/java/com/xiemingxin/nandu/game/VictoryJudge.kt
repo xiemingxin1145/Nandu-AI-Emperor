@@ -1,69 +1,64 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V1.1 结局判定系统：给游戏一个目标和终点。
- *
- * 胜负条件（建炎元年开局，赵构视角）：
- *  - 中兴大宋（大胜）：收复开封 + 控城≥28
- *  - 北望中原（胜）：控城≥24 且 金虏威胁<40
- *  - 偏安江南（小胜）：撑到建炎设定年限，控城≥18
- *  - 划江而治（平）：撑到年限，控城12-17
- *  - 社稷倾覆（败）：临安失守 或 控城<8
+ * V1.2 结局判定：只有"亡国"才强制结束游戏。
+ * 成就(收复开封/控城达标)由 AchievementSystem 处理，达成不结束。
+ * 玩家也可主动"禅位归隐"体面收场。
  */
-enum class GameEnding(val title: String, val rank: String, val desc: String) {
-    GREAT_REVIVAL("中兴大宋", "S", "王师北定中原日，收复东京，迎还二圣之志得偿。陛下之功，比肩光武，史称中兴之主。"),
-    NORTH_HOPE("北望中原", "A", "宋室重振，疆土大复，金虏不敢南顾。虽未尽复故疆，已为后世北伐奠定根基。"),
-    SOUTH_PEACE("偏安江南", "B", "守住了半壁江山，江南繁华依旧。然中原父老，犹望王师，此憾绵绵无绝期。"),
-    DIVIDE_RIVER("划江而治", "C", "宋金划江对峙，南北分治。社稷得保，然偏安之局已成，恢复无望。"),
-    COLLAPSE("社稷倾覆", "D", "临安陷落，宋室南奔无地。靖康之耻未雪，又添崖山之痛。大宋三百年江山，至此而终。"),
-    ONGOING("", "", "")
+enum class GameEnding(val title: String, val rank: String, val posthumous: String, val desc: String) {
+    // 真结局——亡国（强制结束 + 恶号）
+    CAPITAL_LOST("社稷倾覆", "亡", "亡国之君",
+        "临安陷落，宋室南奔无地。靖康之耻未雪，又添崖山之痛。后世史官记你为亡国之君，徽钦之后，再失半壁。"),
+    LAND_LOST("神州陆沉", "亡", "失土之主",
+        "城池尽丧，王师溃散，宋祚名存实亡。你坐视祖宗基业沦于异族，史称失土之主，遗臭千年。"),
+
+    // 主动收场——禅位归隐（体面，按功业给庙号）
+    ABDICATE_GLORY("功成身退", "禅", "中兴之主",
+        "你于功业巅峰禅位归隐，将一个重振的大宋交予后人。史称中兴之主，配享太庙，万世敬仰。"),
+    ABDICATE_PEACE("急流勇退", "禅", "守成之君",
+        "你守住半壁江山后退位让贤。虽未尽复中原，亦不失为守成之君，社稷得以延续。"),
+    ABDICATE_SHAME("仓皇逊位", "禅", "偏安之主",
+        "你在内外交困中退位。偏安一隅，恢复无望，史评毁誉参半。"),
+
+    ONGOING("", "", "", "")
 }
 
 object VictoryJudge {
 
-    /** 时限：建炎共约4年，这里设到第8年（约绍兴初）为强制结算 */
-    private const val FINAL_YEAR = 8
-
     /**
-     * 判定当前局势是否触发结局。
+     * 判定是否亡国（强制结束）。成就不在这里判，由AchievementSystem处理。
      * @return GameEnding，ONGOING表示游戏继续
      */
-    fun judge(state: GameState): GameEnding {
-        val songCities = state.cities.count { it.owner == "song" }
+    fun judgeDefeat(state: GameState): GameEnding {
         val linan = state.cities.firstOrNull { it.id == "linan" }
-        val kaifeng = state.cities.firstOrNull { it.id == "kaifeng" }
-        val kaifengReclaimed = kaifeng?.owner == "song"
-        val year = state.calendar.year
+        val songCities = state.cities.count { it.owner == "song" }
 
-        // 即时失败：临安失守
-        if (linan != null && linan.owner == "jin") return GameEnding.COLLAPSE
-        // 即时失败：控城太少（被打崩）
-        if (songCities < 8) return GameEnding.COLLAPSE
-
-        // 即时大胜：收复开封 + 控城达标
-        if (kaifengReclaimed && songCities >= 28) return GameEnding.GREAT_REVIVAL
-
-        // 时限结算（到达终局年份）
-        if (year >= FINAL_YEAR) {
-            return when {
-                kaifengReclaimed && songCities >= 28 -> GameEnding.GREAT_REVIVAL
-                songCities >= 24 && state.jinThreat < 40 -> GameEnding.NORTH_HOPE
-                songCities >= 18 -> GameEnding.SOUTH_PEACE
-                songCities >= 12 -> GameEnding.DIVIDE_RIVER
-                else -> GameEnding.COLLAPSE
-            }
-        }
+        // 临安失守 → 亡国
+        if (linan != null && linan.owner == "jin") return GameEnding.CAPITAL_LOST
+        // 控城跌破6 → 神州陆沉
+        if (songCities < 6) return GameEnding.LAND_LOST
 
         return GameEnding.ONGOING
     }
 
-    /** 进度提示：让玩家随时知道离胜利还差多少 */
+    /**
+     * 玩家主动禅位时，按当前功业评定庙号结局。
+     */
+    fun judgeAbdication(state: GameState): GameEnding {
+        val songCities = state.cities.count { it.owner == "song" }
+        val kaifengReclaimed = state.cities.firstOrNull { it.id == "kaifeng" }?.owner == "song"
+        return when {
+            kaifengReclaimed && songCities >= 24 -> GameEnding.ABDICATE_GLORY
+            songCities >= 18 -> GameEnding.ABDICATE_PEACE
+            else -> GameEnding.ABDICATE_SHAME
+        }
+    }
+
+    /** 进度提示 */
     fun progressHint(state: GameState): String {
         val songCities = state.cities.count { it.owner == "song" }
         val kaifeng = state.cities.firstOrNull { it.id == "kaifeng" }
-        val year = state.calendar.year
-        val yearsLeft = (FINAL_YEAR - year).coerceAtLeast(0)
-        val kfText = if (kaifeng?.owner == "song") "开封已复" else "开封待复"
-        return "控城 $songCities/36 · $kfText · 距结算 ${yearsLeft}年"
+        val kfText = if (kaifeng?.owner == "song") "东京已复" else "东京待复"
+        return "控城 $songCities/36 · $kfText · 第${state.calendar.year}年"
     }
 }
