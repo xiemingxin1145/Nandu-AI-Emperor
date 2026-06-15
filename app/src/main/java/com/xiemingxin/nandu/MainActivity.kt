@@ -68,7 +68,7 @@ fun NanduApp() {
             CityInteriorScreen(
                 city = city,
                 onBuild = { buildingId -> viewModel.buildInCity(cid, buildingId) },
-                onRecruit = { interiorCityId = null; currentTab = 2 },
+                onRecruit = { unitId -> viewModel.recruitInCity(cid, unitId) },
                 onBack = { interiorCityId = null }
             )
             return
