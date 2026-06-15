@@ -162,7 +162,7 @@ object PalaceTaskSystem {
                 description = rumor.text.take(60),
                 severity = TaskSeverity.MEDIUM,
                 source = TaskSource.RUMOR,
-                relatedCityIds = listOf(rumor.cityId).filter { it.isNotBlank() },
+                relatedCityIds = listOf(rumor.sourceCityId).filter { it.isNotBlank() },
                 recommendedTab = 1,
                 edictDraft = "传朕旨意：御书房将近日传闻整理成密折，分真假缓急，凡涉军粮边防者先奏。"
             )
