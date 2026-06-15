@@ -105,6 +105,7 @@ fun PalaceTasksScreen(
             selectedScene?.let { scene ->
                 CouncilSceneCard(
                     scene = scene,
+                    modifier = Modifier.weight(1f),
                     onBack = { selectedScene = null },
                     onDraftEdict = { draft -> onDraftEdict(draft) }
                 )
@@ -211,10 +212,11 @@ private fun PalaceTaskCard(
 @Composable
 private fun CouncilSceneCard(
     scene: CouncilScene,
+    modifier: Modifier,
     onBack: () -> Unit,
     onDraftEdict: (String) -> Unit
 ) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
