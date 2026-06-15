@@ -158,6 +158,19 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val target = state.cities.firstOrNull { it.id == targetCityId } ?: return
         if (target.owner == "song" && target.controlState == "STABLE") return
 
+        // V0.7 每旬只能发动一次大型攻势（已出征则拒绝）
+        if (state.storyFlags.contains("sieged_this_turn")) {
+            _uiState.value = _uiState.value.copy(battleReport = "大军一旬之内已发动攻势，将士疲惫、粮道未稳，须待下一旬整备后再战。")
+            return
+        }
+        // V0.7 攻城需消耗粮草作为军需，国库粮草不足则无法出征
+        val songGrain = state.cities.filter { it.owner == "song" }.sumOf { it.grain }
+        val warGrainCost = 30000
+        if (songGrain < warGrainCost) {
+            _uiState.value = _uiState.value.copy(battleReport = "粮草不足三万石，大军无法出征。当务之急是屯田筹粮。")
+            return
+        }
+
         // 集结：目标城周边的宋军 + 宋城驻军
         val songArmies = state.armies.filter { it.ownerFactionId == "song" }
         val attackerTroops = songArmies.sumOf { it.troops }.coerceAtLeast(5000)
@@ -197,9 +210,23 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             } else army
         }
 
-        val newCities = state.cities.map { if (it.id == targetCityId) newTarget else it }
+        // 扣除军需粮草（从宋城按比例扣）
+        val warGrainCost2 = 30000
+        var remainingCost = warGrainCost2
+        val citiesAfterGrain = state.cities.map { c ->
+            if (c.owner == "song" && remainingCost > 0) {
+                val deduct = minOf(c.grain, remainingCost)
+                remainingCost -= deduct
+                if (c.id == targetCityId) newTarget.copy(grain = (newTarget.grain - deduct).coerceAtLeast(0))
+                else c.copy(grain = c.grain - deduct)
+            } else if (c.id == targetCityId) newTarget else c
+        }
         _uiState.value = _uiState.value.copy(
-            gameState = state.copy(cities = newCities, armies = newArmies),
+            gameState = state.copy(
+                cities = citiesAfterGrain,
+                armies = newArmies,
+                storyFlags = state.storyFlags + "sieged_this_turn"
+            ),
             battleReport = outcome.report
         )
     }
@@ -214,10 +241,20 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val city = state.cities.firstOrNull { it.id == cityId } ?: return
         val def = BattleUnitCatalog.byId(unitId) ?: return
         if (city.gold < def.recruitGold || city.grain < def.recruitGrain) return
+        // V0.7 募兵消耗人口：每千兵抽丁，人口不足则无法募兵
+        val recruitSize = 1000
+        if (city.population < recruitSize * 5) {
+            _uiState.value = _uiState.value.copy(battleReport = "${city.name}丁口不足，民疲难征，无法再募兵。需待人口休养生息。")
+            return
+        }
+        // 募兵过度损民心
+        val supportPenalty = if (city.troops > city.population / 10) 3 else 1
         val newCity = city.copy(
             gold = city.gold - def.recruitGold,
             grain = city.grain - def.recruitGrain,
-            troops = city.troops + 1000
+            troops = city.troops + recruitSize,
+            population = city.population - recruitSize * 3,
+            popularSupport = (city.popularSupport - supportPenalty).coerceAtLeast(0)
         )
         val newCities = state.cities.map { if (it.id == cityId) newCity else it }
         _uiState.value = _uiState.value.copy(gameState = state.copy(cities = newCities))
