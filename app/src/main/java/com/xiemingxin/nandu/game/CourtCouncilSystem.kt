@@ -3,10 +3,7 @@ package com.xiemingxin.nandu.game
 /**
  * V1.7 大殿朝会 / 橙光式宫廷事件骨架。
  *
- * 目标：
- * - 让待办不只是“卡片 + 拟旨”，而是带出多角色上奏、互相反驳、皇帝选择。
- * - 朝臣必须符合古代思维：奏对围绕君臣、社稷、粮道、军心、民力、祖宗法度。
- * - 后苑内廷也走“人物发言 + 选择后果预览”的轻剧情结构。
+ * V2.1 接入人物登场门槛：未登场人物不再硬塞进朝会。
  */
 data class CouncilLine(
     val speakerId: String,
@@ -35,7 +32,7 @@ data class CouncilScene(
 object CourtCouncilSystem {
 
     fun sceneForTask(state: GameState, task: PalaceTask): CouncilScene {
-        return when (task.palaceId) {
+        val raw = when (task.palaceId) {
             PalaceIds.CHUIGONG -> courtScene(state, task)
             PalaceIds.SHUMI -> militaryScene(state, task)
             PalaceIds.ZHENGSHI -> fiscalScene(state, task)
@@ -46,6 +43,7 @@ object CourtCouncilSystem {
             PalaceIds.TAIMIAO -> ancestralTempleScene(state, task)
             else -> genericScene(state, task)
         }
+        return raw.copy(lines = CharacterAppearanceSystem.filterCouncilLines(state, raw.palaceId, raw.lines))
     }
 
     private fun courtScene(state: GameState, task: PalaceTask): CouncilScene = CouncilScene(
@@ -203,12 +201,13 @@ object CourtCouncilSystem {
 
     private fun line(state: GameState, officerId: String, role: String, attitude: String, fallbackText: String): CouncilLine {
         val officer = state.officers.firstOrNull { it.id == officerId }
+        val appear = CharacterAppearanceSystem.infoFor(state, officerId, officer?.name ?: officerId)
         return CouncilLine(
             speakerId = officerId,
-            speakerName = officer?.name ?: officerId,
-            role = role,
+            speakerName = appear.displayName,
+            role = if (appear.visibility == CharacterVisibility.RUMORED) "传闻人物 · $role" else role,
             attitude = attitude,
-            text = fallbackText
+            text = if (appear.visibility == CharacterVisibility.RUMORED) "此人尚未正式入朝，只有线索流入文德殿。" else fallbackText
         )
     }
 
