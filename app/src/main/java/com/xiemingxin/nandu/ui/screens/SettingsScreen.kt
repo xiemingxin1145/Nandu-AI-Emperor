@@ -28,6 +28,7 @@ fun SettingsScreen(
     saveCode: String,
     saveMessage: String,
     onSave: (AiProviderType, String, String) -> Unit,
+    onTestConnection: () -> Unit,
     onExportSave: () -> Unit,
     onImportSave: (String) -> Unit,
     onBack: () -> Unit
@@ -47,14 +48,14 @@ fun SettingsScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("← ", color = ImperialGold, fontSize = 22.sp, modifier = Modifier.clickable { onBack() })
             Column {
-                Text("御前设置", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("AI 引擎 / 存档码 / 手机端调试", color = Color(0xFF8B7355), fontSize = 11.sp)
+                Text("AI 引擎中枢", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("模型通道 / API Key / 存档码 / 手机端调试", color = Color(0xFF8B7355), fontSize = 11.sp)
             }
         }
 
         InfoBox(
             title = "当前策略",
-            body = "Mock 可离线测试；OpenAI / OpenRouter / 自定义 OpenAI-compatible 已接入。V0.6 开始支持手动导出、导入存档码。"
+            body = "Mock 可离线测试；真实模型会把圣旨解析为 JSON，再交给本地规则引擎裁决。API Key 经本机加密保存，不进入 GitHub。"
         )
 
         SectionTitle("一、选择模型通道")
@@ -92,7 +93,7 @@ fun SettingsScreen(
                 AiProviderType.GEMINI -> HintText("Gemini 官方接口还在排期；现在可用自定义 OpenAI-compatible 中转接 Gemini。")
                 AiProviderType.MOCK -> Unit
             }
-            Text("API Key 只保存在本机状态，不写入 GitHub。", color = Color(0xFF5A8A5A), fontSize = 11.sp)
+            Text("API Key 由 Android Keystore/EncryptedSharedPreferences 本机保存；失败机型会降级但不上传。", color = Color(0xFF5A8A5A), fontSize = 11.sp)
         }
 
         SectionTitle("三、快速预设")
@@ -103,15 +104,25 @@ fun SettingsScreen(
             onCustom = { selectedProvider = AiProviderType.CUSTOM; baseUrl = "https://你的中转站域名/v1"; modelName = "gpt-4o" }
         )
 
+        val savedModel = if (selectedProvider == AiProviderType.CUSTOM) "${baseUrl.trim()}|${modelName.trim()}" else modelName.trim()
         Button(
-            onClick = {
-                val savedModel = if (selectedProvider == AiProviderType.CUSTOM) "${baseUrl.trim()}|${modelName.trim()}" else modelName.trim()
-                onSave(selectedProvider, apiKey.trim(), savedModel)
-            },
+            onClick = { onSave(selectedProvider, apiKey.trim(), savedModel) },
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ImperialRed),
             shape = RoundedCornerShape(8.dp)
         ) { Text("保存并启用", color = Color.White, fontWeight = FontWeight.Bold) }
+
+        OutlinedButton(
+            onClick = {
+                onSave(selectedProvider, apiKey.trim(), savedModel)
+                onTestConnection()
+            },
+            modifier = Modifier.fillMaxWidth().height(44.dp),
+            border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.65f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)
+        ) { Text("叩问接口 / 测试连接", fontWeight = FontWeight.Bold) }
+
+        if (saveMessage.isNotBlank()) Text(saveMessage, color = ImperialGold, fontSize = 12.sp, lineHeight = 17.sp)
 
         SectionTitle("四、存档码")
         InfoBox("手机存档说明", "点导出后复制整段 NANDU_SAVE_V1 开头的存档码。换手机、重装、刷新后，把存档码粘回来点导入即可。")
@@ -129,7 +140,6 @@ fun SettingsScreen(
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)
             ) { Text("导入存档", fontWeight = FontWeight.Bold) }
         }
-        if (saveMessage.isNotBlank()) Text(saveMessage, color = ImperialGold, fontSize = 12.sp)
         OutlinedTextField(
             value = importCode,
             onValueChange = { importCode = it },
