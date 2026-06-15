@@ -17,20 +17,23 @@ import com.xiemingxin.nandu.ai.MockProvider
 import com.xiemingxin.nandu.ai.OfficerContext
 import com.xiemingxin.nandu.ai.OpenAiProvider
 import com.xiemingxin.nandu.ai.OpenRouterProvider
+import com.xiemingxin.nandu.game.AchievementSystem
+import com.xiemingxin.nandu.game.BattleResolver
+import com.xiemingxin.nandu.game.BattleUnitCatalog
+import com.xiemingxin.nandu.game.BuildingCatalog
+import com.xiemingxin.nandu.game.CityVisitAction
+import com.xiemingxin.nandu.game.CouncilChoice
+import com.xiemingxin.nandu.game.CouncilConsequenceSystem
+import com.xiemingxin.nandu.game.CouncilScene
+import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.JinAI
+import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.TavernSystem
-import com.xiemingxin.nandu.game.CityVisitAction
-import com.xiemingxin.nandu.game.BuildingCatalog
-import com.xiemingxin.nandu.game.BattleResolver
-import com.xiemingxin.nandu.game.BattleUnitCatalog
-import com.xiemingxin.nandu.game.JinAI
 import com.xiemingxin.nandu.game.VictoryJudge
-import com.xiemingxin.nandu.game.GameEnding
-import com.xiemingxin.nandu.game.AchievementSystem
-import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -59,7 +62,6 @@ data class UiState(
     val ending: GameEnding = GameEnding.ONGOING,
     val earnedAchievements: Set<String> = emptySet(),
     val newAchievement: String? = null,
-    // V1.4.0 城中走访反馈：最近一次走访的见闻叙述（在酒楼面板内展示）
     val lastVisitNarration: String? = null
 )
 
@@ -72,8 +74,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     val uiState = _uiState.asStateFlow()
 
     private var currentProvider: AiProvider = MockProvider()
-
-    // V1.3.1: bundled story file + editable JSON event pack
     private val storyEvents: List<StoryEvent> = StoryEventLoader.loadDefaultEvents(application)
 
     init {
@@ -134,6 +134,18 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun applyCouncilChoice(scene: CouncilScene, choice: CouncilChoice) {
+        val current = _uiState.value
+        val result = CouncilConsequenceSystem.apply(current.gameState, scene, choice)
+        val newAch = AchievementSystem.checkNewAchievements(result.newState, current.earnedAchievements)
+        _uiState.value = current.copy(
+            gameState = result.newState,
+            storyOutcomes = result.outcomes,
+            earnedAchievements = current.earnedAchievements + newAch,
+            newAchievement = newAch.firstOrNull() ?: current.newAchievement
+        )
+    }
+
     fun cancelEdict() {
         _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE, lastEdictResult = null)
     }
@@ -173,9 +185,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             buildings = city.buildings + (buildingId to level + 1)
         )
         val newCities = state.cities.map { if (it.id == cityId) newCity else it }
-        _uiState.value = _uiState.value.copy(
-            gameState = state.copy(cities = newCities)
-        )
+        _uiState.value = _uiState.value.copy(gameState = state.copy(cities = newCities))
     }
 
     fun siegeCity(targetCityId: String) {
@@ -261,7 +271,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(battleReport = null)
     }
 
-    // V1.4.0 城中走访 / 酒楼情报：消耗一点城中行动力，换取传闻、名望、人才线索
     fun visitCity(cityId: String, action: CityVisitAction) {
         val state = _uiState.value.gameState
         val city = state.cities.firstOrNull { it.id == cityId } ?: return
@@ -278,7 +287,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        // 该城中可发掘的在野人才（HIDDEN / WANDERING 且尚未发现线索）
         val cityOfficers = state.officers.filter {
             it.currentCityId == cityId &&
                 (it.status == OfficerStatus.HIDDEN || it.status == OfficerStatus.WANDERING) &&
