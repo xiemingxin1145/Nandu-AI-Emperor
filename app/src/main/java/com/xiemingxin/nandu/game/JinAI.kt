@@ -35,8 +35,8 @@ object JinAI {
         // 1. 金军增兵：金占城每旬恢复一定兵力
         cities = cities.map { c ->
             if (c.owner == "jin" && c.controlState == "FALLEN") {
-                val reinforced = (c.troops * (1.0 + 0.05 * aggression)).toInt()
-                c.copy(troops = reinforced.coerceAtMost(c.troops + 8000))
+                val reinforced = (c.troops * (1.0 + 0.025 * aggression)).toInt()
+                c.copy(troops = reinforced.coerceAtMost(c.troops + 3000))
             } else c
         }
 
