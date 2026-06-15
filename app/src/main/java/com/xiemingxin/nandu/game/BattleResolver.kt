@@ -53,15 +53,15 @@ object BattleResolver {
         weather: WeatherType
     ): BattleOutcome {
         // 攻方战力
-        var attackPower = attackerTroops * (0.5 + attackerMorale / 100.0 * 0.5)
-        attackPower *= (0.7 + commanderCommand / 100.0 * 0.6)
+        var attackPower = attackerTroops * (0.7 + attackerMorale / 100.0 * 0.5)
+        attackPower *= (0.8 + commanderCommand / 100.0 * 0.7)
 
         // 守方战力 = 守军 + 城防加成
-        val defenseBonus = 1.0 + city.defense / 100.0 * 1.2
+        val defenseBonus = 1.0 + city.defense / 100.0 * 0.8
         var defendPower = city.troops * defenseBonus
 
         // 民心影响守方(高民心死守)
-        defendPower *= (0.8 + city.popularSupport / 100.0 * 0.4)
+        defendPower *= (0.85 + city.popularSupport / 100.0 * 0.3)
 
         // 季节修正
         when (season) {
@@ -80,8 +80,8 @@ object BattleResolver {
 
         // 地形：关隘/山地大幅利守
         when (city.terrain) {
-            "pass" -> defendPower *= 1.4
-            "mountain" -> defendPower *= 1.25
+            "pass" -> defendPower *= 1.25
+            "mountain" -> defendPower *= 1.15
             "river" -> defendPower *= 1.1
             else -> {}
         }
