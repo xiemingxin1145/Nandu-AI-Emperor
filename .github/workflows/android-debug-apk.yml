@@ -1,7 +1,9 @@
-name: Build 南渡无悔 Debug APK
+name: Build Nandu Debug APK
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
@@ -46,7 +48,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nandu-V0.3-debug-apk
+          name: nandu-V1.2-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
