@@ -52,6 +52,11 @@ fun NanduApp() {
             viewModel.buildInCity(cityId, buildingId)
             return
         }
+        // V0.9 进取金占城 → 直接攻城战
+        if (action == "siege") {
+            viewModel.siegeCity(cityId)
+            return
+        }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
         edictText = buildCityDraft(city, action)
         currentTab = 0
