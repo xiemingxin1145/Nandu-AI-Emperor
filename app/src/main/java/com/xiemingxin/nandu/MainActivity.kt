@@ -50,6 +50,7 @@ fun NanduApp() {
     val uiState by viewModel.uiState.collectAsState()
 
     var showIntro by remember { mutableStateOf(true) }
+    var interiorCityId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
@@ -58,6 +59,20 @@ fun NanduApp() {
     if (showIntro) {
         IntroScreen(onStart = { showIntro = false })
         return
+    }
+
+    // V1.0 城池内景（全屏）
+    interiorCityId?.let { cid ->
+        val city = uiState.gameState.cities.firstOrNull { it.id == cid }
+        if (city != null) {
+            CityInteriorScreen(
+                city = city,
+                onBuild = { buildingId -> viewModel.buildInCity(cid, buildingId) },
+                onRecruit = { interiorCityId = null; currentTab = 2 },
+                onBack = { interiorCityId = null }
+            )
+            return
+        }
     }
 
     fun draftFromCity(payload: String) {
@@ -79,6 +94,11 @@ fun NanduApp() {
         if (action.startsWith("recruit:")) {
             val unitId = action.removePrefix("recruit:")
             viewModel.recruitInCity(cityId, unitId)
+            return
+        }
+        // V1.0 进入城池内景
+        if (action == "enter") {
+            interiorCityId = cityId
             return
         }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
