@@ -20,6 +20,7 @@ import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.BuildingCatalog
+import com.xiemingxin.nandu.game.BattleResolver
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -41,7 +42,8 @@ data class UiState(
     val saveCode: String = "",
     val saveMessage: String = "",
     val currentStoryEvent: StoryEvent? = null,
-    val storyOutcomes: List<String> = emptyList()
+    val storyOutcomes: List<String> = emptyList(),
+    val battleReport: String? = null
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -147,6 +149,62 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(
             gameState = state.copy(cities = newCities)
         )
+    }
+
+    /** V0.9 攻城战役：调集周边宋军攻打目标城，结算控制状态 */
+    fun siegeCity(targetCityId: String) {
+        val state = _uiState.value.gameState
+        val target = state.cities.firstOrNull { it.id == targetCityId } ?: return
+        if (target.owner == "song" && target.controlState == "STABLE") return
+
+        // 集结：目标城周边的宋军 + 宋城驻军
+        val songArmies = state.armies.filter { it.ownerFactionId == "song" }
+        val attackerTroops = songArmies.sumOf { it.troops }.coerceAtLeast(5000)
+        val avgMorale = if (songArmies.isNotEmpty()) songArmies.sumOf { it.morale } / songArmies.size else 50
+
+        // 主将统率：取忠诚最高的在外武将
+        val commander = state.officers
+            .filter { it.faction == "song" || it.faction.contains("战") }
+            .maxByOrNull { it.command }
+        val command = commander?.command ?: 60
+
+        val outcome = BattleResolver.resolveSiege(
+            attackerTroops = attackerTroops,
+            attackerMorale = avgMorale,
+            commanderCommand = command,
+            city = target,
+            season = state.season,
+            weather = state.weather
+        )
+
+        // 更新目标城：控制状态、兵力损失、若克复则归宋
+        val newOwner = if (outcome.newControlState == "STABLE" || outcome.newControlState == "FRONTLINE") {
+            if (outcome.attackerWins && target.owner == "jin") "song" else target.owner
+        } else target.owner
+        val newTarget = target.copy(
+            controlState = outcome.newControlState,
+            owner = newOwner,
+            troops = (target.troops - outcome.defenderLosses).coerceAtLeast(0)
+        )
+
+        // 攻方损失按比例分摊到各宋军
+        val totalAtk = attackerTroops.coerceAtLeast(1)
+        val newArmies = state.armies.map { army ->
+            if (army.ownerFactionId == "song") {
+                val share = (outcome.attackerLosses.toDouble() * army.troops / totalAtk).toInt()
+                army.copy(troops = (army.troops - share).coerceAtLeast(0))
+            } else army
+        }
+
+        val newCities = state.cities.map { if (it.id == targetCityId) newTarget else it }
+        _uiState.value = _uiState.value.copy(
+            gameState = state.copy(cities = newCities, armies = newArmies),
+            battleReport = outcome.report
+        )
+    }
+
+    fun dismissBattleReport() {
+        _uiState.value = _uiState.value.copy(battleReport = null)
     }
 
     /** V0.7.1 推进一旬：日历前进，并检查是否触发剧情事件 */
