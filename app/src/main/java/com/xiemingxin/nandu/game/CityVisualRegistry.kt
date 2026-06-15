@@ -48,7 +48,7 @@ object CityVisualRegistry {
         CityVisualInfo("xiangyang", "襄阳", CityVisualTier.FORTRESS, "north_fortress", "images/city/xiangyang_fortress.webp", "images/map/city_fortress.webp", listOf("北伐", "山河要冲"), "荆襄北伐跳板，兵家必争。"),
         CityVisualInfo("kaifeng", "汴京", CityVisualTier.METROPOLIS, "old_capital", "images/city/kaifeng_old_capital.webp", "images/map/city_old_capital.webp", listOf("旧都", "中原"), "旧日东京，收复此城意味着中兴大业入史。"),
         CityVisualInfo("luoyang", "洛阳", CityVisualTier.METROPOLIS, "old_capital_west", "images/city/luoyang_old_capital.webp", "images/map/city_old_capital.webp", listOf("旧都", "西京"), "西京旧地，政治象征极重。"),
-        CityVisualInfo("yankjing", "燕京", CityVisualTier.FORTRESS, "yanjing", "images/city/yanjing_north.webp", "images/map/city_fortress_jin.webp", listOf("燕云", "北方重镇"), "燕云门户，后期北望关键。"),
+        CityVisualInfo("yanjing", "燕京", CityVisualTier.FORTRESS, "yanjing", "images/city/yanjing_north.webp", "images/map/city_fortress_jin.webp", listOf("燕云", "北方重镇"), "燕云门户，后期北望关键。"),
         CityVisualInfo("quanzhou", "泉州", CityVisualTier.PORT, "sea_port", "images/city/quanzhou_port.webp", "images/map/city_port.webp", listOf("市舶司", "香料海贸"), "东南大港，海贸与商税的爆点。"),
         CityVisualInfo("mingzhou", "明州", CityVisualTier.PORT, "ship_port", "images/city/mingzhou_shipyard.webp", "images/map/city_port.webp", listOf("船材", "高丽海路"), "船材与海东贸易节点。"),
         CityVisualInfo("guangzhou", "广州", CityVisualTier.PORT, "south_port", "images/city/guangzhou_southsea.webp", "images/map/city_port.webp", listOf("南海", "香药"), "南海商路门户，利润厚、风险也高。"),
@@ -80,7 +80,7 @@ object CityVisualRegistry {
             panelBackgroundPath = "images/city/${id}.webp",
             mapIconPath = "images/map/city_${tier.name.lowercase()}.webp",
             tags = defaultTags(city, node, tier),
-            visualHint = defaultHint(city, node, tier)
+            visualHint = defaultHint(tier)
         )
     }
 
@@ -96,7 +96,7 @@ object CityVisualRegistry {
         if (city?.controlState == "FRONTLINE" || city?.controlState == "CONTESTED") add("前线")
     }
 
-    private fun defaultHint(city: City?, node: MapNode, tier: CityVisualTier): String = when (tier) {
+    private fun defaultHint(tier: CityVisualTier): String = when (tier) {
         CityVisualTier.CAPITAL -> "都城级节点，应使用更大的城池图标与专属面板背景。"
         CityVisualTier.METROPOLIS -> "大城节点，适合展示商业、人口、府库与官署。"
         CityVisualTier.FORTRESS -> "军事重镇，适合展示城防、驻军、粮道和战报。"
