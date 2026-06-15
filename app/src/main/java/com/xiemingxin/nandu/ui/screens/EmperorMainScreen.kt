@@ -98,7 +98,6 @@ fun EmperorMainScreen(
             }
         }
 
-        // V0.7.1 剧情事件弹窗
         uiState.currentStoryEvent?.let { event ->
             Dialog(onDismissRequest = { }) {
                 StoryEventCard(
@@ -108,7 +107,6 @@ fun EmperorMainScreen(
             }
         }
 
-        // V0.7.1 剧情选择结果提示
         if (uiState.storyOutcomes.isNotEmpty() && uiState.currentStoryEvent == null) {
             Dialog(onDismissRequest = onDismissStoryOutcome) {
                 Card(
@@ -169,7 +167,7 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
                 Text("⚙", fontSize = 16.sp)
             }
             Text(
-                "V0.4.5",
+                "V1.3.2",
                 color = Color(0xFF3A3020),
                 fontSize = 8.sp
             )
@@ -258,7 +256,7 @@ fun IdleView(
                 if (isLoading) "执行中…" else "🔌 朱批下发",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = XuanCream
             )
         }
     }
@@ -266,167 +264,90 @@ fun IdleView(
 
 @Composable
 fun LoadingView() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        CircularProgressIndicator(color = ImperialGold)
-        Spacer(Modifier.height(16.dp))
-        Text("群臣入殿，AI推演中…", color = XuanCream, fontSize = 14.sp)
-        Spacer(Modifier.height(8.dp))
-        Text("御前推演官正在解读圣旨", color = Color(0xFF8B7355), fontSize = 12.sp)
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = ImperialGold)
+            Spacer(Modifier.height(16.dp))
+            Text("群臣议奏中…", color = ImperialGold)
+        }
     }
 }
 
 @Composable
-fun ConfirmEdictView(
-    result: EdictResult,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit
-) {
-    Column(
+fun ConfirmEdictView(result: EdictResult, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text("📜 御前推演官解读", color = ImperialGold, fontSize = 12.sp)
-                Spacer(Modifier.height(4.dp))
-                Text(result.summary, color = XuanCream, fontSize = 14.sp)
+        item {
+            Text("AI 奏议解析", color = ImperialGold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(result.summary, color = XuanCream, fontSize = 14.sp)
+        }
 
-                if (result.riskTags.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text("⚠ 风险：${result.riskTags.joinToString("  ")}", color = Color(0xFFFF8C42), fontSize = 12.sp)
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1208))) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("执行命令", color = ImperialGold, fontWeight = FontWeight.Bold)
+                    result.commands.forEach { cmd ->
+                        Text("• ${cmd.type}: ${cmd.officerId} ${cmd.fromCityId}→${cmd.toCityId} ${cmd.troops}兵", color = XuanCream, fontSize = 12.sp)
+                    }
                 }
             }
         }
 
-        if (result.npcResponses.isNotEmpty()) {
-            Text("【御前议政】", color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            result.npcResponses.forEach { response ->
-                NpcResponseCard(response.officerId, response.attitude, response.text)
+        item {
+            Text("群臣反应", color = ImperialGold, fontWeight = FontWeight.Bold)
+            result.npcResponses.forEach { npc ->
+                Text("${npc.officerId}：${npc.text}", color = Color(0xFFB8A088), fontSize = 12.sp)
             }
         }
 
-        if (result.commands.isNotEmpty()) {
-            Text("【待执行命令】", color = ImperialGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            result.commands.forEach { cmd ->
-                Text(
-                    "• ${cmd.type}：${cmd.officerId} ${cmd.fromCityId} → ${cmd.toCityId} ${if (cmd.troops > 0) "${cmd.troops}兵" else ""}",
-                    color = XuanCream,
-                    fontSize = 12.sp
-                )
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = ImperialRed)
+                ) { Text("准奏", color = XuanCream) }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f)
+                ) { Text("驳回") }
             }
-        }
-
-        if (result.clarificationNeeded) {
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A0A))) {
-                Text(
-                    "📖 ${result.clarificationHint}",
-                    color = Color(0xFFFFDD44),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.weight(1f).height(44.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = JadeGreen)
-            ) { Text("✓ 照准", fontWeight = FontWeight.Bold) }
-
-            OutlinedButton(
-                onClick = onCancel,
-                modifier = Modifier.weight(1f).height(44.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, ImperialGold)
-            ) { Text("改旨", color = ImperialGold) }
         }
     }
 }
 
 @Composable
-fun NpcResponseCard(officerId: String, attitude: String, text: String) {
-    val (icon, name) = when (officerId) {
-        "yue_fei"       -> "⚔" to "岳飞"
-        "qin_hui"       -> "🐍" to "秦桧"
-        "zhao_ding"     -> "📊" to "赵鼎"
-        "han_shizhong"  -> "🚢" to "韩世忠"
-        "li_gang"       -> "🏯" to "李纲"
-        "zong_ze"       -> "🌅" to "宗泽"
-        "wu_jie"        -> "🏔" to "吴玠"
-        "zhang_jun"     -> "⚖" to "张浚"
-        "zhang_俊"      -> "⚖" to "张俊"
-        else            -> "👤" to officerId
-    }
-    val attitudeColor = when (attitude) {
-        "support"   -> Color(0xFF2ECC71)
-        "oppose"    -> Color(0xFFE74C3C)
-        "concerned" -> Color(0xFFF39C12)
-        else        -> Color.Gray
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF12100A)),
-        modifier = Modifier.fillMaxWidth(),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, attitudeColor.copy(alpha = 0.5f))
-    ) {
-        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.Top) {
-            Text(
-                "$icon $name",
-                color = attitudeColor,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.width(72.dp)
-            )
-            Text("：$text", color = XuanCream, fontSize = 13.sp)
-        }
-    }
-}
-
-@Composable
-fun ResultView(
-    outcomes: List<String>,
-    rejected: List<String>,
-    onDismiss: () -> Unit
-) {
+fun ResultView(outcomes: List<String>, rejected: List<String>, onDismiss: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("【圣旨已下，天下有变】", color = ImperialGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("圣旨执行结果", color = ImperialGold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
         outcomes.forEach { outcome ->
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF12100A))) {
-                Text(outcome, color = XuanCream, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1208))) {
+                Text(outcome, color = XuanCream, modifier = Modifier.padding(12.dp), fontSize = 13.sp)
             }
         }
 
-        rejected.forEach { rej ->
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1A0A0A))) {
-                Text(rej, color = Color(0xFFFF6B6B), fontSize = 13.sp, modifier = Modifier.padding(12.dp))
-            }
+        if (rejected.isNotEmpty()) {
+            Text("未采纳命令", color = Color.Red, fontWeight = FontWeight.Bold)
+            rejected.forEach { Text("• $it", color = Color.Red, fontSize = 12.sp) }
         }
 
         Button(
             onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().height(44.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ImperialGold)
         ) {
-            Text("下一旬", color = InkBlack, fontWeight = FontWeight.Bold)
+            Text("进入下一旬", color = InkBlack, fontWeight = FontWeight.Bold)
         }
     }
 }
