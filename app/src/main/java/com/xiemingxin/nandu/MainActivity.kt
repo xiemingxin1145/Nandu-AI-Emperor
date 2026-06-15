@@ -87,9 +87,15 @@ fun NanduApp() {
         if (city != null) {
             CityInteriorScreen(
                 city = city,
+                actionPoints = uiState.gameState.cityActionPoints,
+                prestige = uiState.gameState.prestige,
+                rumors = uiState.gameState.rumors,
+                lastVisitNarration = uiState.lastVisitNarration,
                 onBuild = { buildingId -> viewModel.buildInCity(cid, buildingId) },
                 onRecruit = { unitId -> viewModel.recruitInCity(cid, unitId) },
-                onBack = { interiorCityId = null }
+                onVisit = { action -> viewModel.visitCity(cid, action) },
+                onDismissVisitNarration = { viewModel.dismissVisitNarration() },
+                onBack = { interiorCityId = null; viewModel.dismissVisitNarration() }
             )
             return
         }

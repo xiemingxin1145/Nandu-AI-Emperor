@@ -192,7 +192,12 @@ data class GameState(
     val cities: List<City> = InitialData.cities,
     val chronicle: List<ChronicleEntry> = emptyList(),
     val firedEventIds: Set<String> = emptySet(),
-    val storyFlags: Set<String> = emptySet()
+    val storyFlags: Set<String> = emptySet(),
+    // V1.4.0 城中走访 / 酒楼情报系统（全带默认值，兼容旧存档）
+    val prestige: Int = 30,                                       // 名望
+    val cityActionPoints: Int = TavernSystem.MAX_ACTION_POINTS,   // 每旬城中行动力
+    val rumors: List<Rumor> = emptyList(),                        // 已持有的传闻情报
+    val talentLeads: Set<String> = emptySet()                     // 已发现的在野人才线索 officerId
 )
 
 object GameRuleEngine {

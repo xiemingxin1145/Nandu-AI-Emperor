@@ -19,6 +19,9 @@ import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.TavernSystem
+import com.xiemingxin.nandu.game.CityVisitAction
+import com.xiemingxin.nandu.game.Rumor
 import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BattleResolver
 import com.xiemingxin.nandu.game.BattleUnitCatalog
@@ -52,7 +55,9 @@ data class UiState(
     val battleReport: String? = null,
     val ending: GameEnding = GameEnding.ONGOING,
     val earnedAchievements: Set<String> = emptySet(),
-    val newAchievement: String? = null
+    val newAchievement: String? = null,
+    // V1.4.0 城中走访反馈：最近一次走访的见闻叙述（在酒楼面板内展示）
+    val lastVisitNarration: String? = null
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -241,6 +246,74 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(battleReport = null)
     }
 
+    // V1.4.0 城中走访 / 酒楼情报：消耗一点城中行动力，换取传闻、名望、人才线索
+    fun visitCity(cityId: String, action: CityVisitAction) {
+        val state = _uiState.value.gameState
+        val city = state.cities.firstOrNull { it.id == cityId } ?: return
+        if (city.owner != "song") {
+            _uiState.value = _uiState.value.copy(lastVisitNarration = "此城尚未归宋，无从从容走访。")
+            return
+        }
+        if (state.cityActionPoints <= 0) {
+            _uiState.value = _uiState.value.copy(lastVisitNarration = "本旬精力已尽，城中行动力不足。待下一旬再走访。")
+            return
+        }
+        if (state.gold < action.goldCost) {
+            _uiState.value = _uiState.value.copy(lastVisitNarration = "府库不足，连${action.label}的花销都凑不齐。")
+            return
+        }
+
+        // 该城中可发掘的在野人才（HIDDEN / WANDERING 且尚未发现线索）
+        val cityOfficers = state.officers.filter {
+            it.currentCityId == cityId &&
+                (it.status == OfficerStatus.HIDDEN || it.status == OfficerStatus.WANDERING) &&
+                !state.talentLeads.contains(it.id)
+        }
+
+        val seed = (state.turn.toLong() * 1_000_003L) +
+            (cityId.hashCode().toLong() and 0xFFFFL) * 31L +
+            action.ordinal * 7L +
+            state.rumors.size.toLong()
+
+        val result = TavernSystem.resolveVisit(
+            city = city,
+            action = action,
+            cityOfficers = cityOfficers,
+            allCities = state.cities,
+            turn = state.turn,
+            seed = seed
+        )
+
+        val newGold = (state.gold + result.goldDelta).coerceAtLeast(0)
+        val newPrestige = (state.prestige + result.prestigeDelta).coerceIn(0, 200)
+        val newRumors = result.rumor?.let { state.rumors + it } ?: state.rumors
+        val newLeads = if (result.talentLeadId.isNotBlank()) state.talentLeads + result.talentLeadId else state.talentLeads
+
+        val narration = buildString {
+            append(result.narrative)
+            if (result.prestigeDelta != 0) append(" 名望${if (result.prestigeDelta > 0) "+" else ""}${result.prestigeDelta}。")
+            if (result.goldDelta != 0) append(" 耗银${-result.goldDelta}。")
+            if (result.talentLeadId.isNotBlank()) append(" 【觅得贤才线索】")
+            result.rumor?.let { append("\n\n“${it.text}”") }
+        }
+
+        val newState = state.copy(
+            gold = newGold,
+            prestige = newPrestige,
+            rumors = newRumors,
+            talentLeads = newLeads,
+            cityActionPoints = state.cityActionPoints - 1
+        )
+        _uiState.value = _uiState.value.copy(
+            gameState = newState,
+            lastVisitNarration = narration
+        )
+    }
+
+    fun dismissVisitNarration() {
+        _uiState.value = _uiState.value.copy(lastVisitNarration = null)
+    }
+
     fun recruitInCity(cityId: String, unitId: String) {
         val state = _uiState.value.gameState
         val city = state.cities.firstOrNull { it.id == cityId } ?: return
@@ -271,7 +344,8 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val nextState = working.copy(
             turn = working.turn + 1,
             calendar = working.calendar.advance(),
-            storyFlags = clearedFlags
+            storyFlags = clearedFlags,
+            cityActionPoints = TavernSystem.MAX_ACTION_POINTS
         )
         val event = EventDirector.firstCandidate(
             state = nextState,

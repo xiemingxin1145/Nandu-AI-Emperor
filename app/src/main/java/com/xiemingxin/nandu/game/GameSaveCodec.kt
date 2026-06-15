@@ -29,6 +29,10 @@ object GameSaveCodec {
             .put("officers", JSONArray(state.officers.map { it.toJson() }))
             .put("cities", JSONArray(state.cities.map { it.toJson() }))
             .put("chronicle", JSONArray(state.chronicle.map { it.toJson() }))
+            .put("prestige", state.prestige)
+            .put("cityActionPoints", state.cityActionPoints)
+            .put("talentLeads", JSONArray(state.talentLeads.toList()))
+            .put("rumors", JSONArray(state.rumors.map { it.toJson() }))
         val encoded = Base64.getEncoder().encodeToString(root.toString().toByteArray(StandardCharsets.UTF_8))
         return PREFIX + encoded
     }
@@ -56,7 +60,11 @@ object GameSaveCodec {
             armies = root.optJSONArray("armies").toListOrDefault(InitialData.armies) { it.toArmy() },
             officers = root.optJSONArray("officers").toListOrDefault(InitialData.officers) { it.toOfficer() },
             cities = root.optJSONArray("cities").toListOrDefault(InitialData.cities) { it.toCity() },
-            chronicle = root.optJSONArray("chronicle").toListOrDefault(emptyList()) { it.toChronicle() }
+            chronicle = root.optJSONArray("chronicle").toListOrDefault(emptyList()) { it.toChronicle() },
+            prestige = root.optInt("prestige", 30),
+            cityActionPoints = root.optInt("cityActionPoints", TavernSystem.MAX_ACTION_POINTS),
+            talentLeads = root.optJSONArray("talentLeads").toStringList().toSet(),
+            rumors = root.optJSONArray("rumors").toListOrDefault(emptyList()) { it.toRumor() }
         )
     }
 
@@ -165,6 +173,20 @@ object GameSaveCodec {
         outcomes = optJSONArray("outcomes").toStringList(),
         season = enumValueOf(optString("season", Season.SPRING.name)),
         weather = enumValueOf(optString("weather", WeatherType.RAIN.name))
+    )
+
+    private fun Rumor.toJson() = JSONObject()
+        .put("id", id).put("text", text).put("category", category)
+        .put("sourceCityId", sourceCityId).put("turn", turn)
+        .put("talentOfficerId", talentOfficerId)
+
+    private fun JSONObject.toRumor() = Rumor(
+        id = optString("id"),
+        text = optString("text"),
+        category = optString("category"),
+        sourceCityId = optString("sourceCityId"),
+        turn = optInt("turn", 1),
+        talentOfficerId = optString("talentOfficerId", "")
     )
 
     private inline fun <T> JSONArray?.toListOrDefault(default: List<T>, mapper: (JSONObject) -> T): List<T> {
