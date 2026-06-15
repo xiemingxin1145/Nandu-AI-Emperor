@@ -19,6 +19,7 @@ import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -108,6 +109,44 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
 
     fun dismissResult() {
         _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE)
+    }
+
+    /** V0.9 城池营建：即时扣钱粮、升级建筑、应用效果 */
+    fun buildInCity(cityId: String, buildingId: String) {
+        val state = _uiState.value.gameState
+        val city = state.cities.firstOrNull { it.id == cityId } ?: return
+        val def = BuildingCatalog.byId(buildingId) ?: return
+        val level = city.buildings[buildingId] ?: 0
+        if (level >= def.maxLevel) return
+        if (def.requireWaterNode && !city.isWaterNode) return
+        val (goldCost, grainCost) = BuildingCatalog.upgradeCost(def, level)
+        if (city.gold < goldCost || city.grain < grainCost) return
+
+        // 应用建筑效果（直接调整城池属性）
+        var newDefense = city.defense
+        var newCommerce = city.commerce
+        var newAgriculture = city.agriculture
+        var newSupport = city.popularSupport
+        when (buildingId) {
+            "city_wall" -> newDefense = (newDefense + 15).coerceAtMost(100)
+            "market" -> newCommerce = (newCommerce + 10).coerceAtMost(100)
+            "granary" -> newAgriculture = (newAgriculture + 10).coerceAtMost(100)
+            "academy", "temple", "taoist_temple" -> newSupport = (newSupport + 6).coerceAtMost(100)
+        }
+
+        val newCity = city.copy(
+            gold = city.gold - goldCost,
+            grain = city.grain - grainCost,
+            defense = newDefense,
+            commerce = newCommerce,
+            agriculture = newAgriculture,
+            popularSupport = newSupport,
+            buildings = city.buildings + (buildingId to level + 1)
+        )
+        val newCities = state.cities.map { if (it.id == cityId) newCity else it }
+        _uiState.value = _uiState.value.copy(
+            gameState = state.copy(cities = newCities)
+        )
     }
 
     /** V0.7.1 推进一旬：日历前进，并检查是否触发剧情事件 */
