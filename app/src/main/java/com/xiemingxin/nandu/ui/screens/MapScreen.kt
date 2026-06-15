@@ -54,6 +54,7 @@ import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
+import com.xiemingxin.nandu.game.MapLayerMode
 import com.xiemingxin.nandu.game.MapNode
 import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.TerrainFeatures
@@ -109,9 +110,14 @@ private val WorldRegions = listOf(
     MapWorldRegion("荆襄山河", "北伐跳板", 3500f, 3900f, 6900f, 6500f, 5200f, 5250f, Color(0xFFD0A66A).copy(alpha = 0.15f)),
     MapWorldRegion("中原旧都", "金国占领", 6100f, 1750f, 10700f, 4650f, 8400f, 3200f, JinRed.copy(alpha = 0.18f)),
     MapWorldRegion("河北燕云", "金国纵深", 7700f, 250f, 12600f, 2200f, 10100f, 1250f, JinRed.copy(alpha = 0.11f)),
-    MapWorldRegion("西夏河陇", "后续势力", 800f, 1300f, 3900f, 3600f, 2350f, 2450f, Color(0xFFB38A48).copy(alpha = 0.16f)),
-    MapWorldRegion("大理西南", "远期外交", 1450f, 6900f, 3600f, 9550f, 2550f, 8200f, Color(0xFF3F7A4D).copy(alpha = 0.13f)),
-    MapWorldRegion("东海海贸", "远期海路", 10800f, 6500f, 15400f, 9650f, 13200f, 7900f, Color(0xFF2376C9).copy(alpha = 0.14f))
+    MapWorldRegion("西夏河陇", "西夏", 800f, 1300f, 3900f, 3600f, 2350f, 2450f, Color(0xFFB38A48).copy(alpha = 0.16f)),
+    MapWorldRegion("大理西南", "大理", 1450f, 6900f, 3600f, 9550f, 2550f, 8200f, Color(0xFF3F7A4D).copy(alpha = 0.13f)),
+    MapWorldRegion("东海海贸", "海贸诸商", 10800f, 6500f, 15400f, 9650f, 13200f, 7900f, Color(0xFF2376C9).copy(alpha = 0.14f))
+)
+
+private val TradeRouteIds = setOf(
+    "quanzhou", "mingzhou", "guangzhou", "chaozhou", "lianzhou_port", "qiongzhou", "jiaozhi_route", "south_sea", "goryeo_route",
+    "xingqing", "lingzhou", "lanzhou", "dali", "shanchan", "chengdu"
 )
 
 @Composable
@@ -123,6 +129,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     var selectedRegion by remember { mutableStateOf<MapFocusRegion?>(null) }
     var manageCityId by remember { mutableStateOf<String?>(null) }
     var recruitCityId by remember { mutableStateOf<String?>(null) }
+    var activeLayer by remember { mutableStateOf(MapLayerMode.MILITARY) }
     var weatherPhase by remember { mutableStateOf(0f) }
     val cityMap = gameState.cities.associateBy { it.id }
     val armiesByCity = gameState.armies.groupBy { it.currentCityId }
@@ -153,7 +160,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                         cameraY = (cameraY - pan.y / zoom).coerceIn(0f, 8000f)
                     }
                 }
-                .pointerInput(Unit) {
+                .pointerInput(activeLayer) {
                     detectTapGestures { tap ->
                         val wx = tap.x / zoom + cameraX
                         val wy = tap.y / zoom + cameraY
@@ -172,46 +179,63 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
         ) {
             drawRect(Color(0xFF10190F))
             drawWorldBase(cameraX, cameraY, zoom)
-            drawWorldRegions(cameraX, cameraY, zoom)
-            drawFactionRegions(cameraX, cameraY, zoom)
+            drawWorldRegions(cameraX, cameraY, zoom, activeLayer)
+            if (activeLayer == MapLayerMode.MILITARY || activeLayer == MapLayerMode.DIPLOMACY) drawFactionRegions(cameraX, cameraY, zoom, activeLayer)
             drawMajorRivers(cameraX, cameraY, zoom)
-            drawMountainRanges(cameraX, cameraY, zoom)
+            if (activeLayer != MapLayerMode.TRADE) drawMountainRanges(cameraX, cameraY, zoom)
             drawMapGrid(cameraX, cameraY, zoom)
-            drawRoads(cameraX, cameraY, zoom)
-            drawArmyRoutes(gameState, cameraX, cameraY, zoom)
-            drawRegionLabels(cameraX, cameraY, zoom)
-            drawTerrainLabels(cameraX, cameraY, zoom)
+            drawRoads(cameraX, cameraY, zoom, activeLayer)
+            if (activeLayer == MapLayerMode.TRADE) drawTradeRoutes(cameraX, cameraY, zoom)
+            if (activeLayer == MapLayerMode.MILITARY) drawArmyRoutes(gameState, cameraX, cameraY, zoom)
+            if (activeLayer == MapLayerMode.ECONOMY) drawEconomicCityHalos(gameState, cameraX, cameraY, zoom)
+            drawRegionLabels(cameraX, cameraY, zoom, activeLayer)
+            if (activeLayer == MapLayerMode.MILITARY || activeLayer == MapLayerMode.ECONOMY) drawTerrainLabels(cameraX, cameraY, zoom)
 
             MapData.nodes.forEach { node ->
                 val city = cityMap[node.id]
                 val screen = w2s(node.worldX, node.worldY, cameraX, cameraY, zoom)
-                val isJin = city?.owner == "jin"
+                val isJin = city?.owner == "jin" || (city == null && node.ownerHint == "jin")
                 val isFrontline = city?.controlState == "FRONTLINE" || city?.controlState == "CONTESTED"
                 val isSel = selectedId == node.id
                 val r = ((if (node.isCapital) 15f else 10f) * zoom * 35f).coerceIn(7f, 25f)
-                val mainColor = if (isJin) Color(0xFFE24A4A) else if (node.isCapital) ImperialGold else Color(0xFF4DA3E6)
-                if (isFrontline) drawFrontlineGlow(screen, r, isJin)
+                val mainColor = nodeColor(node, city, activeLayer)
+                if (activeLayer == MapLayerMode.MILITARY && isFrontline) drawFrontlineGlow(screen, r, isJin)
                 if (isSel) {
                     drawCircle(ImperialGold.copy(alpha = 0.34f), r * 2.9f, screen)
                     drawCircle(ImperialGold.copy(alpha = 0.55f), r * 2.1f, screen, style = Stroke(width = 2f))
                 }
-                city?.troops?.let { t ->
-                    if (t > 5000) drawCircle((if (isJin) JinRed else SongBright).copy(alpha = 0.22f), r + (t / 60000f * 12f).coerceIn(3f, 13f), screen)
+                if (activeLayer == MapLayerMode.MILITARY) {
+                    city?.troops?.let { t ->
+                        if (t > 5000) drawCircle((if (isJin) JinRed else SongBright).copy(alpha = 0.22f), r + (t / 60000f * 12f).coerceIn(3f, 13f), screen)
+                    }
                 }
-                drawCityIcon(screen, r, mainColor, node.isCapital, isJin, isFrontline)
+                if (activeLayer == MapLayerMode.TRADE && (node.id in TradeRouteIds || node.nodeType == "trade" || city?.terrain == "coast")) {
+                    drawCircle(Color(0xFF68D7FF).copy(alpha = 0.20f), r * 2.1f, screen)
+                    drawCircle(Color(0xFF68D7FF).copy(alpha = 0.50f), r * 1.55f, screen, style = Stroke(width = 1.5f))
+                }
+                drawCityIcon(screen, r, mainColor, node.isCapital, isJin, isFrontline && activeLayer == MapLayerMode.MILITARY)
                 drawCityName(node.name, screen, r, zoom)
             }
 
-            drawArmyFlags(gameState, cameraX, cameraY, zoom)
+            if (activeLayer == MapLayerMode.MILITARY) drawArmyFlags(gameState, cameraX, cameraY, zoom)
             drawWeatherMotion(gameState.weather.label, weatherPhase)
         }
 
-        MapStatusChip(gameState, Modifier.align(Alignment.TopStart).padding(12.dp))
+        MapStatusChip(gameState, activeLayer, Modifier.align(Alignment.TopStart).padding(12.dp))
         RegionQuickBar(
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 58.dp, start = 8.dp, end = 8.dp),
             onFocus = ::focus
         )
-        MapLegend(Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 80.dp))
+        MapLayerBar(
+            activeLayer = activeLayer,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 104.dp, start = 8.dp, end = 8.dp),
+            onLayer = { layer ->
+                activeLayer = layer
+                selectedRegion = null
+            }
+        )
+        MapLayerHint(activeLayer, Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 12.dp))
+        MapLegend(activeLayer, Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 80.dp))
 
         selectedRegion?.let { region ->
             RegionIntelPanel(
@@ -228,6 +252,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                     city = cityMap[id],
                     armies = armiesByCity[id].orEmpty().sortedByDescending { it.troops },
                     officerNames = officerNames,
+                    layer = activeLayer,
                     onDismiss = { selectedId = null },
                     onDraft = { action ->
                         if (action == "manage") manageCityId = id
@@ -280,6 +305,32 @@ private fun RegionQuickBar(modifier: Modifier = Modifier, onFocus: (MapFocusRegi
 }
 
 @Composable
+private fun MapLayerBar(activeLayer: MapLayerMode, modifier: Modifier = Modifier, onLayer: (MapLayerMode) -> Unit) {
+    Row(modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        MapLayerMode.values().forEach { layer ->
+            val selected = activeLayer == layer
+            val color = layerColor(layer)
+            OutlinedButton(
+                onClick = { onLayer(layer) },
+                border = BorderStroke(1.dp, color.copy(alpha = if (selected) 0.92f else 0.42f)),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = if (selected) color.copy(alpha = 0.22f) else Color(0xCC0A0D0F), contentColor = color),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) { Text(layer.label, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+        }
+    }
+}
+
+@Composable
+private fun MapLayerHint(activeLayer: MapLayerMode, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color(0xD9090806)), border = BorderStroke(1.dp, layerColor(activeLayer).copy(alpha = 0.38f)), shape = RoundedCornerShape(10.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.End) {
+            Text("${activeLayer.label}图层", color = layerColor(activeLayer), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(activeLayer.desc, color = Color(0xFFC6A96C), fontSize = 9.sp)
+        }
+    }
+}
+
+@Composable
 private fun RegionIntelPanel(region: MapFocusRegion, modifier: Modifier = Modifier, onDismiss: () -> Unit) {
     Card(modifier = modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xEE0A0D0F)), border = BorderStroke(1.dp, region.color.copy(alpha = 0.70f)), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -298,24 +349,45 @@ private fun RegionIntelPanel(region: MapFocusRegion, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
+private fun MapStatusChip(gameState: GameState, layer: MapLayerMode, modifier: Modifier = Modifier) {
     Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color(0xD9090806)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)), shape = RoundedCornerShape(10.dp)) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
             Text(gameState.calendar.displayText(), color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("${gameState.season.label} · ${gameState.weather.label} · V1.3.7", color = Color(0xFFC6A96C), fontSize = 10.sp)
+            Text("${gameState.season.label} · ${gameState.weather.label} · V1.9 · ${layer.label}", color = Color(0xFFC6A96C), fontSize = 10.sp)
         }
     }
 }
 
 @Composable
-private fun MapLegend(modifier: Modifier = Modifier) {
+private fun MapLegend(layer: MapLayerMode, modifier: Modifier = Modifier) {
     Column(modifier = modifier.background(Color(0xDD0A0D0F), RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        LegendRow(SongBright, "■", "宋控")
-        LegendRow(JinRed, "■", "金占")
-        LegendRow(Color(0xFFB38A48), "■", "西夏占坑")
-        LegendRow(Color(0xFF68B7E8), "━", "水路")
-        LegendRow(Color(0xFFD0A66A), "━", "陆路")
-        LegendRow(ImperialGold, "⚑", "军团")
+        when (layer) {
+            MapLayerMode.MILITARY -> {
+                LegendRow(SongBright, "■", "宋控")
+                LegendRow(JinRed, "■", "金占")
+                LegendRow(ImperialGold, "⚑", "军团")
+                LegendRow(Color(0xFF8B2500), "━", "关隘")
+            }
+            MapLayerMode.ECONOMY -> {
+                LegendRow(Color(0xFF7BD88F), "◎", "民心/农业")
+                LegendRow(Color(0xFFE8C35A), "◎", "商贸/税源")
+                LegendRow(Color(0xFF68B7E8), "━", "漕运水路")
+                LegendRow(Color(0xFFD0A66A), "━", "陆路转运")
+            }
+            MapLayerMode.DIPLOMACY -> {
+                LegendRow(SongBright, "■", "南宋")
+                LegendRow(JinRed, "■", "金国")
+                LegendRow(Color(0xFFB38A48), "■", "西夏")
+                LegendRow(Color(0xFF3F7A4D), "■", "大理")
+                LegendRow(Color(0xFF2376C9), "■", "海贸/高丽")
+            }
+            MapLayerMode.TRADE -> {
+                LegendRow(Color(0xFF68D7FF), "◎", "港市/海路")
+                LegendRow(Color(0xFFB38A48), "━", "马市/边贸")
+                LegendRow(Color(0xFF3F7A4D), "━", "西南商路")
+                LegendRow(Color(0xFF2376C9), "━", "外贸航线")
+            }
+        }
     }
 }
 
@@ -324,15 +396,22 @@ private fun DrawScope.drawWorldBase(camX: Float, camY: Float, zoom: Float) {
     drawWorldRect(0f, 0f, 16000f, 10000f, Color.Black.copy(alpha = 0.18f), camX, camY, zoom)
 }
 
-private fun DrawScope.drawWorldRegions(camX: Float, camY: Float, zoom: Float) {
+private fun DrawScope.drawWorldRegions(camX: Float, camY: Float, zoom: Float, layer: MapLayerMode) {
     WorldRegions.forEach { r ->
-        drawWorldRect(r.left, r.top, r.right, r.bottom, r.color, camX, camY, zoom)
+        val alphaBoost = when (layer) {
+            MapLayerMode.DIPLOMACY -> 1.45f
+            MapLayerMode.TRADE -> if (r.faction.contains("海贸") || r.faction.contains("西夏") || r.faction.contains("大理")) 1.55f else 0.55f
+            MapLayerMode.ECONOMY -> if (r.name.contains("江南") || r.name.contains("海贸")) 1.15f else 0.65f
+            MapLayerMode.MILITARY -> 1f
+        }
+        drawWorldRect(r.left, r.top, r.right, r.bottom, r.color.copy(alpha = (r.color.alpha * alphaBoost).coerceIn(0.04f, 0.28f)), camX, camY, zoom)
         drawWorldRect(r.left, r.top, r.right, r.bottom, Color.Black.copy(alpha = 0.08f), camX, camY, zoom)
     }
 }
 
-private fun DrawScope.drawRegionLabels(camX: Float, camY: Float, zoom: Float) {
+private fun DrawScope.drawRegionLabels(camX: Float, camY: Float, zoom: Float, layer: MapLayerMode) {
     WorldRegions.forEach { region ->
+        if (layer == MapLayerMode.TRADE && !(region.faction.contains("海贸") || region.faction.contains("西夏") || region.faction.contains("大理"))) return@forEach
         val s = w2s(region.labelX, region.labelY, camX, camY, zoom)
         drawIntoCanvas { canvas ->
             val p = android.graphics.Paint().apply {
@@ -351,10 +430,16 @@ private fun DrawScope.drawRegionLabels(camX: Float, camY: Float, zoom: Float) {
     }
 }
 
-private fun DrawScope.drawFactionRegions(camX: Float, camY: Float, zoom: Float) {
-    drawWorldRect(6900f, 1850f, 10500f, 4450f, JinRed.copy(alpha = 0.12f), camX, camY, zoom)
-    drawWorldRect(3300f, 5100f, 13400f, 9050f, SongBright.copy(alpha = 0.10f), camX, camY, zoom)
-    drawWorldRect(7100f, 5000f, 11100f, 6200f, Color(0xFF7A3B3B).copy(alpha = 0.10f), camX, camY, zoom)
+private fun DrawScope.drawFactionRegions(camX: Float, camY: Float, zoom: Float, layer: MapLayerMode) {
+    val alpha = if (layer == MapLayerMode.DIPLOMACY) 0.22f else 0.12f
+    drawWorldRect(6900f, 1850f, 10500f, 4450f, JinRed.copy(alpha = alpha), camX, camY, zoom)
+    drawWorldRect(3300f, 5100f, 13400f, 9050f, SongBright.copy(alpha = if (layer == MapLayerMode.DIPLOMACY) 0.16f else 0.10f), camX, camY, zoom)
+    drawWorldRect(7100f, 5000f, 11100f, 6200f, Color(0xFF7A3B3B).copy(alpha = if (layer == MapLayerMode.DIPLOMACY) 0.16f else 0.10f), camX, camY, zoom)
+    if (layer == MapLayerMode.DIPLOMACY) {
+        drawWorldRect(800f, 1300f, 3900f, 3600f, Color(0xFFB38A48).copy(alpha = 0.20f), camX, camY, zoom)
+        drawWorldRect(1450f, 6900f, 3600f, 9550f, Color(0xFF3F7A4D).copy(alpha = 0.18f), camX, camY, zoom)
+        drawWorldRect(10800f, 6500f, 15400f, 9650f, Color(0xFF2376C9).copy(alpha = 0.18f), camX, camY, zoom)
+    }
 }
 
 private fun DrawScope.drawMajorRivers(camX: Float, camY: Float, zoom: Float) {
@@ -407,8 +492,15 @@ private fun DrawScope.drawTerrainLabels(camX: Float, camY: Float, zoom: Float) {
     }
 }
 
-private fun DrawScope.drawRoads(camX: Float, camY: Float, zoom: Float) {
+private fun DrawScope.drawRoads(camX: Float, camY: Float, zoom: Float, layer: MapLayerMode) {
     MapData.roads.forEach { road ->
+        val show = when (layer) {
+            MapLayerMode.MILITARY -> true
+            MapLayerMode.ECONOMY -> road.type == RoadType.RIVER || road.type == RoadType.CANAL || road.type == RoadType.LAND
+            MapLayerMode.DIPLOMACY -> road.type == RoadType.LAND || road.type == RoadType.PASS || road.type == RoadType.SEA
+            MapLayerMode.TRADE -> road.type == RoadType.SEA || road.type == RoadType.CANAL || road.type == RoadType.RIVER || road.involvesTradeNode()
+        }
+        if (!show) return@forEach
         val from = MapData.nodeMap[road.fromId] ?: return@forEach
         val to = MapData.nodeMap[road.toId] ?: return@forEach
         val fs = w2s(from.worldX, from.worldY, camX, camY, zoom)
@@ -422,8 +514,41 @@ private fun DrawScope.drawRoads(camX: Float, camY: Float, zoom: Float) {
             RoadType.LAND -> Color(0xFFD0A66A) to null
             RoadType.PASS -> Color(0xFF8B2500) to null
         }
+        val layerColor = if (layer == MapLayerMode.TRADE && road.involvesTradeNode()) Color(0xFF68D7FF) else pair.first
         drawLine(Color.Black.copy(alpha = 0.35f), fs, ts, sw + 2f, pathEffect = pair.second, cap = StrokeCap.Round)
-        drawLine(pair.first, fs, ts, sw, pathEffect = pair.second, cap = StrokeCap.Round)
+        drawLine(layerColor, fs, ts, sw, pathEffect = pair.second, cap = StrokeCap.Round)
+    }
+}
+
+private fun DrawScope.drawTradeRoutes(camX: Float, camY: Float, zoom: Float) {
+    val routes = listOf(
+        listOf("mingzhou", "goryeo_route"),
+        listOf("quanzhou", "south_sea"),
+        listOf("guangzhou", "south_sea"),
+        listOf("guangzhou", "jiaozhi_route"),
+        listOf("chengdu", "dali", "shanchan"),
+        listOf("lanzhou", "lingzhou", "xingqing")
+    )
+    routes.forEach { ids ->
+        ids.zipWithNext().forEach { (a, b) ->
+            val from = MapData.nodeMap[a] ?: return@forEach
+            val to = MapData.nodeMap[b] ?: return@forEach
+            val fs = w2s(from.worldX, from.worldY, camX, camY, zoom)
+            val ts = w2s(to.worldX, to.worldY, camX, camY, zoom)
+            drawLine(Color.Black.copy(alpha = 0.48f), fs, ts, 7f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f)), cap = StrokeCap.Round)
+            drawLine(Color(0xFF68D7FF).copy(alpha = 0.78f), fs, ts, 3.2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f)), cap = StrokeCap.Round)
+        }
+    }
+}
+
+private fun DrawScope.drawEconomicCityHalos(gameState: GameState, camX: Float, camY: Float, zoom: Float) {
+    gameState.cities.filter { it.owner == "song" }.forEach { city ->
+        val node = MapData.nodeMap[city.id] ?: return@forEach
+        val screen = w2s(node.worldX, node.worldY, camX, camY, zoom)
+        val power = ((city.commerce + city.agriculture + city.popularSupport) / 3f).coerceIn(0f, 100f)
+        val color = if (city.terrain == "coast" || city.isWaterNode) Color(0xFF68D7FF) else if (city.commerce >= city.agriculture) Color(0xFFE8C35A) else Color(0xFF7BD88F)
+        drawCircle(color.copy(alpha = 0.10f + power / 500f), (18f + power / 3f) * zoom.coerceAtLeast(0.055f), screen)
+        drawCircle(color.copy(alpha = 0.45f), (9f + power / 7f) * zoom.coerceAtLeast(0.055f), screen, style = Stroke(width = 1.4f))
     }
 }
 
@@ -592,6 +717,62 @@ private fun DrawScope.drawTextOnCanvas(text: String, center: Offset, textSize: F
 
 private fun w2s(wx: Float, wy: Float, camX: Float, camY: Float, zoom: Float) = Offset((wx - camX) * zoom, (wy - camY) * zoom)
 
+private fun nodeColor(node: MapNode, city: City?, layer: MapLayerMode): Color = when (layer) {
+    MapLayerMode.MILITARY -> when {
+        city?.owner == "jin" || node.ownerHint == "jin" -> Color(0xFFE24A4A)
+        node.isCapital -> ImperialGold
+        city?.owner == "song" || node.ownerHint == "song" -> Color(0xFF4DA3E6)
+        else -> ownerHintColor(node.ownerHint)
+    }
+    MapLayerMode.ECONOMY -> when {
+        city == null -> ownerHintColor(node.ownerHint).copy(alpha = 0.78f)
+        city.terrain == "coast" || city.isWaterNode -> Color(0xFF68D7FF)
+        city.commerce >= city.agriculture -> Color(0xFFE8C35A)
+        else -> Color(0xFF7BD88F)
+    }
+    MapLayerMode.DIPLOMACY -> ownerHintColor(city?.owner ?: node.ownerHint)
+    MapLayerMode.TRADE -> when {
+        node.id in TradeRouteIds || node.nodeType == "trade" -> Color(0xFF68D7FF)
+        city?.terrain == "coast" || city?.isWaterNode == true -> Color(0xFF68D7FF)
+        node.ownerHint == "xixia" -> Color(0xFFB38A48)
+        node.ownerHint == "dali" -> Color(0xFF3F7A4D)
+        else -> ownerHintColor(city?.owner ?: node.ownerHint).copy(alpha = 0.62f)
+    }
+}
+
+private fun ownerHintColor(owner: String): Color = when (owner) {
+    "song" -> SongBright
+    "jin" -> JinRed
+    "xixia" -> Color(0xFFB38A48)
+    "dali" -> Color(0xFF3F7A4D)
+    "goryeo" -> Color(0xFF7AA7D9)
+    "sea_trade" -> Color(0xFF2376C9)
+    else -> Color(0xFF7A8794)
+}
+
+private fun layerColor(layer: MapLayerMode): Color = when (layer) {
+    MapLayerMode.MILITARY -> ImperialGold
+    MapLayerMode.ECONOMY -> Color(0xFFE8C35A)
+    MapLayerMode.DIPLOMACY -> Color(0xFFBFA3FF)
+    MapLayerMode.TRADE -> Color(0xFF68D7FF)
+}
+
+private fun City?.ownerLabel(node: MapNode): String = when {
+    this != null && owner == "jin" -> "金国占领 · $controlState"
+    this != null && owner == "song" && node.isCapital -> "大宋京城 · $controlState"
+    this != null && owner == "song" -> "大宋控制 · $controlState"
+    node.ownerHint == "xixia" -> "西夏势力 · 战略节点"
+    node.ownerHint == "dali" -> "大理势力 · 战略节点"
+    node.ownerHint == "goryeo" -> "高丽方向 · 海东节点"
+    node.ownerHint == "sea_trade" -> "海贸诸商 · 外贸节点"
+    node.ownerHint == "jin" -> "金国势力 · 战略节点"
+    else -> "未接入城池数值 · 战略节点"
+}
+
+private fun CityRoadLike(a: String, b: String) = a in TradeRouteIds || b in TradeRouteIds
+
+private fun com.xiemingxin.nandu.game.CityRoad.involvesTradeNode(): Boolean = CityRoadLike(fromId, toId)
+
 @Composable
 private fun LegendRow(color: Color, symbol: String, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -601,7 +782,7 @@ private fun LegendRow(color: Color, symbol: String, label: String) {
 }
 
 @Composable
-fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames: Map<String, String>, onDismiss: () -> Unit, modifier: Modifier = Modifier, onDraft: (String) -> Unit = {}) {
+fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames: Map<String, String>, layer: MapLayerMode = MapLayerMode.MILITARY, onDismiss: () -> Unit, modifier: Modifier = Modifier, onDraft: (String) -> Unit = {}) {
     Card(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xF01A1208)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.60f))) {
         Column(modifier = Modifier.padding(14.dp)) {
             if (city != null) {
@@ -610,9 +791,10 @@ fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(node.name, color = ImperialGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text(when { city == null -> "--"; city.owner == "jin" -> "金国占领 · ${city.controlState}"; node.isCapital -> "大宋京城 · ${city.controlState}"; else -> "大宋控制 · ${city.controlState}" }, color = Color(0xFFB9AA82), fontSize = 12.sp)
+                    Text(node.name, color = nodeColor(node, city, layer), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(city.ownerLabel(node), color = Color(0xFFB9AA82), fontSize = 12.sp)
                     if (city != null && city.route.isNotBlank()) Text("${city.route} · ${city.cityLevel} · ${terrainLabel(city.terrain)} · 口${city.population / 10000}万", color = Color(0xFF8C7A60), fontSize = 10.sp)
+                    if (city == null) Text("${node.ownerHint.ifBlank { "world" }} · ${node.nodeType} · 后续可升级为完整城池", color = Color(0xFF8C7A60), fontSize = 10.sp)
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) { Text("X", color = Color(0xFF8B7355), fontSize = 14.sp) }
             }
@@ -626,9 +808,11 @@ fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames
                     CityStatItem("民", "民心", "${city.popularSupport}")
                 }
                 Spacer(Modifier.height(10.dp))
-                Text("驻防军团", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(if (layer == MapLayerMode.ECONOMY) "经济民生" else "驻防军团", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                if (armies.isEmpty()) Text("此城暂无正式军团驻防。", color = Color(0xFF8C7A60), fontSize = 11.sp)
+                if (layer == MapLayerMode.ECONOMY) {
+                    Text("商业${city.commerce} · 农业${city.agriculture} · 沿线${city.route}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+                } else if (armies.isEmpty()) Text("此城暂无正式军团驻防。", color = Color(0xFF8C7A60), fontSize = 11.sp)
                 else armies.take(4).forEach { army -> CityArmyRow(army, officerNames[army.commanderId] ?: army.status) }
                 Spacer(Modifier.height(12.dp))
                 Text("拟旨操作", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -648,6 +832,9 @@ fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames
                         CityActionButton("募兵练军", Modifier.weight(1f)) { onDraft("recruit") }
                     }
                 }
+            } else {
+                Spacer(Modifier.height(10.dp))
+                Text("此节点目前用于外交、外贸或战略显示；完整驻军、民心、经营数据会在后续城池扩容中接入。", color = Color(0xFFB9AA82), fontSize = 11.sp, lineHeight = 16.sp)
             }
         }
     }
