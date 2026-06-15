@@ -3,8 +3,10 @@ package com.xiemingxin.nandu.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.xiemingxin.nandu.ai.AiEngineConfig
 import com.xiemingxin.nandu.ai.AiProvider
 import com.xiemingxin.nandu.ai.AiProviderType
+import com.xiemingxin.nandu.ai.AiSettingsStore
 import com.xiemingxin.nandu.ai.CityContext
 import com.xiemingxin.nandu.ai.ClaudeProvider
 import com.xiemingxin.nandu.ai.CustomApiProvider
@@ -21,7 +23,6 @@ import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.TavernSystem
 import com.xiemingxin.nandu.game.CityVisitAction
-import com.xiemingxin.nandu.game.Rumor
 import com.xiemingxin.nandu.game.BuildingCatalog
 import com.xiemingxin.nandu.game.BattleResolver
 import com.xiemingxin.nandu.game.BattleUnitCatalog
@@ -48,6 +49,8 @@ data class UiState(
     val providerType: AiProviderType = AiProviderType.MOCK,
     val apiKey: String = "",
     val customModel: String = "",
+    val providerStatusMessage: String = "离线 Mock 推演",
+    val isRealAiEnabled: Boolean = false,
     val saveCode: String = "",
     val saveMessage: String = "",
     val currentStoryEvent: StoryEvent? = null,
@@ -64,6 +67,7 @@ enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING
 
 class EmperorViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val aiSettingsStore = AiSettingsStore(application)
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
@@ -72,21 +76,32 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     // V1.3.1: bundled story file + editable JSON event pack
     private val storyEvents: List<StoryEvent> = StoryEventLoader.loadDefaultEvents(application)
 
+    init {
+        restoreAiConfigIntoState(GameState(), keepCurrentGame = false)
+    }
+
     fun updateProviderSettings(type: AiProviderType, apiKey: String, customModel: String = "") {
-        val customParts = parseCustomConfig(customModel)
-        currentProvider = when (type) {
-            AiProviderType.CLAUDE -> ClaudeProvider(apiKey)
-            AiProviderType.OPENAI -> OpenAiProvider(apiKey, customModel.ifEmpty { "gpt-4o" })
-            AiProviderType.GEMINI -> GeminiProvider(apiKey)
-            AiProviderType.OPENROUTER -> OpenRouterProvider(apiKey, customModel.ifEmpty { "anthropic/claude-3.5-sonnet" })
-            AiProviderType.CUSTOM -> CustomApiProvider(
-                baseUrl = customParts.first.ifBlank { "https://api.example.com/v1" },
-                apiKey = apiKey,
-                model = customParts.second.ifBlank { "gpt-4o" }
-            )
-            AiProviderType.MOCK -> MockProvider()
+        val config = AiEngineConfig(type, apiKey.trim(), customModel.trim())
+        applyProviderConfig(config, persist = true, statusOverride = "AI 引擎已保存：${providerLabel(config)}")
+    }
+
+    fun testProviderConnection() {
+        val state = _uiState.value
+        val config = AiEngineConfig(state.providerType, state.apiKey, state.customModel)
+        if (config.providerType != AiProviderType.MOCK && config.apiKey.isBlank()) {
+            _uiState.value = state.copy(saveMessage = "请先填写 API Key，再叩问接口。")
+            return
         }
-        _uiState.value = _uiState.value.copy(providerType = type, apiKey = apiKey, customModel = customModel)
+        _uiState.value = state.copy(saveMessage = "正在叩问 ${config.providerType.displayName}……")
+        viewModelScope.launch {
+            val result = currentProvider.parseEdict("测试连接：请解析为无实际命令的朝堂问安。", buildGameContext(_uiState.value.gameState))
+            _uiState.value = _uiState.value.copy(
+                saveMessage = result.fold(
+                    onSuccess = { "接口可用：${it.summary.ifBlank { "AI 已回应" }}" },
+                    onFailure = { "接口失败：${it.message ?: "未知错误"}" }
+                )
+            )
+        }
     }
 
     fun submitEdict(edictText: String) {
@@ -379,7 +394,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun restartGame() {
-        _uiState.value = UiState()
+        restoreAiConfigIntoState(GameState(), keepCurrentGame = false)
     }
 
     fun recordAndRestart(context: android.content.Context) {
@@ -388,7 +403,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         LegacySystem.recordReign(context, cur.earnedAchievements, songCities)
         val legacy = LegacySystem.load(context)
         val freshState = LegacySystem.applyLegacyBonus(GameState(), legacy)
-        _uiState.value = UiState(gameState = freshState)
+        restoreAiConfigIntoState(freshState, keepCurrentGame = false)
     }
 
     fun chooseStoryOption(choiceId: String) {
@@ -437,6 +452,61 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = _uiState.value.copy(saveMessage = "读档失败：${error.message ?: "存档码损坏"}")
             }
         )
+    }
+
+    private fun restoreAiConfigIntoState(gameState: GameState, keepCurrentGame: Boolean) {
+        val saved = aiSettingsStore.load()
+        currentProvider = createProvider(saved.providerType, saved.apiKey, saved.customModel)
+        val current = _uiState.value
+        _uiState.value = UiState(
+            gameState = if (keepCurrentGame) current.gameState else gameState,
+            providerType = saved.providerType,
+            apiKey = saved.apiKey,
+            customModel = saved.customModel,
+            providerStatusMessage = buildProviderStatus(saved),
+            isRealAiEnabled = saved.isRealAiEnabled
+        )
+    }
+
+    private fun applyProviderConfig(config: AiEngineConfig, persist: Boolean, statusOverride: String? = null) {
+        if (persist) aiSettingsStore.save(config)
+        currentProvider = createProvider(config.providerType, config.apiKey, config.customModel)
+        _uiState.value = _uiState.value.copy(
+            providerType = config.providerType,
+            apiKey = config.apiKey,
+            customModel = config.customModel,
+            providerStatusMessage = statusOverride ?: buildProviderStatus(config),
+            isRealAiEnabled = config.isRealAiEnabled,
+            saveMessage = statusOverride ?: buildProviderStatus(config)
+        )
+    }
+
+    private fun createProvider(type: AiProviderType, apiKey: String, customModel: String): AiProvider {
+        val customParts = parseCustomConfig(customModel)
+        return when (type) {
+            AiProviderType.CLAUDE -> ClaudeProvider(apiKey)
+            AiProviderType.OPENAI -> OpenAiProvider(apiKey, customModel.ifEmpty { "gpt-4o" })
+            AiProviderType.GEMINI -> GeminiProvider(apiKey)
+            AiProviderType.OPENROUTER -> OpenRouterProvider(apiKey, customModel.ifEmpty { "anthropic/claude-3.5-sonnet" })
+            AiProviderType.CUSTOM -> CustomApiProvider(
+                baseUrl = customParts.first.ifBlank { "https://api.example.com/v1" },
+                apiKey = apiKey,
+                model = customParts.second.ifBlank { "gpt-4o" }
+            )
+            AiProviderType.MOCK -> MockProvider()
+        }
+    }
+
+    private fun buildProviderStatus(config: AiEngineConfig): String = when {
+        config.providerType == AiProviderType.MOCK -> "离线 Mock 推演：可试玩，但不是真 AI 理解"
+        config.apiKey.isBlank() -> "${config.providerType.displayName} 未填 Key，仍无法叩问真 AI"
+        else -> "${config.providerType.displayName} 已启用：圣旨将交给真实模型解析"
+    }
+
+    private fun providerLabel(config: AiEngineConfig): String = when {
+        config.providerType == AiProviderType.MOCK -> "Mock 离线"
+        config.customModel.isNotBlank() -> "${config.providerType.displayName} / ${config.customModel}"
+        else -> config.providerType.displayName
     }
 
     private fun parseCustomConfig(value: String): Pair<String, String> {

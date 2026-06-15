@@ -31,6 +31,13 @@ class ClaudeProvider(private val apiKey: String) : AiProvider {
 
 命令类型只能是：dispatch_army/assign_officer/repair_city/raise_grain/suppress_officer/reward_officer/punish_officer
 
+朝堂思维铁律（必须遵守）：
+1. 所有 NPC 都是南宋朝臣或武将，不是现代助理、产品经理、顾问或聊天机器人。
+2. 不准使用现代网络词、现代管理话术、现代经济学术语、现代军事术语。
+3. 说话必须围绕君臣名分、社稷安危、祖宗法度、民力、粮道、军心、边防、朝局、国耻。
+4. npcResponses.text 必须像殿上奏对，可半文半白，但要有古代官场语感；不要解释“我将如何分析”。
+5. 反对意见不能像现代杠精，要借民力、粮饷、边患、祖宗旧制、朝局震动来劝谏。
+
 武将性格（必须遵守）：
 yue_fei忠烈主战铿锵 qin_hui主和阴柔暗指风险 zhao_ding稳重理财先问粮道 han_shizhong豪勇直爽短句有力 li_gang刚烈守城慷慨激昂
 
