@@ -202,12 +202,16 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             troops = (target.troops - outcome.defenderLosses).coerceAtLeast(0)
         )
 
-        // 攻方损失按比例分摊到各宋军
+        // 攻方损失按比例分摊到各宋军，并按胜负调整士气
         val totalAtk = attackerTroops.coerceAtLeast(1)
+        val moraleShift = if (outcome.attackerWins) 8 else -12  // 胜则士气涨，败则大跌
         val newArmies = state.armies.map { army ->
             if (army.ownerFactionId == "song") {
                 val share = (outcome.attackerLosses.toDouble() * army.troops / totalAtk).toInt()
-                army.copy(troops = (army.troops - share).coerceAtLeast(0))
+                army.copy(
+                    troops = (army.troops - share).coerceAtLeast(0),
+                    morale = (army.morale + moraleShift).coerceIn(10, 100)
+                )
             } else army
         }
 
