@@ -83,7 +83,7 @@ fun NanduApp() {
         }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
         edictText = buildCityDraft(city, action)
-        currentTab = 0
+        currentTab = 1
     }
 
     if (showSettings) {
@@ -104,7 +104,11 @@ fun NanduApp() {
     Column(modifier = Modifier.fillMaxSize().background(InkBlack)) {
         Box(modifier = Modifier.weight(1f)) {
             when (currentTab) {
-                0 -> EmperorMainScreen(
+                0 -> PalaceHallScreen(
+                    state = uiState.gameState,
+                    onNavigate = { tab -> currentTab = tab + 1 }
+                )
+                1 -> EmperorMainScreen(
                     uiState = uiState,
                     draftEdictText = edictText,
                     onSubmitEdict = { text -> edictText = text; viewModel.submitEdict(text) },
@@ -116,14 +120,14 @@ fun NanduApp() {
                     onDismissStoryOutcome = { viewModel.dismissStoryOutcome() },
                     onOpenSettings = { showSettings = true }
                 )
-                1 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
-                2 -> StateScreen(gameState = uiState.gameState)
-                3 -> MilitaryScreen(gameState = uiState.gameState)
+                2 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
+                3 -> StateScreen(gameState = uiState.gameState)
+                4 -> MilitaryScreen(gameState = uiState.gameState)
             }
         }
 
         NavigationBar(containerColor = DeepBlack, contentColor = ImperialGold, tonalElevation = 0.dp) {
-            listOf("朝议" to 0, "山河" to 1, "国政" to 2, "军务" to 3).forEach { (label, idx) ->
+            listOf("皇宫" to 0, "朝议" to 1, "山河" to 2, "国政" to 3, "军务" to 4).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
                     onClick = { currentTab = idx },
