@@ -1,7 +1,7 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V2.2 美术资源注册表。
+ * V2.4 美术资源注册表。
  *
  * 资源已统一进入 app/src/main/assets/images/。
  * 本表负责把旧代码里的角色、城池、事件、地图、UI 路径对齐到真实 WebP 文件。
@@ -29,6 +29,8 @@ object ArtResourceRegistry {
         const val city = "$BASE/city/linan_palace.webp"
         const val event = "$BASE/events/event_yushufang_night.webp"
         const val battle = "$BASE/events/event_jianghuai_battle.webp"
+        const val mapIcon = "$BASE/map/icons/city_county.webp"
+        const val ui = "$BASE/ui/dialog_frame.webp"
     }
 
     val historicalCharacters: Map<String, CharacterArt> = listOf(
@@ -130,21 +132,57 @@ object ArtResourceRegistry {
         "strategy" to named("strategy", "战略沙盘图", "$BASE/map/song_world_strategy.webp")
     )
 
+    val mapIconImages: Map<String, NamedArt> = mapOf(
+        "capital_song" to icon("capital_song", "宋都城", "city_capital_song.webp"),
+        "capital_jin" to icon("capital_jin", "金都城", "city_capital_jin.webp"),
+        "capital_xixia" to icon("capital_xixia", "西夏都城", "city_capital_xixia.webp"),
+        "capital_dali" to icon("capital_dali", "大理都城", "city_capital_dali.webp"),
+        "xixia_capital" to icon("xixia_capital", "西夏都城", "city_capital_xixia.webp"),
+        "dali_capital" to icon("dali_capital", "大理都城", "city_capital_dali.webp"),
+        "metropolis" to icon("metropolis", "巨城", "city_metropolis.webp"),
+        "west_metropolis" to icon("west_metropolis", "西南巨城", "city_metropolis.webp"),
+        "fortress" to icon("fortress", "重镇", "city_fortress.webp"),
+        "front_fortress" to icon("front_fortress", "前线城", "city_frontline.webp"),
+        "river_fortress" to icon("river_fortress", "江防重镇", "city_fortress_river.webp"),
+        "north_fortress" to icon("north_fortress", "北方重镇", "city_fortress.webp"),
+        "yanjing" to icon("yanjing", "燕云重镇", "city_fortress_jin.webp"),
+        "port" to icon("port", "港市", "city_port.webp"),
+        "sea_port" to icon("sea_port", "港市", "city_port.webp"),
+        "ship_port" to icon("ship_port", "船材港市", "city_port.webp"),
+        "south_port" to icon("south_port", "南海港市", "city_port.webp"),
+        "old_capital" to icon("old_capital", "旧都", "city_old_capital.webp"),
+        "old_capital_west" to icon("old_capital_west", "西京旧都", "city_old_capital.webp"),
+        "county" to icon("county", "州县", "city_county.webp"),
+        "pass" to icon("pass", "关隘", "city_pass.webp"),
+        "strategic" to icon("strategic", "战略节点", "city_strategic.webp"),
+        "trade" to icon("trade", "商贸节点", "city_trade.webp"),
+        "water" to icon("water", "水路城", "city_water.webp")
+    )
+
     val uiImages: Map<String, NamedArt> = mapOf(
         "dialog_frame" to ui("dialog_frame", "奏议框", "dialog_frame.webp"),
         "edict_bar" to ui("edict_bar", "圣旨落笔", "edict_bar.webp"),
         "danger_badge" to ui("danger_badge", "危急", "danger_badge.webp"),
         "faction_tag" to ui("faction_tag", "派系", "faction_tag.webp"),
         "choice_button" to ui("choice_button", "御前裁断", "choice_button.webp"),
+        "palace_tab" to ui("palace_tab", "宫殿页签", "palace_tab.webp"),
         "npc_card_frame" to ui("npc_card_frame", "人物卡框", "npc_card_frame.webp"),
         "city_panel" to ui("city_panel", "城池面板", "city_panel.webp"),
-        "map_panel" to ui("map_panel", "山河面板", "map_panel.webp")
+        "map_panel" to ui("map_panel", "山河面板", "map_panel.webp"),
+        "edict_scroll" to ui("edict_scroll", "圣旨卷轴", "edict_scroll.webp"),
+        "relation_badge" to ui("relation_badge", "好感信任", "relation_badge.webp"),
+        "trade_badge" to ui("trade_badge", "商税外贸", "trade_badge.webp"),
+        "war_badge" to ui("war_badge", "军务战报", "war_badge.webp"),
+        "ritual_badge" to ui("ritual_badge", "礼制名望", "ritual_badge.webp"),
+        "locked_badge" to ui("locked_badge", "未登场", "locked_badge.webp")
     )
 
     fun portraitForOfficer(officerId: String): String = historicalCharacters[officerId]?.portrait ?: templatePortraitFor(officerId)
     fun halfbodyForOfficer(officerId: String): String = historicalCharacters[officerId]?.halfbody ?: templateHalfbodyFor(officerId)
     fun cityBackground(cityId: String): String = cityBackgrounds[cityId]?.path ?: Fallback.city
     fun eventImage(eventId: String): String = eventImages[eventId]?.path ?: Fallback.event
+    fun uiImage(id: String): String = uiImages[id]?.path ?: Fallback.ui
+    fun mapIcon(iconKey: String): String = mapIconImages[iconKey]?.path ?: mapIconImages[iconKey.substringAfterLast('_')]?.path ?: Fallback.mapIcon
     fun battleImage(battleType: String): String = when (battleType) {
         "river_naval" -> "$BASE/events/event_jianghuai_battle.webp"
         "siege" -> "$BASE/events/event_jianghuai_battle.webp"
@@ -182,5 +220,6 @@ object ArtResourceRegistry {
     private fun event(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/events/$file")
     private fun palace(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/palace/$file")
     private fun ui(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/ui/$file")
+    private fun icon(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/map/icons/$file")
     private fun named(id: String, name: String, path: String): NamedArt = NamedArt(id, name, path)
 }
