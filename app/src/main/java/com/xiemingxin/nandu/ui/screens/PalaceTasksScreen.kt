@@ -58,6 +58,7 @@ fun PalaceTasksScreen(
     state: GameState,
     palaceId: String,
     onBack: () -> Unit,
+    onCouncilChoice: (CouncilScene, CouncilChoice) -> Unit,
     onDraftEdict: (String) -> Unit,
     onOpenTab: (Int) -> Unit
 ) {
@@ -107,7 +108,10 @@ fun PalaceTasksScreen(
                     scene = scene,
                     modifier = Modifier.weight(1f),
                     onBack = { selectedScene = null },
-                    onDraftEdict = { draft -> onDraftEdict(draft) }
+                    onChoiceSelected = { choice ->
+                        onCouncilChoice(scene, choice)
+                        onDraftEdict(choice.edictDraft)
+                    }
                 )
             } ?: run {
                 if (tasks.isEmpty()) {
@@ -214,7 +218,7 @@ private fun CouncilSceneCard(
     scene: CouncilScene,
     modifier: Modifier,
     onBack: () -> Unit,
-    onDraftEdict: (String) -> Unit
+    onChoiceSelected: (CouncilChoice) -> Unit
 ) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier) {
         item {
@@ -244,7 +248,7 @@ private fun CouncilSceneCard(
             Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
         }
         items(scene.choices) { choice ->
-            CouncilChoiceCard(choice = choice, onDraftEdict = { onDraftEdict(choice.edictDraft) })
+            CouncilChoiceCard(choice = choice, onChoiceSelected = { onChoiceSelected(choice) })
         }
     }
 }
@@ -277,7 +281,7 @@ private fun CouncilLineCard(line: CouncilLine) {
 }
 
 @Composable
-private fun CouncilChoiceCard(choice: CouncilChoice, onDraftEdict: () -> Unit) {
+private fun CouncilChoiceCard(choice: CouncilChoice, onChoiceSelected: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xDF201108)),
@@ -288,7 +292,7 @@ private fun CouncilChoiceCard(choice: CouncilChoice, onDraftEdict: () -> Unit) {
             Text(choice.label, color = TaskGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(choice.preview, color = TaskCream, fontSize = 12.sp, lineHeight = 18.sp)
             Button(
-                onClick = onDraftEdict,
+                onClick = onChoiceSelected,
                 modifier = Modifier.fillMaxWidth().height(40.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = TaskRed),
                 shape = RoundedCornerShape(8.dp)
