@@ -6,11 +6,31 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -24,12 +44,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.City
@@ -45,10 +64,8 @@ import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.JinRed
 import com.xiemingxin.nandu.ui.theme.MapBg
 import com.xiemingxin.nandu.ui.theme.SongBright
-import kotlin.math.atan2
-import kotlin.math.cos
+import kotlinx.coroutines.delay
 import kotlin.math.pow
-import kotlin.math.sin
 import kotlin.math.sqrt
 
 private data class MapFocusRegion(
@@ -57,7 +74,11 @@ private data class MapFocusRegion(
     val camX: Float,
     val camY: Float,
     val zoom: Float,
-    val color: Color
+    val color: Color,
+    val power: String,
+    val summary: String,
+    val strategy: String,
+    val danger: String
 )
 
 private data class MapWorldRegion(
@@ -73,13 +94,13 @@ private data class MapWorldRegion(
 )
 
 private val FocusRegions = listOf(
-    MapFocusRegion("all", "天下", 0f, 0f, 0.052f, ImperialGold),
-    MapFocusRegion("song", "宋境", 2800f, 4850f, 0.078f, SongBright),
-    MapFocusRegion("front", "江淮", 6200f, 4200f, 0.090f, ImperialGold),
-    MapFocusRegion("jingxiang", "荆襄", 3500f, 4300f, 0.090f, Color(0xFFD0A66A)),
-    MapFocusRegion("central", "中原", 6000f, 1300f, 0.086f, JinRed),
-    MapFocusRegion("hebei", "河北", 8000f, 200f, 0.078f, JinRed),
-    MapFocusRegion("xixia", "西夏", 1200f, 1800f, 0.070f, Color(0xFFB38A48))
+    MapFocusRegion("all", "天下", 0f, 0f, 0.052f, ImperialGold, "天下诸势", "总览南宋、金国、西夏、大理与海贸诸区。", "看清全局后再决定经营、守城或进取。", "中"),
+    MapFocusRegion("song", "宋境", 2800f, 4850f, 0.078f, SongBright, "南宋", "江南行在与东南财富根本。", "稳住钱粮、民心、海贸，才有北伐本钱。", "低"),
+    MapFocusRegion("front", "江淮", 6200f, 4200f, 0.090f, ImperialGold, "宋金争夺", "淮河防线，是南宋生死缓冲带。", "优先修城、屯粮、布防，避免金军南下。", "高"),
+    MapFocusRegion("jingxiang", "荆襄", 3500f, 4300f, 0.090f, Color(0xFFD0A66A), "南宋", "荆襄是北伐跳板，也是山河要冲。", "城防与步兵收益高，适合稳步推进。", "中"),
+    MapFocusRegion("central", "中原", 6000f, 1300f, 0.086f, JinRed, "金国占领", "开封、洛阳旧都所在，政治象征极重。", "贸然进取损耗大，需先断粮道、集军心。", "高"),
+    MapFocusRegion("hebei", "河北", 8000f, 200f, 0.078f, JinRed, "金国纵深", "河北燕云为金国后方屏障。", "后期扩展区，当前先作为北方压力来源。", "极高"),
+    MapFocusRegion("xixia", "西夏", 1200f, 1800f, 0.070f, Color(0xFFB38A48), "西夏", "河陇与河西走廊，未来第三势力。", "先做边贸、买马、外交事件，不急参战。", "未知")
 )
 
 private val WorldRegions = listOf(
@@ -99,17 +120,27 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     var cameraY by remember { mutableStateOf(2500f) }
     var zoom by remember { mutableStateOf(0.07f) }
     var selectedId by remember { mutableStateOf<String?>(null) }
+    var selectedRegion by remember { mutableStateOf<MapFocusRegion?>(null) }
     var manageCityId by remember { mutableStateOf<String?>(null) }
     var recruitCityId by remember { mutableStateOf<String?>(null) }
+    var weatherPhase by remember { mutableStateOf(0f) }
     val cityMap = gameState.cities.associateBy { it.id }
     val armiesByCity = gameState.armies.groupBy { it.currentCityId }
     val officerNames = gameState.officers.associate { it.id to it.name }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            weatherPhase = (weatherPhase + 0.012f) % 1f
+            delay(33L)
+        }
+    }
 
     fun focus(region: MapFocusRegion) {
         cameraX = region.camX
         cameraY = region.camY
         zoom = region.zoom
         selectedId = null
+        selectedRegion = region
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MapBg)) {
@@ -132,6 +163,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                             val sy = (n.worldY - cameraY) * zoom
                             val dist = sqrt((tap.x - sx).pow(2) + (tap.y - sy).pow(2))
                             selectedId = if (dist < 62f) {
+                                selectedRegion = null
                                 if (selectedId == n.id) null else n.id
                             } else null
                         }
@@ -171,6 +203,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             }
 
             drawArmyFlags(gameState, cameraX, cameraY, zoom)
+            drawWeatherMotion(gameState.weather.label, weatherPhase)
         }
 
         MapStatusChip(gameState, Modifier.align(Alignment.TopStart).padding(12.dp))
@@ -179,6 +212,14 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             onFocus = ::focus
         )
         MapLegend(Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 80.dp))
+
+        selectedRegion?.let { region ->
+            RegionIntelPanel(
+                region = region,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, end = 112.dp, bottom = 82.dp),
+                onDismiss = { selectedRegion = null }
+            )
+        }
 
         selectedId?.let { id ->
             MapData.nodeMap[id]?.let { node ->
@@ -226,20 +267,32 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
 
 @Composable
 private fun RegionQuickBar(modifier: Modifier = Modifier, onFocus: (MapFocusRegion) -> Unit) {
-    Row(
-        modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
+    Row(modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         FocusRegions.forEach { region ->
             OutlinedButton(
                 onClick = { onFocus(region) },
                 border = BorderStroke(1.dp, region.color.copy(alpha = 0.70f)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(0xCC0A0D0F),
-                    contentColor = region.color
-                ),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xCC0A0D0F), contentColor = region.color),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
             ) { Text(region.name, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+        }
+    }
+}
+
+@Composable
+private fun RegionIntelPanel(region: MapFocusRegion, modifier: Modifier = Modifier, onDismiss: () -> Unit) {
+    Card(modifier = modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xEE0A0D0F)), border = BorderStroke(1.dp, region.color.copy(alpha = 0.70f)), shape = RoundedCornerShape(12.dp)) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text(region.name, color = region.color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(region.power, color = Color(0xFFD7C08A), fontSize = 10.sp)
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) { Text("X", color = Color(0xFF8B7355), fontSize = 12.sp) }
+            }
+            Text(region.summary, color = Color(0xFFE8DCC0), fontSize = 11.sp, lineHeight = 16.sp)
+            Text("战略：${region.strategy}", color = Color(0xFFC6A96C), fontSize = 10.sp, lineHeight = 15.sp)
+            Text("危险度：${region.danger}", color = if (region.danger.contains("高")) Color(0xFFFF8A70) else Color(0xFFB9AA82), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -249,17 +302,14 @@ private fun MapStatusChip(gameState: GameState, modifier: Modifier = Modifier) {
     Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color(0xD9090806)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)), shape = RoundedCornerShape(10.dp)) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
             Text(gameState.calendar.displayText(), color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("${gameState.season.label} · ${gameState.weather.label} · V1.3.3", color = Color(0xFFC6A96C), fontSize = 10.sp)
+            Text("${gameState.season.label} · ${gameState.weather.label} · V1.3.7", color = Color(0xFFC6A96C), fontSize = 10.sp)
         }
     }
 }
 
 @Composable
 private fun MapLegend(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.background(Color(0xDD0A0D0F), RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
-    ) {
+    Column(modifier = modifier.background(Color(0xDD0A0D0F), RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         LegendRow(SongBright, "■", "宋控")
         LegendRow(JinRed, "■", "金占")
         LegendRow(Color(0xFFB38A48), "■", "西夏占坑")
@@ -417,6 +467,44 @@ private fun DrawScope.drawArmyFlag(origin: Offset, label: String, color: Color, 
     drawTextOnCanvas(subLabel, Offset(origin.x + 14f, origin.y + 38f), 8f, android.graphics.Color.WHITE, true)
 }
 
+private fun DrawScope.drawWeatherMotion(label: String, phase: Float) {
+    val w = size.width.coerceAtLeast(1f)
+    val h = size.height.coerceAtLeast(1f)
+    when {
+        label.contains("雨") -> {
+            drawRect(Color(0xFF14304A).copy(alpha = 0.10f))
+            for (i in 0 until 68) {
+                val x = (i * 47f + phase * w * 0.70f) % w
+                val y = (i * 83f + phase * h * 1.20f) % h
+                drawLine(Color(0xFF8AC8FF).copy(alpha = 0.34f), Offset(x, y), Offset(x - 9f, y + 24f), 1.4f)
+            }
+        }
+        label.contains("雪") || label.contains("寒") -> {
+            drawRect(Color(0xFFEAF6FF).copy(alpha = 0.05f))
+            for (i in 0 until 80) {
+                val x = (i * 61f + phase * w * 0.22f) % w
+                val y = (i * 97f + phase * h * 0.62f) % h
+                drawCircle(Color.White.copy(alpha = 0.35f), if (i % 3 == 0) 2.1f else 1.2f, Offset(x, y))
+            }
+        }
+        label.contains("雾") || label.contains("阴") -> {
+            drawRect(Color(0xFFD6D6C8).copy(alpha = 0.07f))
+            for (i in 0 until 7) {
+                val x = ((i * 157f + phase * w * 0.16f) % (w + 220f)) - 110f
+                val y = h * (0.18f + i * 0.10f)
+                drawCircle(Color.White.copy(alpha = 0.055f), 130f, Offset(x, y))
+            }
+        }
+        else -> {
+            for (i in 0 until 30) {
+                val x = (i * 101f + phase * w * 0.32f) % w
+                val y = h - ((i * 73f + phase * h * 0.44f) % h)
+                drawCircle(ImperialGold.copy(alpha = 0.16f), if (i % 4 == 0) 2.5f else 1.3f, Offset(x, y))
+            }
+        }
+    }
+}
+
 private fun DrawScope.drawCityIcon(center: Offset, r: Float, color: Color, isCapital: Boolean, isJin: Boolean, isFrontline: Boolean) {
     drawRect(Color.Black.copy(alpha = 0.45f), Offset(center.x - r * 1.18f + 2f, center.y - r * 0.52f + 3f), Size(r * 2.36f, r * 1.22f))
     drawRect(color.copy(alpha = 0.95f), Offset(center.x - r * 1.18f, center.y - r * 0.52f), Size(r * 2.36f, r * 1.22f))
@@ -513,43 +601,18 @@ private fun LegendRow(color: Color, symbol: String, label: String) {
 }
 
 @Composable
-fun CityDetailPanel(
-    node: MapNode,
-    city: City?,
-    armies: List<Army>,
-    officerNames: Map<String, String>,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    onDraft: (String) -> Unit = {}
-) {
+fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames: Map<String, String>, onDismiss: () -> Unit, modifier: Modifier = Modifier, onDraft: (String) -> Unit = {}) {
     Card(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xF01A1208)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.60f))) {
         Column(modifier = Modifier.padding(14.dp)) {
             if (city != null) {
-                AssetImage(
-                    path = ArtResourceRegistry.cityBackground(city.id),
-                    fallbackPath = ArtResourceRegistry.Fallback.city,
-                    contentDescription = node.name,
-                    contentScale = ContentScale.Crop,
-                    placeholderText = "城",
-                    modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(10.dp))
-                )
+                AssetImage(path = ArtResourceRegistry.cityBackground(city.id), fallbackPath = ArtResourceRegistry.Fallback.city, contentDescription = node.name, contentScale = ContentScale.Crop, placeholderText = "城", modifier = Modifier.fillMaxWidth().height(120.dp))
                 Spacer(Modifier.height(10.dp))
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text(node.name, color = ImperialGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        when {
-                            city == null -> "--"
-                            city.owner == "jin" -> "金国占领 · ${city.controlState}"
-                            node.isCapital -> "大宋京城 · ${city.controlState}"
-                            else -> "大宋控制 · ${city.controlState}"
-                        },
-                        color = Color(0xFFB9AA82), fontSize = 12.sp
-                    )
-                    if (city != null && city.route.isNotBlank()) {
-                        Text("${city.route} · ${city.cityLevel} · ${terrainLabel(city.terrain)} · 口${city.population / 10000}万", color = Color(0xFF8C7A60), fontSize = 10.sp)
-                    }
+                    Text(when { city == null -> "--"; city.owner == "jin" -> "金国占领 · ${city.controlState}"; node.isCapital -> "大宋京城 · ${city.controlState}"; else -> "大宋控制 · ${city.controlState}" }, color = Color(0xFFB9AA82), fontSize = 12.sp)
+                    if (city != null && city.route.isNotBlank()) Text("${city.route} · ${city.cityLevel} · ${terrainLabel(city.terrain)} · 口${city.population / 10000}万", color = Color(0xFF8C7A60), fontSize = 10.sp)
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) { Text("X", color = Color(0xFF8B7355), fontSize = 14.sp) }
             }
@@ -606,22 +669,12 @@ private fun CityArmyRow(army: Army, commander: String) {
 
 @Composable
 private fun CityActionButton(text: String, modifier: Modifier, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(36.dp),
-        border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.55f)),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-    ) { Text(text, fontSize = 11.sp) }
+    OutlinedButton(onClick = onClick, modifier = modifier.height(36.dp), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.55f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)) {
+        Text(text, fontSize = 11.sp)
+    }
 }
 
-private fun terrainLabel(terrain: String): String = when (terrain) {
-    "river" -> "水乡"
-    "mountain" -> "山地"
-    "pass" -> "关隘"
-    "coast" -> "沿海"
-    else -> "平原"
-}
+private fun terrainLabel(terrain: String): String = when (terrain) { "river" -> "水乡"; "mountain" -> "山地"; "pass" -> "关隘"; "coast" -> "沿海"; else -> "平原" }
 
 @Composable
 private fun CityStatItem(icon: String, label: String, value: String) {
