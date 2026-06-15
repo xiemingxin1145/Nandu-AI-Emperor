@@ -44,17 +44,21 @@ private val HallRed = Color(0xFF7D1D16)
 private val HallBlue = Color(0xFF4DA3E6)
 
 /**
- * V1.3.5 皇宫大厅：开场后的主菜单。
- * 强化“皇帝坐殿治国”的第一落点，不再只是功能按钮页。
+ * V1.4.2 皇宫大厅：从普通主页升级为「宫殿模拟器」入口。
  */
 @Composable
 fun PalaceHallScreen(
     state: GameState,
+    aiStatus: String,
+    isRealAiEnabled: Boolean,
+    onOpenSettings: () -> Unit,
     onNavigate: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val songCities = state.cities.count { it.owner == "song" }
     val jinCities = state.cities.count { it.owner == "jin" }
+    val activeRumors = state.rumors.size
+    val hiddenTalent = state.officers.count { it.status.name == "HIDDEN" || it.status.name == "WANDERING" }
     val hallWarning = when {
         state.jinThreat >= 85 -> "金军压境，江淮风急。今日宜整军、修城、筹粮。"
         state.grain < 120000 -> "府库粮储吃紧，若欲北伐，须先安民屯田。"
@@ -87,7 +91,7 @@ fun PalaceHallScreen(
             modifier = Modifier.fillMaxSize().padding(14.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            PalaceTopBar(state, songCities, jinCities)
+            PalaceTopBar(state, songCities, jinCities, aiStatus, isRealAiEnabled, onOpenSettings)
             Spacer(Modifier.height(14.dp))
 
             Card(
@@ -98,7 +102,7 @@ fun PalaceHallScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("临 安 行 在", color = HallGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text("建炎天子 · 南渡朝廷", color = HallCream, fontSize = 11.sp)
+                    Text("建炎天子 · 南渡朝廷 · V1.4.2", color = HallCream, fontSize = 11.sp)
                     Spacer(Modifier.height(10.dp))
                     AssetImage(
                         path = "images/characters/halfbody_zhao_gou.webp",
@@ -109,7 +113,7 @@ fun PalaceHallScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text("大宋皇帝 · 赵构", color = HallGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text("山河半壁，群臣待诏", color = HallSub, fontSize = 11.sp)
+                    Text("山河半壁，群臣待诏。今日从哪一殿开局？", color = HallSub, fontSize = 11.sp)
                 }
             }
 
@@ -119,16 +123,26 @@ fun PalaceHallScreen(
             StateSummaryGrid(state, songCities)
             Spacer(Modifier.height(14.dp))
 
-            Text("御 前 四 司", color = HallCream, fontSize = 13.sp, letterSpacing = 4.sp)
+            Text("宫 殿 处 置", color = HallCream, fontSize = 13.sp, letterSpacing = 4.sp)
             Spacer(Modifier.height(9.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                HallEntry("朝议", "下诏理政", "奏折入殿，群臣待问", "📜", Modifier.weight(1f)) { onNavigate(0) }
-                HallEntry("山河", "巡视疆土", "大区、城池、军团一览", "🗺", Modifier.weight(1f)) { onNavigate(1) }
+                PalaceWing("垂拱殿", "AI圣旨", "写旨、群臣争论、准奏驳回", "📜", "待议 ${if (state.courtStability < 50) 2 else 1}", Modifier.weight(1f)) { onNavigate(0) }
+                PalaceWing("文德殿", "任官招贤", "人才、官阶、在野线索", "🎓", "线索 $hiddenTalent", Modifier.weight(1f)) { onNavigate(2) }
             }
             Spacer(Modifier.height(10.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                HallEntry("国政", "理财安民", "府库、民心、朝局", "⚖", Modifier.weight(1f)) { onNavigate(2) }
-                HallEntry("军务", "点兵遣将", "诸军、将领、攻守", "⚔", Modifier.weight(1f)) { onNavigate(3) }
+                PalaceWing("枢密院", "军令战报", "军团、将领、攻守筹划", "⚔", "金威 ${state.jinThreat}", Modifier.weight(1f)) { onNavigate(3) }
+                PalaceWing("政事堂", "钱粮民心", "府库、粮草、民生政务", "⚖", "粮 ${state.grain / 1000}k", Modifier.weight(1f)) { onNavigate(2) }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PalaceWing("御书房", "密折起居", "传闻、记录、风险复盘", "🕯", "密折 $activeRumors", Modifier.weight(1f)) { onNavigate(0) }
+                PalaceWing("皇城司", "侦缉暗线", "查奸臣、探军情、看地图", "🕵", "巡江淮", Modifier.weight(1f)) { onNavigate(1) }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PalaceWing("后苑内廷", "宫廷事件", "太后、皇后、宦官密奏", "🏮", "未开放", Modifier.weight(1f)) { onNavigate(0) }
+                PalaceWing("太庙", "正统国运", "祭祀、威望、功业传承", "🐉", "名望 ${state.prestige}", Modifier.weight(1f)) { onNavigate(2) }
             }
             Spacer(Modifier.height(18.dp))
         }
@@ -136,7 +150,14 @@ fun PalaceHallScreen(
 }
 
 @Composable
-private fun PalaceTopBar(state: GameState, songCities: Int, jinCities: Int) {
+private fun PalaceTopBar(
+    state: GameState,
+    songCities: Int,
+    jinCities: Int,
+    aiStatus: String,
+    isRealAiEnabled: Boolean,
+    onOpenSettings: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xD9090806)),
@@ -144,13 +165,20 @@ private fun PalaceTopBar(state: GameState, songCities: Int, jinCities: Int) {
         shape = RoundedCornerShape(13.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(11.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(state.calendar.displayText(), color = HallGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text("${state.season.label} · ${state.weather.label} · V1.3.5", color = HallSub, fontSize = 10.sp)
+                Text("${state.season.label} · ${state.weather.label} · 宋城 $songCities / 金城 $jinCities", color = HallSub, fontSize = 10.sp)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("宋城 $songCities · 金城 $jinCities", color = HallCream, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text("威胁 ${state.jinThreat} / 朝局 ${state.courtStability}", color = if (state.jinThreat >= 80) Color(0xFFFF8A70) else HallSub, fontSize = 10.sp)
+            Card(
+                modifier = Modifier.clickable { onOpenSettings() },
+                colors = CardDefaults.cardColors(containerColor = if (isRealAiEnabled) Color(0xAA193A22) else Color(0xAA2A1A12)),
+                border = BorderStroke(1.dp, if (isRealAiEnabled) Color(0xFF7FCF8A) else HallRed.copy(alpha = 0.65f)),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), horizontalAlignment = Alignment.End) {
+                    Text(if (isRealAiEnabled) "AI圣旨已启用" else "离线推演", color = if (isRealAiEnabled) Color(0xFFB9F0BD) else Color(0xFFFFB08A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(aiStatus.take(18), color = HallSub, fontSize = 8.sp, maxLines = 1)
+                }
             }
         }
     }
@@ -207,24 +235,26 @@ private fun StateChip(label: String, value: String, valueColor: Color = HallGold
 }
 
 @Composable
-private fun HallEntry(title: String, sub: String, desc: String, icon: String, modifier: Modifier, onClick: () -> Unit) {
+private fun PalaceWing(title: String, sub: String, desc: String, icon: String, badge: String, modifier: Modifier, onClick: () -> Unit) {
     Card(
-        modifier = modifier.height(104.dp).clickable { onClick() },
+        modifier = modifier.height(112.dp).clickable { onClick() },
         shape = RoundedCornerShape(15.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xD31E1508)),
         border = BorderStroke(1.dp, HallGold.copy(alpha = 0.52f))
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(10.dp),
+            modifier = Modifier.fillMaxSize().padding(9.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(icon, fontSize = 25.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(title, color = HallGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(icon, fontSize = 24.sp)
+            Spacer(Modifier.height(3.dp))
+            Text(title, color = HallGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(sub, color = HallCream, fontSize = 10.sp)
             Spacer(Modifier.height(3.dp))
             Text(desc, color = HallSub, fontSize = 9.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
+            Spacer(Modifier.height(3.dp))
+            Text(badge, color = HallBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
