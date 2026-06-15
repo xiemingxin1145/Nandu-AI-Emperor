@@ -37,8 +37,11 @@ import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.CouncilChoice
 import com.xiemingxin.nandu.game.CouncilLine
 import com.xiemingxin.nandu.game.CouncilScene
+import com.xiemingxin.nandu.game.CourtFactionMemorySystem
+import com.xiemingxin.nandu.game.CourtFactionSnapshot
 import com.xiemingxin.nandu.game.CourtCouncilSystem
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.OfficerMemoryNote
 import com.xiemingxin.nandu.game.PalaceRegistry
 import com.xiemingxin.nandu.game.PalaceTask
 import com.xiemingxin.nandu.game.PalaceTaskSystem
@@ -105,6 +108,7 @@ fun PalaceTasksScreen(
 
             selectedScene?.let { scene ->
                 CouncilSceneCard(
+                    state = state,
                     scene = scene,
                     modifier = Modifier.weight(1f),
                     onBack = { selectedScene = null },
@@ -215,6 +219,7 @@ private fun PalaceTaskCard(
 
 @Composable
 private fun CouncilSceneCard(
+    state: GameState,
     scene: CouncilScene,
     modifier: Modifier,
     onBack: () -> Unit,
@@ -233,6 +238,7 @@ private fun CouncilSceneCard(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(scene.title, color = TaskGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             Text(scene.summary, color = TaskCream, fontSize = 12.sp, lineHeight = 18.sp)
+                            Text(CourtFactionMemorySystem.summaryForCouncil(state), color = TaskSub, fontSize = 10.sp, lineHeight = 15.sp)
                         }
                         OutlinedButton(onClick = onBack, border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.48f))) {
                             Text("退回", color = TaskGold, fontSize = 11.sp)
@@ -241,8 +247,11 @@ private fun CouncilSceneCard(
                 }
             }
         }
+        item {
+            FactionMemoryPanel(CourtFactionMemorySystem.snapshots(state))
+        }
         items(scene.lines) { line ->
-            CouncilLineCard(line)
+            CouncilLineCard(state = state, line = line)
         }
         item {
             Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
@@ -254,13 +263,37 @@ private fun CouncilSceneCard(
 }
 
 @Composable
-private fun CouncilLineCard(line: CouncilLine) {
+private fun FactionMemoryPanel(snapshots: List<CourtFactionSnapshot>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xD20E0A05)),
+        border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.32f)),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("朝中派系风向", color = TaskGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            snapshots.forEach { faction ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("${faction.name} · ${faction.mood}", color = TaskCream, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("${faction.trend}｜${faction.summary}", color = TaskSub, fontSize = 9.sp, lineHeight = 13.sp)
+                    }
+                    Text("${faction.power}", color = factionColor(faction.id), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CouncilLineCard(state: GameState, line: CouncilLine) {
     val attitudeColor = when (line.attitude) {
         "support" -> TaskGreen
         "oppose" -> Color(0xFFE07162)
         "concerned" -> Color(0xFFE5B85E)
         else -> TaskBlue
     }
+    val memory = CourtFactionMemorySystem.noteForSpeaker(state, line.speakerId)
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)),
@@ -269,15 +302,28 @@ private fun CouncilLineCard(line: CouncilLine) {
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(line.speakerName, color = TaskCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(line.role, color = TaskSub, fontSize = 10.sp)
+                    memory?.let { MemoryNoteText(it) }
                 }
                 Text(attitudeLabel(line.attitude), color = attitudeColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             Text("“${line.text}”", color = TaskCream, fontSize = 12.sp, lineHeight = 19.sp)
         }
     }
+}
+
+@Composable
+private fun MemoryNoteText(note: OfficerMemoryNote) {
+    val color = when {
+        note.severity >= 2 -> Color(0xFFFFB08A)
+        note.factionId == "war" -> TaskGreen
+        note.factionId == "peace" -> Color(0xFFE07162)
+        note.factionId == "fiscal" -> TaskGold
+        else -> TaskBlue
+    }
+    Text("记忆：${note.label} · ${note.summary}", color = color, fontSize = 9.sp, lineHeight = 13.sp)
 }
 
 @Composable
@@ -306,6 +352,15 @@ private fun attitudeLabel(attitude: String): String = when (attitude) {
     "oppose" -> "反对"
     "concerned" -> "忧虑"
     else -> "中立"
+}
+
+private fun factionColor(factionId: String): Color = when (factionId) {
+    "war" -> TaskGreen
+    "peace" -> Color(0xFFE07162)
+    "fiscal" -> TaskGold
+    "inner" -> Color(0xFFE0A7C8)
+    "bureau" -> TaskBlue
+    else -> TaskSub
 }
 
 private fun officerName(state: GameState, officerId: String): String =
