@@ -711,6 +711,8 @@ fun CityDetailPanel(
                         onDraft(if (city.owner == "jin") "siege" else "attack")
                     }
                 }
+                Spacer(Modifier.height(7.dp))
+                CityActionButton("◈ 进 入 城 池 ◈", Modifier.fillMaxWidth()) { onDraft("enter") }
                 if (city.owner == "song") {
                     Spacer(Modifier.height(7.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
