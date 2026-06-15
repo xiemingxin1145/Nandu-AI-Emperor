@@ -35,6 +35,7 @@ import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.WeatherType
 import com.xiemingxin.nandu.ui.components.AssetImage
 import com.xiemingxin.nandu.ui.components.CityManagePanel
+import com.xiemingxin.nandu.ui.components.RecruitPanel
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -56,6 +57,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     var zoom by remember { mutableStateOf(0.027f) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var manageCityId by remember { mutableStateOf<String?>(null) }
+    var recruitCityId by remember { mutableStateOf<String?>(null) }
     var weatherPhase by remember { mutableStateOf(0f) }
     val cityMap = gameState.cities.associateBy { it.id }
     val armiesByCity = gameState.armies.groupBy { it.currentCityId }
@@ -152,6 +154,8 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                     onDraft = { action ->
                         if (action == "manage") {
                             manageCityId = id
+                        } else if (action == "recruit") {
+                            recruitCityId = id
                         } else {
                             onCitySelected("$id|$action")
                         }
@@ -171,6 +175,21 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                             onCitySelected("$mid|build:$buildingId")
                         },
                         onDismiss = { manageCityId = null }
+                    )
+                }
+            }
+        }
+
+        // V0.9 募兵弹窗
+        recruitCityId?.let { rid ->
+            cityMap[rid]?.let { rCity ->
+                Dialog(onDismissRequest = { recruitCityId = null }) {
+                    RecruitPanel(
+                        city = rCity,
+                        onRecruit = { unitId ->
+                            onCitySelected("$rid|recruit:$unitId")
+                        },
+                        onDismiss = { recruitCityId = null }
                     )
                 }
             }
@@ -643,7 +662,10 @@ fun CityDetailPanel(
                 }
                 if (city.owner == "song") {
                     Spacer(Modifier.height(7.dp))
-                    CityActionButton("营 建 城 池", Modifier.fillMaxWidth()) { onDraft("manage") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
+                        CityActionButton("营建城池", Modifier.weight(1f)) { onDraft("manage") }
+                        CityActionButton("募兵练军", Modifier.weight(1f)) { onDraft("recruit") }
+                    }
                 }
             }
         }
