@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,12 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.CouncilChoice
 import com.xiemingxin.nandu.game.CouncilLine
 import com.xiemingxin.nandu.game.CouncilScene
@@ -71,7 +74,8 @@ fun PalaceTasksScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(TaskInk)) {
         AssetImage(
-            path = palace.backgroundPath,
+            path = ArtResourceRegistry.palaceBackground(palaceId),
+            fallbackPath = palace.backgroundPath,
             contentDescription = palace.name,
             contentScale = ContentScale.Crop,
             placeholderText = palace.name.take(1),
@@ -157,25 +161,14 @@ private fun EmptyPalaceTaskCard(palaceName: String) {
 }
 
 @Composable
-private fun PalaceTaskCard(
-    task: PalaceTask,
-    state: GameState,
-    onOpenCouncil: () -> Unit,
-    onDraftEdict: () -> Unit,
-    onOpenTab: () -> Unit
-) {
+private fun PalaceTaskCard(task: PalaceTask, state: GameState, onOpenCouncil: () -> Unit, onDraftEdict: () -> Unit, onOpenTab: () -> Unit) {
     val severityColor = when (task.severity) {
         TaskSeverity.URGENT -> Color(0xFFFF6B5A)
         TaskSeverity.HIGH -> Color(0xFFE0A747)
         TaskSeverity.MEDIUM -> TaskGold
         TaskSeverity.LOW -> Color(0xFF8FB573)
     }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xDF1A1208)),
-        border = BorderStroke(1.dp, severityColor.copy(alpha = 0.58f)),
-        shape = RoundedCornerShape(16.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xDF1A1208)), border = BorderStroke(1.dp, severityColor.copy(alpha = 0.58f)), shape = RoundedCornerShape(16.dp)) {
         Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -196,43 +189,25 @@ private fun PalaceTaskCard(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = onOpenCouncil,
-                    modifier = Modifier.weight(1f).height(42.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = TaskRed),
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text("入殿听奏", color = TaskCream, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
-                OutlinedButton(
-                    onClick = onDraftEdict,
-                    modifier = Modifier.weight(1f).height(42.dp),
-                    border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.55f))
-                ) { Text(if (task.edictDraft.isNotBlank()) "直接拟旨" else "进入处理", color = TaskGold, fontSize = 12.sp) }
+                Button(onClick = onOpenCouncil, modifier = Modifier.weight(1f).height(42.dp), colors = ButtonDefaults.buttonColors(containerColor = TaskRed), shape = RoundedCornerShape(8.dp)) {
+                    Text("入殿听奏", color = TaskCream, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+                OutlinedButton(onClick = onDraftEdict, modifier = Modifier.weight(1f).height(42.dp), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.55f))) {
+                    Text(if (task.edictDraft.isNotBlank()) "直接拟旨" else "进入处理", color = TaskGold, fontSize = 12.sp)
+                }
             }
-            OutlinedButton(
-                onClick = onOpenTab,
-                modifier = Modifier.fillMaxWidth().height(36.dp),
-                border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.28f))
-            ) { Text("查看相关页", color = TaskSub, fontSize = 11.sp) }
+            OutlinedButton(onClick = onOpenTab, modifier = Modifier.fillMaxWidth().height(36.dp), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.28f))) {
+                Text("查看相关页", color = TaskSub, fontSize = 11.sp)
+            }
         }
     }
 }
 
 @Composable
-private fun CouncilSceneCard(
-    state: GameState,
-    scene: CouncilScene,
-    modifier: Modifier,
-    onBack: () -> Unit,
-    onChoiceSelected: (CouncilChoice) -> Unit
-) {
+private fun CouncilSceneCard(state: GameState, scene: CouncilScene, modifier: Modifier, onBack: () -> Unit, onChoiceSelected: (CouncilChoice) -> Unit) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = modifier) {
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xE40E0A05)),
-                border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.58f)),
-                shape = RoundedCornerShape(16.dp)
-            ) {
+            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xE40E0A05)), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.58f)), shape = RoundedCornerShape(16.dp)) {
                 Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -247,29 +222,16 @@ private fun CouncilSceneCard(
                 }
             }
         }
-        item {
-            FactionMemoryPanel(CourtFactionMemorySystem.snapshots(state))
-        }
-        items(scene.lines) { line ->
-            CouncilLineCard(state = state, line = line)
-        }
-        item {
-            Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
-        }
-        items(scene.choices) { choice ->
-            CouncilChoiceCard(choice = choice, onChoiceSelected = { onChoiceSelected(choice) })
-        }
+        item { FactionMemoryPanel(CourtFactionMemorySystem.snapshots(state)) }
+        items(scene.lines) { line -> CouncilLineCard(state = state, line = line) }
+        item { Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)) }
+        items(scene.choices) { choice -> CouncilChoiceCard(choice = choice, onChoiceSelected = { onChoiceSelected(choice) }) }
     }
 }
 
 @Composable
 private fun FactionMemoryPanel(snapshots: List<CourtFactionSnapshot>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xD20E0A05)),
-        border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.32f)),
-        shape = RoundedCornerShape(14.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xD20E0A05)), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.32f)), shape = RoundedCornerShape(14.dp)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("朝中派系风向", color = TaskGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             snapshots.forEach { faction ->
@@ -294,22 +256,27 @@ private fun CouncilLineCard(state: GameState, line: CouncilLine) {
         else -> TaskBlue
     }
     val memory = CourtFactionMemorySystem.noteForSpeaker(state, line.speakerId)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)),
-        border = BorderStroke(1.dp, attitudeColor.copy(alpha = 0.48f)),
-        shape = RoundedCornerShape(14.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(line.speakerName, color = TaskCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(line.role, color = TaskSub, fontSize = 10.sp)
-                    memory?.let { MemoryNoteText(it) }
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)), border = BorderStroke(1.dp, attitudeColor.copy(alpha = 0.48f)), shape = RoundedCornerShape(14.dp)) {
+        Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+            AssetImage(
+                path = ArtResourceRegistry.portraitForOfficer(line.speakerId),
+                fallbackPath = "images/characters/silhouettes/silhouette_unknown.webp",
+                contentDescription = line.speakerName,
+                contentScale = ContentScale.Crop,
+                placeholderText = line.speakerName.take(1),
+                modifier = Modifier.size(58.dp).clip(RoundedCornerShape(12.dp))
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(line.speakerName, color = TaskCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(line.role, color = TaskSub, fontSize = 10.sp)
+                        memory?.let { MemoryNoteText(it) }
+                    }
+                    Text(attitudeLabel(line.attitude), color = attitudeColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
-                Text(attitudeLabel(line.attitude), color = attitudeColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("“${line.text}”", color = TaskCream, fontSize = 12.sp, lineHeight = 19.sp)
             }
-            Text("“${line.text}”", color = TaskCream, fontSize = 12.sp, lineHeight = 19.sp)
         }
     }
 }
@@ -328,21 +295,13 @@ private fun MemoryNoteText(note: OfficerMemoryNote) {
 
 @Composable
 private fun CouncilChoiceCard(choice: CouncilChoice, onChoiceSelected: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xDF201108)),
-        border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.42f)),
-        shape = RoundedCornerShape(14.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xDF201108)), border = BorderStroke(1.dp, TaskGold.copy(alpha = 0.42f)), shape = RoundedCornerShape(14.dp)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text(choice.label, color = TaskGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(choice.preview, color = TaskCream, fontSize = 12.sp, lineHeight = 18.sp)
-            Button(
-                onClick = onChoiceSelected,
-                modifier = Modifier.fillMaxWidth().height(40.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TaskRed),
-                shape = RoundedCornerShape(8.dp)
-            ) { Text("按此意拟旨", color = TaskCream, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            Button(onClick = onChoiceSelected, modifier = Modifier.fillMaxWidth().height(40.dp), colors = ButtonDefaults.buttonColors(containerColor = TaskRed), shape = RoundedCornerShape(8.dp)) {
+                Text("按此意拟旨", color = TaskCream, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -363,8 +322,5 @@ private fun factionColor(factionId: String): Color = when (factionId) {
     else -> TaskSub
 }
 
-private fun officerName(state: GameState, officerId: String): String =
-    state.officers.firstOrNull { it.id == officerId }?.name ?: officerId
-
-private fun cityName(state: GameState, cityId: String): String =
-    state.cities.firstOrNull { it.id == cityId }?.name ?: cityId
+private fun officerName(state: GameState, officerId: String): String = state.officers.firstOrNull { it.id == officerId }?.name ?: officerId
+private fun cityName(state: GameState, cityId: String): String = state.cities.firstOrNull { it.id == cityId }?.name ?: cityId
