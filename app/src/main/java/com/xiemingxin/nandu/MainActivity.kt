@@ -68,6 +68,12 @@ fun NanduApp() {
             viewModel.siegeCity(cityId)
             return
         }
+        // V0.9 募兵即时生效
+        if (action.startsWith("recruit:")) {
+            val unitId = action.removePrefix("recruit:")
+            viewModel.recruitInCity(cityId, unitId)
+            return
+        }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
         edictText = buildCityDraft(city, action)
         currentTab = 0
