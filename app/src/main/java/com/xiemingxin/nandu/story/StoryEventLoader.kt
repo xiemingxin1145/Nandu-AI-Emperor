@@ -7,6 +7,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 @Serializable
@@ -75,10 +77,6 @@ object StoryEventLoader {
 
     fun loadJianyan01(context: Context): List<StoryEvent> = load(context, JIANYAN_01_PATH)
 
-    /**
-     * V1.3.1 默认事件源：旧 Kotlin 兼容事件 + 新 JSON 数据包事件。
-     * 新 JSON 包使用 id/add_flags/year_gte 等编辑器友好字段，加载时转换成现有 StoryEvent。
-     */
     fun loadDefaultEvents(context: Context): List<StoryEvent> {
         return loadJianyan01(context) + loadNanduEventPack(context, NANDU_HISTORY_V1_PATH)
     }
@@ -102,17 +100,12 @@ object StoryEventLoader {
     }
 
     private fun NanduEventDef.toStoryEvent(): StoryEvent {
-        val mergedTrigger = buildJsonObject {
-            trigger.forEach { (key, value) -> put(key, value) }
-            put("priority", JsonPrimitive(priority))
-            put("repeatable", JsonPrimitive(!once))
-        }
         return StoryEvent(
             eventId = id,
             title = title,
             chapter = "数据事件包",
             type = type,
-            trigger = mergedTrigger,
+            trigger = trigger.toCompatibleTrigger(priority),
             description = description,
             choices = choices.map { choice ->
                 StoryChoice(
@@ -123,5 +116,41 @@ object StoryEventLoader {
                 )
             }
         )
+    }
+
+    private fun JsonObject.toCompatibleTrigger(priority: Int): JsonObject {
+        val yearGte = int("year_gte")
+        val yearLte = int("year_lte")
+        val jinGte = int("jin_threat_gte")
+        val jinLte = int("jin_threat_lte")
+        val courtLte = int("court_stability_lte")
+        val goldGte = int("gold_gte")
+        val grainGte = int("grain_gte")
+        val condition = when {
+            jinGte != null -> "jinThreat >= $jinGte"
+            jinLte != null -> "jinThreat <= $jinLte"
+            courtLte != null -> "courtStability <= $courtLte"
+            goldGte != null -> "gold >= $goldGte"
+            grainGte != null -> "grain >= $grainGte"
+            else -> null
+        }
+        return buildJsonObject {
+            put("priority", JsonPrimitive(priority))
+            yearGte?.let { put("turn_min", JsonPrimitive(yearToTurnMin(it))) }
+            yearLte?.let { put("turn_max", JsonPrimitive(yearToTurnMax(it))) }
+            condition?.let { put("condition", JsonPrimitive(it)) }
+        }
+    }
+
+    private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
+
+    private fun yearToTurnMin(year: Int): Int {
+        val absolute = if (year >= 1000) year else 1126 + year
+        return ((absolute - 1127).coerceAtLeast(0) * 36) + 1
+    }
+
+    private fun yearToTurnMax(year: Int): Int {
+        val absolute = if (year >= 1000) year else 1126 + year
+        return ((absolute - 1127).coerceAtLeast(0) * 36) + 36
     }
 }
