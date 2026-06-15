@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.PalaceIds
 import com.xiemingxin.nandu.game.PalaceRegistry
@@ -47,7 +48,7 @@ private val HallRed = Color(0xFF7D1D16)
 private val HallBlue = Color(0xFF4DA3E6)
 
 /**
- * V1.5 皇宫大厅：八宫殿入口 + 每旬待办数量。
+ * V2.2 皇宫大厅：接入完整资源包的宫殿背景与人物卡。
  */
 @Composable
 fun PalaceHallScreen(
@@ -75,7 +76,8 @@ fun PalaceHallScreen(
 
     Box(modifier = modifier.fillMaxSize().background(HallInk)) {
         AssetImage(
-            path = "images/buildings/building_imperial_palace_01.webp",
+            path = "images/palace/chuigongdian.webp",
+            fallbackPath = "images/palace/linan_street.webp",
             contentDescription = "临安行在",
             contentScale = ContentScale.Crop,
             placeholderText = "宫",
@@ -85,8 +87,8 @@ fun PalaceHallScreen(
             modifier = Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
                     listOf(
-                        HallInk.copy(alpha = 0.45f),
-                        HallInk.copy(alpha = 0.28f),
+                        HallInk.copy(alpha = 0.35f),
+                        HallInk.copy(alpha = 0.24f),
                         HallInk.copy(alpha = 0.94f)
                     )
                 )
@@ -109,10 +111,11 @@ fun PalaceHallScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("临 安 行 在", color = HallGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    Text("建炎天子 · 南渡朝廷 · V1.5 待办骨架", color = HallCream, fontSize = 11.sp)
+                    Text("建炎天子 · 南渡朝廷 · V2.2 美术资源接线", color = HallCream, fontSize = 11.sp)
                     Spacer(Modifier.height(10.dp))
                     AssetImage(
-                        path = "images/characters/halfbody_zhao_gou.webp",
+                        path = ArtResourceRegistry.halfbodyForOfficer("zhao_gou"),
+                        fallbackPath = ArtResourceRegistry.portraitForOfficer("zhao_ding"),
                         contentDescription = "赵构",
                         contentScale = ContentScale.Crop,
                         placeholderText = "构",
@@ -211,12 +214,7 @@ private fun PalaceTopBar(
 
 @Composable
 private fun TodayDecreeCard(text: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xC51E1508)),
-        border = BorderStroke(1.dp, HallRed.copy(alpha = 0.55f)),
-        shape = RoundedCornerShape(14.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xC51E1508)), border = BorderStroke(1.dp, HallRed.copy(alpha = 0.55f)), shape = RoundedCornerShape(14.dp)) {
         Column(modifier = Modifier.padding(13.dp)) {
             Text("【 今 日 圣 断 】", color = HallGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
@@ -227,69 +225,65 @@ private fun TodayDecreeCard(text: String) {
 
 @Composable
 private fun StateSummaryGrid(state: GameState, songCities: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xB70E0A05)),
-        border = BorderStroke(1.dp, HallGold.copy(alpha = 0.28f)),
-        shape = RoundedCornerShape(14.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xB70E0A05)), border = BorderStroke(1.dp, HallGold.copy(alpha = 0.28f)), shape = RoundedCornerShape(14.dp)) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 StateChip("库银", "${state.gold / 1000}k")
                 StateChip("存粮", "${state.grain / 1000}k")
                 StateChip("军心", "${state.troopMorale}")
-                StateChip("控城", "$songCities", Color(0xFF8FB573))
-            }
-            Spacer(Modifier.height(9.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 StateChip("朝局", "${state.courtStability}")
-                StateChip("金威", "${state.jinThreat}", Color(0xFFCC6655))
-                StateChip("主战", "${state.warFactionPower}", Color(0xFFD4A437))
-                StateChip("主和", "${state.peaceFactionPower}", Color(0xFF8A9BB5))
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                StateChip("金威", "${state.jinThreat}")
+                StateChip("主战", "${state.warFactionPower}")
+                StateChip("主和", "${state.peaceFactionPower}")
+                StateChip("宋城", "$songCities")
             }
         }
     }
 }
 
 @Composable
-private fun StateChip(label: String, value: String, valueColor: Color = HallGold) {
+private fun StateChip(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = HallGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         Text(label, color = HallSub, fontSize = 9.sp)
     }
 }
 
 @Composable
-private fun PalaceWing(palaceId: String, desc: String, badge: String, modifier: Modifier, onOpenPalace: (String) -> Unit) {
+private fun PalaceWing(palaceId: String, subtitle: String, badge: String, modifier: Modifier = Modifier, onOpenPalace: (String) -> Unit) {
     val palace = PalaceRegistry.byId(palaceId)
-    val hasTask = badge.startsWith("待办")
+    val path = ArtResourceRegistry.palaceBackground(palaceId)
     Card(
-        modifier = modifier.height(112.dp).clickable { onOpenPalace(palaceId) },
-        shape = RoundedCornerShape(15.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xD31E1508)),
-        border = BorderStroke(1.dp, (if (hasTask) HallRed else HallGold).copy(alpha = 0.58f))
+        modifier = modifier.height(116.dp).clickable { onOpenPalace(palaceId) },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xBD140E08)),
+        border = BorderStroke(1.dp, HallGold.copy(alpha = 0.42f))
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(9.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(palace.icon, fontSize = 24.sp)
-            Spacer(Modifier.height(3.dp))
-            Text(palace.name, color = HallGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Text(palace.subtitle.substringBefore(" / "), color = HallCream, fontSize = 10.sp)
-            Spacer(Modifier.height(3.dp))
-            Text(desc, color = HallSub, fontSize = 9.sp, textAlign = TextAlign.Center, lineHeight = 12.sp)
-            Spacer(Modifier.height(3.dp))
-            Text(badge, color = if (hasTask) Color(0xFFFFB08A) else HallBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Box(Modifier.fillMaxSize()) {
+            AssetImage(path = path, contentDescription = palace.name, contentScale = ContentScale.Crop, placeholderText = palace.name.take(1), modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Color(0x9A000000)))
+            Column(modifier = Modifier.fillMaxSize().padding(11.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(palace.name, color = HallGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(subtitle, color = HallCream, fontSize = 9.sp, lineHeight = 13.sp)
+                    }
+                    Text(palace.icon, fontSize = 22.sp)
+                }
+                Text(badge, color = if (badge.startsWith("待办")) Color(0xFFFFD36A) else HallSub, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
 private fun DrawScope.drawPalaceAtmosphere() {
-    val w = size.width.coerceAtLeast(1f)
-    val h = size.height.coerceAtLeast(1f)
-    drawCircle(HallGold.copy(alpha = 0.08f), w * 0.38f, Offset(w * 0.52f, h * 0.24f))
-    drawCircle(HallRed.copy(alpha = 0.06f), w * 0.44f, Offset(w * 0.14f, h * 0.56f))
-    drawCircle(HallBlue.copy(alpha = 0.04f), w * 0.50f, Offset(w * 0.86f, h * 0.58f))
+    val gold = HallGold.copy(alpha = 0.13f)
+    repeat(9) { i ->
+        val x = size.width * (i + 1) / 10f
+        drawLine(gold, Offset(x, 0f), Offset(x - 90f, size.height), strokeWidth = 1.1f)
+    }
+    drawCircle(HallGold.copy(alpha = 0.09f), radius = size.minDimension * 0.62f, center = Offset(size.width * 0.74f, size.height * 0.18f))
 }
