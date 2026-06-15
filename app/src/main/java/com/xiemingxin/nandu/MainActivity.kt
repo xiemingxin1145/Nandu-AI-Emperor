@@ -49,9 +49,16 @@ fun NanduApp() {
     val viewModel: EmperorViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
+    var showIntro by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
+
+    // V1.0 开局画面
+    if (showIntro) {
+        IntroScreen(onStart = { showIntro = false })
+        return
+    }
 
     fun draftFromCity(payload: String) {
         val parts = payload.split("|", limit = 2)
