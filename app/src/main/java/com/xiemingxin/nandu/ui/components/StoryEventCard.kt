@@ -35,8 +35,10 @@ private val EventSub = Color(0xFF9A8862)
 private val EventRed = Color(0xFF7D1D16)
 
 /**
- * V1.3.2 剧情/数据事件卡片。
- * 旧剧情与 JSON 数据包共用此卡片；chapter=数据事件包 时会显示数据事件标识。
+ * V2.5 剧情/数据事件卡片。
+ *
+ * 事件 CG 不再只依赖 eventId 精确命中，也会根据事件类型、标题、描述、artHint
+ * 选择最贴近的事件图，避免动态事件全部落到默认图。
  */
 @Composable
 fun StoryEventCard(
@@ -55,7 +57,7 @@ fun StoryEventCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             AssetImage(
-                path = ArtResourceRegistry.eventImage(event.eventId),
+                path = eventCgPath(event),
                 fallbackPath = ArtResourceRegistry.Fallback.event,
                 contentDescription = event.title,
                 contentScale = ContentScale.Crop,
@@ -69,6 +71,7 @@ fun StoryEventCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TagText(text = if (event.chapter == "数据事件包") "JSON事件" else event.chapter.ifBlank { "朝堂事件" })
                 TagText(text = eventTypeName(event.type))
+                TagText(text = "CG")
             }
 
             Text(
@@ -147,6 +150,35 @@ fun StoryEventCard(
             }
         }
     }
+}
+
+private fun eventCgPath(event: StoryEvent): String {
+    val direct = ArtResourceRegistry.eventImage(event.eventId)
+    if (direct != ArtResourceRegistry.Fallback.event) return direct
+
+    val text = listOf(event.title, event.description, event.artHint, event.type, event.chapter).joinToString(" ")
+    val key = when {
+        text.contains("岳飞") || text.contains("请战") || text.contains("北伐") -> "yuefei_petition"
+        text.contains("风波亭") || text.contains("秦桧") || text.contains("冤") -> "fengboting_crisis"
+        text.contains("皇后") || text.contains("后苑") || text.contains("内廷") -> "empress_secret"
+        text.contains("御书房") || text.contains("密折") || text.contains("夜议") -> "yushufang_night"
+        text.contains("太庙") || text.contains("誓师") || text.contains("礼") -> "taimiao_oath"
+        text.contains("金使") || text.contains("金国") || text.contains("完颜") -> "jin_envoy"
+        text.contains("海贸") || text.contains("市舶") || text.contains("南海") || text.contains("海商") -> "sea_trade_boom"
+        text.contains("临安") || text.contains("繁华") || text.contains("民生") -> "linan_prosperity"
+        text.contains("江淮") || text.contains("大战") || text.contains("军务") || text.contains("前线") -> "jianghuai_battle"
+        text.contains("西夏") || text.contains("马市") -> "xixia_horse_market"
+        text.contains("大理") || text.contains("西南") -> "dali_trade"
+        text.contains("皇城司") || text.contains("密探") || text.contains("暗线") || text.contains("谍") -> "secret_police"
+        event.type == "jin_event" || event.type == "diplomacy_event" -> "jin_envoy"
+        event.type == "random_military" || event.type == "city_crisis" -> "jianghuai_battle"
+        event.type == "talent_discovery" -> "yuefei_petition"
+        event.type == "random_court" -> "yushufang_night"
+        event.type == "city_event" -> "linan_prosperity"
+        event.type == "folk_rumor" -> "secret_police"
+        else -> "default"
+    }
+    return ArtResourceRegistry.eventImage(key)
 }
 
 @Composable
