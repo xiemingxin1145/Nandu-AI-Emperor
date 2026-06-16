@@ -34,34 +34,36 @@ object ArtResourceRegistry {
     }
 
     val historicalCharacters: Map<String, CharacterArt> = listOf(
-        character("zhao_gou", "赵构", "song", "generic_scholar.webp"),
-        character("yue_fei", "岳飞", "song", "yue_fei.webp"),
-        character("han_shizhong", "韩世忠", "song", "han_shizhong.webp"),
-        character("wu_jie", "吴玠", "song", "wu_jie.webp"),
-        character("wu_lin", "吴璘", "song", "wu_lin.webp"),
-        character("liu_qi", "刘锜", "song", "liu_qi.webp"),
-        character("li_gang", "李纲", "song", "li_gang.webp"),
-        character("zhao_ding", "赵鼎", "song", "zhao_ding.webp"),
-        character("qin_hui", "秦桧", "song", "qin_hui.webp"),
-        character("zhang_jun", "张浚", "song", "zhang_jun_chancellor.webp"),
-        character("zhang_jun2", "张俊", "song", "zhang_jun_general.webp"),
-        character("zong_ze", "宗泽", "song", "zong_ze.webp"),
-        character("yang_yizhong", "杨沂中", "song", "yang_yizhong.webp"),
-        character("lv_yihao", "吕颐浩", "song", "lv_yihao.webp"),
-        character("wang_boyan", "汪伯彦", "song", "wang_boyan.webp"),
-        character("huang_qianshan", "黄潜善", "song", "huang_qianshan.webp"),
-        character("zhu_shengfei", "朱胜非", "song", "zhu_shengfei.webp"),
-        character("hu_quan", "胡铨", "song", "hu_quan.webp"),
-        character("empress", "皇后", "palace", "empress.webp"),
-        character("dowager", "太后", "palace", "dowager.webp"),
-        character("eunuch", "内侍押班", "palace", "eunuch_pressman.webp"),
-        character("bureau_clerk", "皇城司勾当官", "bureau", "bureau_clerk.webp"),
-        character("jin_envoy", "金使", "jin", "jin_envoy.webp"),
-        character("xixia_envoy", "西夏使者", "xixia", "xixia_envoy.webp"),
-        character("dali_envoy", "大理使者", "dali", "dali_envoy.webp"),
-        character("goryeo_envoy", "高丽使者", "goryeo", "goryeo_envoy.webp"),
-        character("sea_merchant", "海商首领", "sea_trade", "sea_merchant.webp"),
-        character("wanyan_zongbi", "完颜宗弼", "jin", "jin_envoy.webp")
+        // 有专属 portrait_ + halfbody_ 文件的核心人物
+        character("zhao_gou",     "赵构",       "song",      "portrait_zhao_gou.webp",      "halfbody_zhao_gou.webp"),
+        character("yue_fei",      "岳飞",       "song",      "portrait_yue_fei.webp",       "halfbody_yue_fei.webp"),
+        character("han_shizhong", "韩世忠",     "song",      "portrait_han_shizhong.webp",  "halfbody_han_shizhong.webp"),
+        character("wu_jie",       "吴玠",       "song",      "wu_jie.webp",                 "halfbody_wu_jie.webp"),
+        character("liu_qi",       "刘锜",       "song",      "portrait_liu_qi.webp",        "halfbody_liu_qi.webp"),
+        character("li_gang",      "李纲",       "song",      "portrait_li_gang.webp",       "halfbody_li_gang.webp"),
+        character("zhao_ding",    "赵鼎",       "song",      "portrait_zhao_ding.webp",     "halfbody_zhao_ding.webp"),
+        character("qin_hui",      "秦桧",       "song",      "portrait_qin_hui.webp",       "halfbody_qin_hui.webp"),
+        character("zhang_jun",    "张浚",       "song",      "portrait_zhang_jun.webp",     "halfbody_zhang_jun.webp"),
+        character("zong_ze",      "宗泽",       "song",      "portrait_zong_ze.webp",       "halfbody_zong_ze.webp"),
+        character("wanyan_zongbi","完颜宗弼",   "jin",       "portrait_wanyan_zongbi.webp", "halfbody_wanyan_zongbi.webp"),
+        // 有简单 *.webp 无 halfbody 的人物
+        character("wu_lin",        "吴璘",       "song",      "wu_lin.webp"),
+        character("zhang_jun2",    "张俊",       "song",      "zhang_jun_general.webp"),
+        character("yang_yizhong",  "杨沂中",     "song",      "yang_yizhong.webp"),
+        character("lv_yihao",      "吕颐浩",     "song",      "lv_yihao.webp"),
+        character("wang_boyan",    "汪伯彦",     "song",      "wang_boyan.webp"),
+        character("huang_qianshan","黄潜善",     "song",      "huang_qianshan.webp"),
+        character("zhu_shengfei",  "朱胜非",     "song",      "zhu_shengfei.webp"),
+        character("hu_quan",       "胡铨",       "song",      "hu_quan.webp"),
+        character("empress",       "皇后",       "palace",    "empress.webp"),
+        character("dowager",       "太后",       "palace",    "dowager.webp"),
+        character("eunuch",        "内侍押班",   "palace",    "eunuch_pressman.webp"),
+        character("bureau_clerk",  "皇城司勾当官","bureau",   "bureau_clerk.webp"),
+        character("jin_envoy",     "金使",       "jin",       "jin_envoy.webp"),
+        character("xixia_envoy",   "西夏使者",   "xixia",     "xixia_envoy.webp"),
+        character("dali_envoy",    "大理使者",   "dali",      "dali_envoy.webp"),
+        character("goryeo_envoy",  "高丽使者",   "goryeo",    "goryeo_envoy.webp"),
+        character("sea_merchant",  "海商首领",   "sea_trade", "sea_merchant.webp")
     ).associateBy { it.id }
 
     // 序章专用 NPC 头像（512×512，对话框 / 人物志用）
@@ -246,11 +248,14 @@ object ArtResourceRegistry {
 
     private fun story(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/characters/$file")
     private fun location(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/locations/$file")
-    private fun character(id: String, name: String, faction: String, file: String): CharacterArt = CharacterArt(
+    private fun character(
+        id: String, name: String, faction: String,
+        portraitFile: String, halfbodyFile: String = portraitFile
+    ): CharacterArt = CharacterArt(
         id = id,
         name = name,
-        portrait = "$BASE/characters/$file",
-        halfbody = "$BASE/characters/$file",
+        portrait = "$BASE/characters/$portraitFile",
+        halfbody = "$BASE/characters/$halfbodyFile",
         faction = faction
     )
     private fun city(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/city/$file")
