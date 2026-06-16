@@ -1,7 +1,7 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V2.6 音频资源注册表。
+ * V2.7 音频资源注册表。
  *
  * Claude/Cursor 可逐批上传到 app/src/main/assets/audio/。
  * 这里先把 BGM、UI、SFX、环境声、语音提示的路径和路由稳定下来。
@@ -158,6 +158,8 @@ object AudioResourceRegistry {
     }
 
     fun sfxForGameEvent(event: String): String = when (event) {
+        "click", "confirm", "cancel", "open_panel", "close_panel", "switch_tab",
+        "select", "warning", "unlock", "edict_stamp", "brush_write", "scroll_open", "scroll_close" -> sfxForUi(event)
         "edict_submitted" -> Ui.scrollOpen
         "edict_confirmed" -> Ui.stampEdict
         "edict_cancelled" -> Ui.cancel
@@ -173,7 +175,6 @@ object AudioResourceRegistry {
         "gold_gain" -> Sfx.coin
         "relation_up" -> Sfx.relationUp
         "relation_down" -> Sfx.relationDown
-        "warning" -> Ui.warning
         else -> Ui.click
     }
 
