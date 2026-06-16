@@ -56,9 +56,14 @@ private fun GameAudioController(
     inCity: Boolean,
     inPalaceTask: Boolean,
     battleSignal: String?,
-    sfxSignal: String?
+    sfxSignal: String?,
+    audioEnabled: Boolean,
+    bgmVolume: Float,
+    sfxVolume: Float
 ) {
     val player = com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer()
+    val safeBgmVolume = if (audioEnabled) bgmVolume.coerceIn(0f, 1f) else 0f
+    val safeSfxVolume = if (audioEnabled) sfxVolume.coerceIn(0f, 1f) else 0f
     val scene = when {
         ending != GameEnding.ONGOING && ending.rank == "亡" -> "defeat"
         ending != GameEnding.ONGOING -> "victory"
@@ -77,26 +82,26 @@ private fun GameAudioController(
     com.xiemingxin.nandu.ui.components.PlayBgmEffect(
         path = AudioResourceRegistry.bgmForScene(scene),
         sceneKey = scene,
-        volume = 0.7f,
+        volume = safeBgmVolume,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.Sfx.drumWar,
         triggerKey = battleSignal,
-        volume = 0.85f,
+        volume = safeSfxVolume * 0.85f,
         variant = true,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.Sfx.battleStart,
         triggerKey = battleSignal,
-        volume = 0.7f,
+        volume = safeSfxVolume * 0.7f,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.sfxForGameEvent(sfxSignal?.substringBefore(":").orEmpty()),
         triggerKey = sfxSignal,
-        volume = 0.74f,
+        volume = safeSfxVolume,
         variant = true,
         player = player
     )
@@ -115,6 +120,9 @@ fun NanduApp() {
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
     var sfxSignal by remember { mutableStateOf<String?>(null) }
+    var audioEnabled by remember { mutableStateOf(true) }
+    var bgmVolume by remember { mutableStateOf(0.7f) }
+    var sfxVolume by remember { mutableStateOf(0.74f) }
 
     fun playSfx(event: String) {
         sfxSignal = "$event:${System.nanoTime()}"
@@ -127,7 +135,10 @@ fun NanduApp() {
         inCity = interiorCityId != null,
         inPalaceTask = activePalaceId != null,
         battleSignal = uiState.battleReport,
-        sfxSignal = sfxSignal
+        sfxSignal = sfxSignal,
+        audioEnabled = audioEnabled,
+        bgmVolume = bgmVolume,
+        sfxVolume = sfxVolume
     )
 
     if (uiState.ending != GameEnding.ONGOING) {
@@ -209,6 +220,15 @@ fun NanduApp() {
             currentModel = uiState.customModel,
             saveCode = uiState.saveCode,
             saveMessage = uiState.saveMessage,
+            audioEnabled = audioEnabled,
+            bgmVolume = bgmVolume,
+            sfxVolume = sfxVolume,
+            onAudioSettingsChanged = { enabled, bgm, sfx ->
+                audioEnabled = enabled
+                bgmVolume = bgm.coerceIn(0f, 1f)
+                sfxVolume = sfx.coerceIn(0f, 1f)
+                playSfx(if (enabled) "confirm" else "cancel")
+            },
             onSave = { t, k, m -> playSfx("confirm"); viewModel.updateProviderSettings(t, k, m) },
             onTestConnection = { playSfx("open_panel"); viewModel.testProviderConnection() },
             onExportSave = { playSfx("confirm"); viewModel.exportSaveCode() },
