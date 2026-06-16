@@ -121,6 +121,7 @@ fun NanduApp() {
     val audioPrefs = remember(context) { context.getSharedPreferences(AUDIO_PREFS, Context.MODE_PRIVATE) }
 
     var showIntro by remember { mutableStateOf(true) }
+    var showPrologue by remember { mutableStateOf(false) }
     var interiorCityId by remember { mutableStateOf<String?>(null) }
     var activePalaceId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
@@ -165,6 +166,7 @@ fun NanduApp() {
                 playSfx("confirm")
                 viewModel.recordAndRestart(context)
                 showIntro = true
+                showPrologue = false
                 interiorCityId = null
                 activePalaceId = null
                 currentTab = 0
@@ -173,8 +175,24 @@ fun NanduApp() {
         return
     }
 
-    if (showIntro) {
-        IntroScreen(onStart = { playSfx("confirm"); showIntro = false })
+    // ── 主菜单 ──────────────────────────────────────────
+    if (showIntro && !showPrologue) {
+        MainMenuScreen(
+            onNewGame  = { playSfx("confirm"); showPrologue = true },
+            onContinue = { playSfx("confirm"); showIntro = false },
+            onSettings = { playSfx("open_panel"); showSettings = true },
+            onExit     = { finish() }
+        )
+        return
+    }
+
+    // ── 序章（开辟新局后播放）───────────────────────────
+    if (showPrologue) {
+        IntroScreen(onStart = {
+            playSfx("confirm")
+            showPrologue = false
+            showIntro = false
+        })
         return
     }
 
