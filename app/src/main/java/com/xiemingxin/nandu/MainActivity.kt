@@ -1,5 +1,6 @@
 package com.xiemingxin.nandu
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,6 +34,11 @@ import com.xiemingxin.nandu.game.AudioResourceRegistry
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.screens.*
 import com.xiemingxin.nandu.ui.theme.*
+
+private const val AUDIO_PREFS = "nandu_audio_settings"
+private const val AUDIO_ENABLED_KEY = "audio_enabled"
+private const val BGM_VOLUME_KEY = "bgm_volume"
+private const val SFX_VOLUME_KEY = "sfx_volume"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,6 +118,7 @@ fun NanduApp() {
     val viewModel: EmperorViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val audioPrefs = remember(context) { context.getSharedPreferences(AUDIO_PREFS, Context.MODE_PRIVATE) }
 
     var showIntro by remember { mutableStateOf(true) }
     var interiorCityId by remember { mutableStateOf<String?>(null) }
@@ -120,9 +127,17 @@ fun NanduApp() {
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
     var sfxSignal by remember { mutableStateOf<String?>(null) }
-    var audioEnabled by remember { mutableStateOf(true) }
-    var bgmVolume by remember { mutableStateOf(0.7f) }
-    var sfxVolume by remember { mutableStateOf(0.74f) }
+    var audioEnabled by remember { mutableStateOf(audioPrefs.getBoolean(AUDIO_ENABLED_KEY, true)) }
+    var bgmVolume by remember { mutableStateOf(audioPrefs.getFloat(BGM_VOLUME_KEY, 0.7f).coerceIn(0f, 1f)) }
+    var sfxVolume by remember { mutableStateOf(audioPrefs.getFloat(SFX_VOLUME_KEY, 0.74f).coerceIn(0f, 1f)) }
+
+    fun saveAudioSettings(enabled: Boolean, bgm: Float, sfx: Float) {
+        audioPrefs.edit()
+            .putBoolean(AUDIO_ENABLED_KEY, enabled)
+            .putFloat(BGM_VOLUME_KEY, bgm.coerceIn(0f, 1f))
+            .putFloat(SFX_VOLUME_KEY, sfx.coerceIn(0f, 1f))
+            .apply()
+    }
 
     fun playSfx(event: String) {
         sfxSignal = "$event:${System.nanoTime()}"
@@ -227,6 +242,7 @@ fun NanduApp() {
                 audioEnabled = enabled
                 bgmVolume = bgm.coerceIn(0f, 1f)
                 sfxVolume = sfx.coerceIn(0f, 1f)
+                saveAudioSettings(audioEnabled, bgmVolume, sfxVolume)
                 playSfx(if (enabled) "confirm" else "cancel")
             },
             onSave = { t, k, m -> playSfx("confirm"); viewModel.updateProviderSettings(t, k, m) },
