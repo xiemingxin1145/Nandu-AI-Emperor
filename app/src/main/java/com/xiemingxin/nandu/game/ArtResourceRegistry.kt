@@ -64,6 +64,31 @@ object ArtResourceRegistry {
         character("wanyan_zongbi", "完颜宗弼", "jin", "jin_envoy.webp")
     ).associateBy { it.id }
 
+    // 序章专用 NPC 头像（512×512，对话框 / 人物志用）
+    val storyPortraits: Map<String, NamedArt> = mapOf(
+        "li_gang"        to story("li_gang",        "李纲",     "npc_li_gang.webp"),
+        "wang_boyan"     to story("wang_boyan",      "汪伯彦",   "npc_wang_boyan.webp"),
+        "huang_qianshan" to story("huang_qianshan",  "黄潜善",   "npc_huang_qianshan.webp"),
+        "zong_ze"        to story("zong_ze",          "宗泽",     "npc_zong_ze.webp"),
+        "han_shizhong"   to story("han_shizhong",    "韩世忠",   "npc_han_shizhong.webp"),
+        "zhao_ding"      to story("zhao_ding",        "赵鼎",     "npc_zhao_ding.webp"),
+        "yue_fei"        to story("yue_fei",          "岳飞",     "npc_yue_fei.webp"),
+        "eunuch_steward" to story("eunuch_steward",  "内侍总管", "npc_eunuch_steward.webp")
+    )
+
+    // 主菜单背景
+    val menuImages: Map<String, NamedArt> = mapOf(
+        "main_bg" to named("main_bg", "主菜单背景", "$BASE/menu/menu_main_bg.webp")
+    )
+
+    // 场景/位置背景（序章及游戏内通用场景）
+    val locationBackgrounds: Map<String, NamedArt> = mapOf(
+        "mingdao_hall_night" to location("mingdao_hall_night", "明道宫偏殿（夜）", "bg_mingdao_hall_night.webp"),
+        "yingtian_court_day" to location("yingtian_court_day", "应天府朝堂（日）", "bg_yingtian_court_day.webp"),
+        "yingtian_corridor"  to location("yingtian_corridor",  "应天府走廊",        "bg_yingtian_corridor.webp"),
+        "kaifeng_war_report" to location("kaifeng_war_report", "开封战局配图",      "bg_kaifeng_war_report.webp")
+    )
+
     val cityBackgrounds: Map<String, NamedArt> = mapOf(
         "linan" to city("linan", "临安", "linan_palace.webp"),
         "jiankang" to city("jiankang", "建康", "jiankang_river_fortress.webp"),
@@ -110,7 +135,12 @@ object ArtResourceRegistry {
         "xixia_horse_market" to event("xixia_horse_market", "西夏马市", "event_xixia_horse_market.webp"),
         "dali_trade" to event("dali_trade", "大理商路", "event_dali_trade.webp"),
         "secret_police" to event("secret_police", "皇城司密奏", "event_secret_police.webp"),
-        "default" to event("default", "通用事件", "event_yushufang_night.webp")
+        "default" to event("default", "通用事件", "event_yushufang_night.webp"),
+        // 序章 CG
+        "prologue_night_escape"        to event("prologue_night_escape",        "序章：南渡夜境",    "cg_prologue_night_escape.webp"),
+        "prologue_mingdao_awake"       to event("prologue_mingdao_awake",       "序章：明道宫惊醒",  "cg_prologue_mingdao_awake.webp"),
+        "prologue_identity_reflection" to event("prologue_identity_reflection",  "序章：身份确认",    "cg_prologue_identity_reflection.webp"),
+        "prologue_first_choice"        to event("prologue_first_choice",         "第一抉择：朝局初动","cg_first_choice_court_tension.webp")
     )
 
     val palaceBackgrounds: Map<String, NamedArt> = mapOf(
@@ -177,6 +207,11 @@ object ArtResourceRegistry {
         "locked_badge" to ui("locked_badge", "未登场", "locked_badge.webp")
     )
 
+    fun storyPortrait(npcId: String): String = storyPortraits[npcId]?.path ?: portraitForOfficer(npcId)
+    fun menuBackground(key: String = "main_bg"): String = menuImages[key]?.path ?: Fallback.ui
+    fun locationBackground(locationId: String): String = locationBackgrounds[locationId]?.path ?: Fallback.event
+    fun prologueCg(cgKey: String): String = eventImages["prologue_$cgKey"]?.path ?: Fallback.event
+
     fun portraitForOfficer(officerId: String): String = historicalCharacters[officerId]?.portrait ?: templatePortraitFor(officerId)
     fun halfbodyForOfficer(officerId: String): String = historicalCharacters[officerId]?.halfbody ?: templateHalfbodyFor(officerId)
     fun cityBackground(cityId: String): String = cityBackgrounds[cityId]?.path ?: Fallback.city
@@ -209,6 +244,8 @@ object ArtResourceRegistry {
 
     fun templateHalfbodyFor(seed: String, group: String = "song_military"): String = templatePortraitFor(seed, group)
 
+    private fun story(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/characters/$file")
+    private fun location(id: String, name: String, file: String): NamedArt = named(id, name, "$BASE/locations/$file")
     private fun character(id: String, name: String, faction: String, file: String): CharacterArt = CharacterArt(
         id = id,
         name = name,
