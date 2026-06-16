@@ -29,6 +29,9 @@ object AudioResourceRegistry {
         const val ritual = "$BASE/bgm/bgm_ritual.ogg"
         const val victory = "$BASE/bgm/bgm_victory.ogg"
         const val defeat = "$BASE/bgm/bgm_defeat.ogg"
+
+        // Backward-compatible names used by older screens.
+        const val battle = military
     }
 
     object Ui {
@@ -66,6 +69,12 @@ object AudioResourceRegistry {
         const val recruit = "$BASE/sfx/sfx_recruit.ogg"
         const val relationUp = "$BASE/sfx/sfx_relation_up.ogg"
         const val relationDown = "$BASE/sfx/sfx_relation_down.ogg"
+
+        // Backward-compatible names used by older screens.
+        const val battleStart = encounterStart
+        const val swordClash = metalClash
+        const val arrowVolley = arrows
+        const val cityFire = cityAlarm
     }
 
     object Ambience {
@@ -101,7 +110,7 @@ object AudioResourceRegistry {
         "city" -> Bgm.city
         "market" -> Bgm.market
         "diplomacy" -> Bgm.diplomacy
-        "military" -> Bgm.military
+        "battle", "military" -> Bgm.military
         "crisis" -> Bgm.crisis
         "event_sad" -> Bgm.eventSad
         "ritual" -> Bgm.ritual
