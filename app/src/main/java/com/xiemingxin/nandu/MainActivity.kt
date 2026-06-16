@@ -29,6 +29,7 @@ import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.game.AchievementSystem
 import androidx.compose.ui.platform.LocalContext
+import com.xiemingxin.nandu.game.AudioResourceRegistry
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.screens.*
 import com.xiemingxin.nandu.ui.theme.*
@@ -54,35 +55,49 @@ private fun GameAudioController(
     currentTab: Int,
     inCity: Boolean,
     inPalaceTask: Boolean,
-    battleSignal: String?
+    battleSignal: String?,
+    sfxSignal: String?
 ) {
     val player = com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer()
     val scene = when {
         ending != GameEnding.ONGOING && ending.rank == "亡" -> "defeat"
         ending != GameEnding.ONGOING -> "victory"
         showIntro -> "main_menu"
-        inCity -> "map"
-        inPalaceTask -> "court"
-        currentTab == 2 || currentTab == 4 -> "map"
-        else -> "court"
+        inCity -> "city"
+        inPalaceTask -> "council"
+        else -> when (currentTab) {
+            0 -> "palace"
+            1 -> "court"
+            2 -> "map"
+            3 -> "court"
+            4 -> "military"
+            else -> "court"
+        }
     }
     com.xiemingxin.nandu.ui.components.PlayBgmEffect(
-        path = com.xiemingxin.nandu.game.AudioResourceRegistry.bgmForScene(scene),
+        path = AudioResourceRegistry.bgmForScene(scene),
         sceneKey = scene,
         volume = 0.7f,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
-        path = com.xiemingxin.nandu.game.AudioResourceRegistry.Sfx.drumWar,
+        path = AudioResourceRegistry.Sfx.drumWar,
         triggerKey = battleSignal,
         volume = 0.85f,
         variant = true,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
-        path = com.xiemingxin.nandu.game.AudioResourceRegistry.Sfx.battleStart,
+        path = AudioResourceRegistry.Sfx.battleStart,
         triggerKey = battleSignal,
         volume = 0.7f,
+        player = player
+    )
+    com.xiemingxin.nandu.ui.components.PlaySfxEffect(
+        path = AudioResourceRegistry.sfxForGameEvent(sfxSignal?.substringBefore(":").orEmpty()),
+        triggerKey = sfxSignal,
+        volume = 0.74f,
+        variant = true,
         player = player
     )
 }
@@ -99,6 +114,11 @@ fun NanduApp() {
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var edictText by remember { mutableStateOf("") }
+    var sfxSignal by remember { mutableStateOf<String?>(null) }
+
+    fun playSfx(event: String) {
+        sfxSignal = "$event:${System.nanoTime()}"
+    }
 
     GameAudioController(
         showIntro = showIntro,
@@ -106,7 +126,8 @@ fun NanduApp() {
         currentTab = currentTab,
         inCity = interiorCityId != null,
         inPalaceTask = activePalaceId != null,
-        battleSignal = uiState.battleReport
+        battleSignal = uiState.battleReport,
+        sfxSignal = sfxSignal
     )
 
     if (uiState.ending != GameEnding.ONGOING) {
@@ -115,6 +136,7 @@ fun NanduApp() {
             ending = uiState.ending,
             controlledCities = songCities,
             onRestart = {
+                playSfx("confirm")
                 viewModel.recordAndRestart(context)
                 showIntro = true
                 interiorCityId = null
@@ -126,7 +148,7 @@ fun NanduApp() {
     }
 
     if (showIntro) {
-        IntroScreen(onStart = { showIntro = false })
+        IntroScreen(onStart = { playSfx("confirm"); showIntro = false })
         return
     }
 
@@ -139,11 +161,11 @@ fun NanduApp() {
                 prestige = uiState.gameState.prestige,
                 rumors = uiState.gameState.rumors,
                 lastVisitNarration = uiState.lastVisitNarration,
-                onBuild = { buildingId -> viewModel.buildInCity(cid, buildingId) },
-                onRecruit = { unitId -> viewModel.recruitInCity(cid, unitId) },
-                onVisit = { action -> viewModel.visitCity(cid, action) },
-                onDismissVisitNarration = { viewModel.dismissVisitNarration() },
-                onBack = { interiorCityId = null; viewModel.dismissVisitNarration() }
+                onBuild = { buildingId -> playSfx("city_build"); viewModel.buildInCity(cid, buildingId) },
+                onRecruit = { unitId -> playSfx("city_recruit"); viewModel.recruitInCity(cid, unitId) },
+                onVisit = { action -> playSfx("open_panel"); viewModel.visitCity(cid, action) },
+                onDismissVisitNarration = { playSfx("close_panel"); viewModel.dismissVisitNarration() },
+                onBack = { playSfx("close_panel"); interiorCityId = null; viewModel.dismissVisitNarration() }
             )
             return
         }
@@ -154,22 +176,27 @@ fun NanduApp() {
         val cityId = parts.getOrNull(0).orEmpty()
         val action = parts.getOrNull(1) ?: "auto"
         if (action.startsWith("build:")) {
+            playSfx("city_build")
             viewModel.buildInCity(cityId, action.removePrefix("build:"))
             return
         }
         if (action == "siege") {
+            playSfx("military_start")
             viewModel.siegeCity(cityId)
             return
         }
         if (action.startsWith("recruit:")) {
+            playSfx("city_recruit")
             viewModel.recruitInCity(cityId, action.removePrefix("recruit:"))
             return
         }
         if (action == "enter") {
+            playSfx("open_panel")
             interiorCityId = cityId
             return
         }
         val city = uiState.gameState.cities.firstOrNull { it.id == cityId } ?: return
+        playSfx("edict_submitted")
         edictText = buildCityDraft(city, action)
         activePalaceId = null
         currentTab = 1
@@ -182,11 +209,11 @@ fun NanduApp() {
             currentModel = uiState.customModel,
             saveCode = uiState.saveCode,
             saveMessage = uiState.saveMessage,
-            onSave = { t, k, m -> viewModel.updateProviderSettings(t, k, m) },
-            onTestConnection = { viewModel.testProviderConnection() },
-            onExportSave = { viewModel.exportSaveCode() },
-            onImportSave = { code -> viewModel.importSaveCode(code) },
-            onBack = { showSettings = false }
+            onSave = { t, k, m -> playSfx("confirm"); viewModel.updateProviderSettings(t, k, m) },
+            onTestConnection = { playSfx("open_panel"); viewModel.testProviderConnection() },
+            onExportSave = { playSfx("confirm"); viewModel.exportSaveCode() },
+            onImportSave = { code -> playSfx("confirm"); viewModel.importSaveCode(code) },
+            onBack = { playSfx("close_panel"); showSettings = false }
         )
         return
     }
@@ -195,14 +222,16 @@ fun NanduApp() {
         PalaceTasksScreen(
             state = uiState.gameState,
             palaceId = palaceId,
-            onBack = { activePalaceId = null },
-            onCouncilChoice = { scene, choice -> viewModel.applyCouncilChoice(scene, choice) },
+            onBack = { playSfx("close_panel"); activePalaceId = null },
+            onCouncilChoice = { scene, choice -> playSfx("council_choice"); viewModel.applyCouncilChoice(scene, choice) },
             onDraftEdict = { draft ->
+                playSfx("edict_submitted")
                 edictText = draft
                 activePalaceId = null
                 currentTab = 1
             },
             onOpenTab = { tab ->
+                playSfx("switch_tab")
                 activePalaceId = null
                 currentTab = tab
             }
@@ -217,21 +246,21 @@ fun NanduApp() {
                     state = uiState.gameState,
                     aiStatus = uiState.providerStatusMessage,
                     isRealAiEnabled = uiState.isRealAiEnabled,
-                    onOpenSettings = { showSettings = true },
-                    onOpenPalace = { palaceId -> activePalaceId = palaceId },
-                    onNavigate = { tab -> currentTab = tab + 1 }
+                    onOpenSettings = { playSfx("open_panel"); showSettings = true },
+                    onOpenPalace = { palaceId -> playSfx("council_open"); activePalaceId = palaceId },
+                    onNavigate = { tab -> playSfx("switch_tab"); currentTab = tab + 1 }
                 )
                 1 -> EmperorMainScreen(
                     uiState = uiState,
                     draftEdictText = edictText,
-                    onSubmitEdict = { text -> edictText = text; viewModel.submitEdict(text) },
-                    onConfirmEdict = { viewModel.confirmEdict(edictText) },
-                    onCancelEdict = { viewModel.cancelEdict() },
-                    onDismissResult = { viewModel.dismissResult() },
-                    onAdvanceTurn = { viewModel.advanceTurn() },
-                    onStoryChoice = { choiceId -> viewModel.chooseStoryOption(choiceId) },
-                    onDismissStoryOutcome = { viewModel.dismissStoryOutcome() },
-                    onOpenSettings = { showSettings = true }
+                    onSubmitEdict = { text -> playSfx("edict_submitted"); edictText = text; viewModel.submitEdict(text) },
+                    onConfirmEdict = { playSfx("edict_confirmed"); viewModel.confirmEdict(edictText) },
+                    onCancelEdict = { playSfx("edict_cancelled"); viewModel.cancelEdict() },
+                    onDismissResult = { playSfx("turn_advance"); viewModel.dismissResult() },
+                    onAdvanceTurn = { playSfx("turn_advance"); viewModel.advanceTurn() },
+                    onStoryChoice = { choiceId -> playSfx("story_event"); viewModel.chooseStoryOption(choiceId) },
+                    onDismissStoryOutcome = { playSfx("story_outcome"); viewModel.dismissStoryOutcome() },
+                    onOpenSettings = { playSfx("open_panel"); showSettings = true }
                 )
                 2 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
                 3 -> StateScreen(gameState = uiState.gameState)
@@ -243,7 +272,7 @@ fun NanduApp() {
             listOf("皇宫" to 0, "朝议" to 1, "山河" to 2, "国政" to 3, "军务" to 4).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
-                    onClick = { activePalaceId = null; currentTab = idx },
+                    onClick = { playSfx("switch_tab"); activePalaceId = null; currentTab = idx },
                     icon = {},
                     label = { Text(label, fontSize = 12.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
@@ -258,7 +287,7 @@ fun NanduApp() {
         uiState.newAchievement?.let { achId ->
             val ach = AchievementSystem.byId(achId)
             if (ach != null) {
-                Dialog(onDismissRequest = { viewModel.dismissAchievement() }) {
+                Dialog(onDismissRequest = { playSfx("close_panel"); viewModel.dismissAchievement() }) {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
                         border = BorderStroke(2.dp, Color(0xFFFFD700)),
@@ -275,7 +304,7 @@ fun NanduApp() {
                             Text(ach.desc, color = Color(0xFFE8DCC0), fontSize = 13.sp)
                             Spacer(Modifier.height(18.dp))
                             Button(
-                                onClick = { viewModel.dismissAchievement() },
+                                onClick = { playSfx("confirm"); viewModel.dismissAchievement() },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700))
                             ) { Text("铭 记 此 功", color = InkBlack, fontWeight = FontWeight.Bold) }
@@ -286,7 +315,7 @@ fun NanduApp() {
         }
 
         uiState.battleReport?.let { report ->
-            Dialog(onDismissRequest = { viewModel.dismissBattleReport() }) {
+            Dialog(onDismissRequest = { playSfx("close_panel"); viewModel.dismissBattleReport() }) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
                     border = BorderStroke(1.dp, ImperialGold),
@@ -298,7 +327,7 @@ fun NanduApp() {
                         Text(report, color = Color(0xFFE8DCC0), fontSize = 13.sp)
                         Spacer(Modifier.height(14.dp))
                         Button(
-                            onClick = { viewModel.dismissBattleReport() },
+                            onClick = { playSfx("confirm"); viewModel.dismissBattleReport() },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = ImperialGold)
                         ) { Text("朕已阅", color = InkBlack, fontWeight = FontWeight.Bold) }
