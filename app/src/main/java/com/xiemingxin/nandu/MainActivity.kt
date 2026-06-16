@@ -181,7 +181,7 @@ fun NanduApp() {
             onNewGame  = { playSfx("confirm"); showPrologue = true },
             onContinue = { playSfx("confirm"); showIntro = false },
             onSettings = { playSfx("open_panel"); showSettings = true },
-            onExit     = { finish() }
+            onExit     = { (context as? android.app.Activity)?.finish() }
         )
         return
     }
