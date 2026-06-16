@@ -27,6 +27,10 @@ fun SettingsScreen(
     currentModel: String,
     saveCode: String,
     saveMessage: String,
+    audioEnabled: Boolean = true,
+    bgmVolume: Float = 0.7f,
+    sfxVolume: Float = 0.74f,
+    onAudioSettingsChanged: (Boolean, Float, Float) -> Unit = { _, _, _ -> },
     onSave: (AiProviderType, String, String) -> Unit,
     onTestConnection: () -> Unit,
     onExportSave: () -> Unit,
@@ -40,6 +44,9 @@ fun SettingsScreen(
     var baseUrl by remember { mutableStateOf(initialBase) }
     var modelName by remember { mutableStateOf(initialModel) }
     var importCode by remember(saveCode) { mutableStateOf(saveCode) }
+    var localAudioEnabled by remember { mutableStateOf(audioEnabled) }
+    var localBgmVolume by remember { mutableStateOf(bgmVolume.coerceIn(0f, 1f)) }
+    var localSfxVolume by remember { mutableStateOf(sfxVolume.coerceIn(0f, 1f)) }
 
     Column(
         modifier = Modifier.fillMaxSize().background(InkBlack).verticalScroll(rememberScrollState()).padding(16.dp),
@@ -49,7 +56,7 @@ fun SettingsScreen(
             Text("← ", color = ImperialGold, fontSize = 22.sp, modifier = Modifier.clickable { onBack() })
             Column {
                 Text("AI 引擎中枢", color = ImperialGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("模型通道 / API Key / 存档码 / 手机端调试", color = Color(0xFF8B7355), fontSize = 11.sp)
+                Text("模型通道 / API Key / 存档码 / 音频 / 手机端调试", color = Color(0xFF8B7355), fontSize = 11.sp)
             }
         }
 
@@ -156,6 +163,35 @@ fun SettingsScreen(
                 cursorColor = ImperialGold
             )
         )
+
+        SectionTitle("五、音频设置")
+        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF120D07)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)), shape = RoundedCornerShape(10.dp)) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("开启音频", color = ImperialGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("关闭后 BGM 与音效都会静音。", color = Color(0xFF8B7355), fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = localAudioEnabled,
+                        onCheckedChange = {
+                            localAudioEnabled = it
+                            onAudioSettingsChanged(localAudioEnabled, localBgmVolume, localSfxVolume)
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = ImperialGold)
+                    )
+                }
+                AudioSliderRow("BGM 音量", localBgmVolume, enabled = localAudioEnabled) {
+                    localBgmVolume = it
+                    onAudioSettingsChanged(localAudioEnabled, localBgmVolume, localSfxVolume)
+                }
+                AudioSliderRow("音效音量", localSfxVolume, enabled = localAudioEnabled) {
+                    localSfxVolume = it
+                    onAudioSettingsChanged(localAudioEnabled, localBgmVolume, localSfxVolume)
+                }
+                HintText("本版本先保存为本次运行状态；后续会接入本机持久化。")
+            }
+        }
     }
 }
 
@@ -169,6 +205,23 @@ private fun InfoBox(title: String, body: String) {
             Text(title, color = ImperialGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Text(body, color = XuanCream, fontSize = 12.sp, lineHeight = 17.sp)
         }
+    }
+}
+
+@Composable
+private fun AudioSliderRow(label: String, value: Float, enabled: Boolean, onValueChange: (Float) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = XuanCream, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("${(value * 100).toInt()}%", color = ImperialGold, fontSize = 12.sp)
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(thumbColor = ImperialGold, activeTrackColor = ImperialGold)
+        )
     }
 }
 
