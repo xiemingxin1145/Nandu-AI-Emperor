@@ -1,5 +1,9 @@
 package com.xiemingxin.nandu.ui.screens
 
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +32,8 @@ import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
+import com.xiemingxin.nandu.game.ArmyStatus
+import com.xiemingxin.nandu.ui.components.ArmyDetailPanel
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.SkillEffects

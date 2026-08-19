@@ -75,6 +75,15 @@ data class Faction(
     fun relationWith(otherFactionId: String): Int = relations[otherFactionId] ?: 0
 }
 
+// Stage 4 军团状态码（取代散落的字符串contains判断）
+enum class ArmyStatus(val label: String) {
+    GARRISONED("驻扎"),    // 驻扎在己方城池
+    MARCHING("行军"),      // 正在沿路线行军
+    ENGAGEMENT_PENDING("敌前待战"), // 已抵达敌境前线，等候命令
+    STANDBY("待命"),       // 在朝廷或无任务
+    DISBANDED("已解散")    // 逻辑删除标记，应从列表移除
+}
+
 data class Army(
     val id: String,
     val name: String,
@@ -86,11 +95,19 @@ data class Army(
     val morale: Int,
     val armyType: String,
     val supplyCityId: String,
-    val status: String = "驻防",
+    // Stage 4: 正式状态码（旧 status 字符串保留兼容）
+    val statusCode: ArmyStatus = ArmyStatus.STANDBY,
+    val status: String = statusCode.label,          // UI显示用，从statusCode派生或存档
     val targetCityId: String = "",
     val routeFromCityId: String = "",
     val marchDaysTotal: Int = 0,
-    val marchDaysRemaining: Int = 0
+    val marchDaysRemaining: Int = 0,
+    // Stage 4 新增字段（全部有默认值，旧存档兼容）
+    val routeNodeIds: List<String> = emptyList(),   // 完整路线节点序列
+    val routeIndex: Int = 0,                        // 当前已完成到第几个节点
+    val supplyLevel: Int = 100,                     // 补给度 0..100
+    val lastSuppliedTurn: Int = 0,                  // 上次补给的旬
+    val createdTurn: Int = 0                        // 组建旬
 )
 
 enum class Season(val label: String, val effectText: String) {
@@ -301,6 +318,71 @@ object GameRuleEngine {
                     currentState = result.first
                     outcomes.add(result.second)
                 }
+                // Stage 4 军团命令 ────────────────────────────────
+                "form_army" -> {
+                    val r = ArmySystem.formArmy(
+                        currentState,
+                        fromCityId = command.fromCityId.ifBlank { command.cityId },
+                        commanderId = command.officerId,
+                        troops = command.troops.takeIf { it > 0 } ?: 10000,
+                        armyType = command.role.ifBlank { "field_army" }
+                    )
+                    when (r) {
+                        is ArmySystem.ArmyResult.Success -> { currentState = r.newState; outcomes.add(r.message) }
+                        is ArmySystem.ArmyResult.Failure -> rejected.add(r.reason)
+                    }
+                }
+                "move_army" -> {
+                    // 找目标军团（by commanderId 或 armyId）
+                    val army = currentState.armies.find { it.commanderId == command.officerId }
+                        ?: currentState.armies.find { it.id == command.officerId }
+                    if (army == null) {
+                        // 没有现成军团 → 尝试先组建再发兵（dispatch_army兼容）
+                        val r2 = executeDispatchArmy(currentState, command)
+                        if (r2.second != null) { currentState = r2.first; outcomes.add(r2.second!!) }
+                        else rejected.add("【移动失败】找不到该将领的军团，也无法临时组建。")
+                    } else {
+                        val tgt = command.toCityId.ifBlank { command.cityId }
+                        val r = ArmyMovementSystem.rerouteArmy(currentState, army.id, tgt)
+                        currentState = r.first; outcomes.add(r.second)
+                    }
+                }
+                "disband_army" -> {
+                    val army = currentState.armies.find { it.commanderId == command.officerId }
+                        ?: currentState.armies.find { it.id == command.officerId }
+                    if (army == null) { rejected.add("【解散失败】找不到该将领的军团。") }
+                    else {
+                        val r = ArmySystem.disbandArmy(currentState, army.id)
+                        when (r) {
+                            is ArmySystem.ArmyResult.Success -> { currentState = r.newState; outcomes.add(r.message) }
+                            is ArmySystem.ArmyResult.Failure -> rejected.add(r.reason)
+                        }
+                    }
+                }
+                "change_army_commander" -> {
+                    val army = currentState.armies.find { it.commanderId == command.fromCityId }
+                        ?: currentState.armies.find { it.id == command.fromCityId }
+                        ?: currentState.armies.find { it.commanderId == command.officerId }
+                    if (army == null) { rejected.add("【换帅失败】找不到目标军团。") }
+                    else {
+                        val newCmdId = command.toCityId.ifBlank { command.role }
+                        val r = ArmySystem.changeCommander(currentState, army.id, newCmdId)
+                        when (r) {
+                            is ArmySystem.ArmyResult.Success -> { currentState = r.newState; outcomes.add(r.message) }
+                            is ArmySystem.ArmyResult.Failure -> rejected.add(r.reason)
+                        }
+                    }
+                }
+                "resupply_army" -> {
+                    val army = currentState.armies.find { it.commanderId == command.officerId }
+                        ?: currentState.armies.find { it.id == command.officerId }
+                    if (army == null) { rejected.add("【补给失败】找不到该军团。") }
+                    else {
+                        val r = ArmySupplySystem.resupplyArmy(currentState, army.id)
+                        currentState = r.first; outcomes.add(r.second)
+                    }
+                }
+                // ─────────────────────────────────────────────────
                 // Stage 3 新命令 ─────────────────────────────
                 "appoint_governor" -> {
                     val result = AppointmentSystem.appointGovernor(currentState, command.officerId, command.cityId)
@@ -424,7 +506,11 @@ object GameRuleEngine {
         if (actualTroops <= 0) return state to null
 
         val armyType = existingArmy?.armyType ?: "field_army"
-        val marchDays = estimateMarchDays(cmd.fromCityId, cmd.toCityId, armyType, state.season, state.weather)
+        // Stage 4: 使用BFS道路路径，不再直线距离
+        val route = ArmyMovementSystem.findRoute(cmd.fromCityId, cmd.toCityId, armyType)
+            ?: return state to "【调兵失败】${fromCity.name}至${toCity.name}之间无可走道路，请确认地图连通。"
+        val cmdStat = officer.command
+        val marchDays = ArmyMovementSystem.calcRouteDays(route, armyType, state.season, state.weather, cmdStat)
         val weatherDelay = when (state.weather) {
             WeatherType.STORM -> "暴雨泥泞，行军迟缓，"
             WeatherType.SNOW -> "风雪阻道，粮队艰难，"
@@ -451,7 +537,12 @@ object GameRuleEngine {
                     troops = actualTroops,
                     morale = (army.morale + 3).coerceAtMost(100),
                     supplyCityId = cmd.fromCityId,
-                    status = "进军·余${marchDays}天",
+                    statusCode = ArmyStatus.MARCHING,
+                    status = "行军·余约${marchDays}日",
+                    targetCityId = cmd.toCityId,
+                    routeFromCityId = cmd.fromCityId,
+                    routeNodeIds = route,
+                    routeIndex = 0,
                     marchDaysTotal = marchDays,
                     marchDaysRemaining = marchDays
                 ) else army
@@ -468,11 +559,16 @@ object GameRuleEngine {
                 morale = (state.troopMorale + officer.loyalty / 10).coerceIn(30, 100),
                 armyType = armyType,
                 supplyCityId = cmd.fromCityId,
-                status = "进军·余${marchDays}天",
+                statusCode = ArmyStatus.MARCHING,
+                status = "行军·余约${marchDays}日",
                 targetCityId = cmd.toCityId,
                 routeFromCityId = cmd.fromCityId,
+                routeNodeIds = route,
+                routeIndex = 0,
                 marchDaysTotal = marchDays,
-                marchDaysRemaining = marchDays
+                marchDaysRemaining = marchDays,
+                supplyLevel = 100,
+                createdTurn = state.turn
             )
         }
 
@@ -522,31 +618,43 @@ object GameRuleEngine {
         var officers = state.officers
         val outcomes = mutableListOf<String>()
         val newArmies = state.armies.map { army ->
-            if (!army.status.contains("进军") || army.targetCityId.isBlank()) {
+            if (army.statusCode != ArmyStatus.MARCHING || army.targetCityId.isBlank()) {
                 army
             } else {
                 val remaining = (army.marchDaysRemaining - days).coerceAtLeast(0)
                 if (remaining == 0) {
                     val targetCity = state.cities.find { it.id == army.targetCityId }
                     val commander = state.officers.find { it.id == army.commanderId }
-                    cities = cities.map {
-                        if (it.id == army.targetCityId) it.copy(troops = it.troops + army.troops) else it
-                    }
+                    // Stage 4 Fix：到达时不把 army.troops 加回 city.troops
+                    // Army保持独立存在，city.troops只表示城防驻军
                     officers = officers.map {
                         if (it.id == army.commanderId) it.copy(currentCityId = army.targetCityId, status = OfficerStatus.DEPLOYED) else it
                     }
-                    outcomes.add("【军情】${commander?.name ?: army.name}所部抵达${targetCity?.name ?: army.targetCityId}，${army.troops}兵入城驻防。")
-                    army.copy(
-                        currentCityId = army.targetCityId,
-                        supplyCityId = army.targetCityId,
-                        status = "驻防",
-                        targetCityId = "",
-                        routeFromCityId = "",
-                        marchDaysTotal = 0,
-                        marchDaysRemaining = 0
-                    )
+                    val targetOwner = targetCity?.owner ?: "song"
+                    if (targetOwner != "song") {
+                        // 敌境：进入ENGAGEMENT_PENDING，不进城
+                        outcomes.add("【军情】${commander?.name ?: army.name}部抵前线，前方${targetCity?.name ?: army.targetCityId}为敌控区，列阵待旨。")
+                        army.copy(
+                            statusCode = ArmyStatus.ENGAGEMENT_PENDING,
+                            status = ArmyStatus.ENGAGEMENT_PENDING.label,
+                            marchDaysTotal = 0,
+                            marchDaysRemaining = 0
+                        )
+                    } else {
+                        outcomes.add("【军情】${commander?.name ?: army.name}所部（${army.troops}兵）抵达${targetCity?.name ?: army.targetCityId}，就地驻扎待命。")
+                        army.copy(
+                            currentCityId = army.targetCityId,
+                            supplyCityId = army.targetCityId,
+                            statusCode = ArmyStatus.GARRISONED,
+                            status = ArmyStatus.GARRISONED.label,
+                            targetCityId = "",
+                            routeFromCityId = "",
+                            marchDaysTotal = 0,
+                            marchDaysRemaining = 0
+                        )
+                    }
                 } else {
-                    army.copy(status = "进军·余${remaining}天", marchDaysRemaining = remaining)
+                    army.copy(status = "行军·余${remaining}日", marchDaysRemaining = remaining, statusCode = ArmyStatus.MARCHING)
                 }
             }
         }
