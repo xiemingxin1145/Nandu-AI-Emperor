@@ -3,10 +3,27 @@ package com.xiemingxin.nandu.game
 object InitialData {
 
     val factions = listOf(
-        Faction("song", "大宋", "宋", "赵构", "linan", "南渡未稳，主战主和并立", isPlayable = true),
-        Faction("jin", "金国", "金", "完颜宗望", "kaifeng", "兵锋正盛，窥伺江淮"),
-        Faction("rebel", "地方义军", "义", "群豪", "huaihe", "观望朝廷，易受招抚或离散"),
-        Faction("dali", "大理", "理", "段氏", "chengdu", "西南观望，暂不直接参战")
+        Faction(
+            "song", "大宋", "宋", "赵构", "linan", "南渡未稳，主战主和并立",
+            isPlayable = true, isAI = false,
+            colorArgb = 0xFF2E86C1L, gold = 50000, grain = 200000, prestige = 30,
+            relations = mapOf("jin" to -80, "rebel" to 10, "dali" to 25)
+        ),
+        Faction(
+            "jin", "金国", "金", "完颜宗望", "kaifeng", "兵锋正盛，窥伺江淮",
+            colorArgb = 0xFFB22222L, gold = 100000, grain = 300000, prestige = 60,
+            relations = mapOf("song" to -80, "rebel" to -30, "dali" to 0)
+        ),
+        Faction(
+            "rebel", "地方义军", "义", "群豪", "yingtianfu", "观望朝廷，易受招抚或离散",
+            colorArgb = 0xFF8A6D3BL, gold = 0, grain = 0, prestige = 5,
+            relations = mapOf("song" to 10, "jin" to -30)
+        ),
+        Faction(
+            "dali", "大理", "理", "段氏", "dali", "西南观望，暂不直接参战",
+            colorArgb = 0xFF3F7A4DL, gold = 20000, grain = 40000, prestige = 20,
+            relations = mapOf("song" to 25, "jin" to 0)
+        )
     )
 
     val officers = listOf(
