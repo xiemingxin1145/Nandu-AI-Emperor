@@ -171,9 +171,14 @@ private object OpenAiCompatibleEngine {
                 "${o.name}(${o.id}${role},${o.commandSummary})"
             }
         val leadList = if (context.pendingRecruitLeads.isNotEmpty())
-            "待征辟人才：${context.pendingRecruitLeads.joinToString("、")}" else ""
+            "待征辟：${context.pendingRecruitLeads.joinToString("、")}" else ""
         val cityList = context.activeCities.filter { it.owner == "song" }
-            .joinToString("、") { "${it.name}(${it.id},兵${it.troops},防${it.defense})" }
+            .joinToString("、") { "${it.name}(${it.id},兵${it.troops / 1000}k)" }
+        val armyList = if (context.songArmies.isEmpty()) "（目前无野战军团）"
+        else context.songArmies.joinToString("；") { a ->
+            val tgt = if (a.targetCityId.isNotBlank()) "→${a.targetCityId}" else ""
+            "${a.name}:主帅${a.commanderName},${a.troops / 1000}k兵,${a.statusLabel}${tgt}"
+        }
         return """
 你是《南渡无悔》的御前推演官，负责解析皇帝圣旨，并让群臣按性格回应。
 
@@ -182,16 +187,22 @@ private object OpenAiCompatibleEngine {
 在朝将吏：$courtOfficers
 $leadList
 宋方城池：$cityList
+我方军团（请基于此判断，不得重复创建已有军团）：$armyList
 
-新命令：appoint_governor(任主官)/appoint_garrison(任守将)/dismiss_officer(免职)/transfer_officer(调任)/recruit_officer(征辟)
-若圣旨涉及未入朝人物：在待征辟名单→recruit_officer；完全未知→assign_officer寻访
+命令说明：
+form_army(组建新军团,需officerId主帅+fromCityId+troops+role军型)
+move_army(移动军团,需officerId主帅+toCityId目标,已有军团则移动否则尝试组建)
+disband_army(解散军团,需officerId主帅)
+change_army_commander(换帅,需fromCityId旧帅id+toCityId新帅id)
+resupply_army(主动补给,需officerId)
+appoint_governor/appoint_garrison/dismiss_officer/transfer_officer/recruit_officer: 同Stage3
 
-严格只返回 JSON，不要解释，不要 markdown。
-格式：{"summary":"摘要","commands":[{"type":"命令类型","officerId":"","fromCityId":"","toCityId":"","cityId":"","troops":0,"role":"","severity":"","amount":0,"deadlineTurns":0}],"npcResponses":[{"officerId":"","attitude":"support/oppose/neutral/concerned","text":"文言20到50字"}],"riskTags":[],"confidence":0.9,"clarificationNeeded":false,"clarificationHint":""}
+严格只返回JSON：{"summary":"摘要","commands":[{"type":"命令类型","officerId":"","fromCityId":"","toCityId":"","cityId":"","troops":0,"role":"","severity":"","amount":0,"deadlineTurns":0}],"npcResponses":[{"officerId":"","attitude":"support/oppose/neutral/concerned","text":"文言20-50字"}],"riskTags":[],"confidence":0.9,"clarificationNeeded":false,"clarificationHint":""}
 
-命令类型只允许：dispatch_army、assign_officer、repair_city、raise_grain、suppress_officer、reward_officer、punish_officer、appoint_governor、appoint_garrison、dismiss_officer、transfer_officer、recruit_officer。
-人物性格：岳飞忠烈主战，秦桧主和避战，赵鼎重粮道财计，韩世忠豪勇水战，李纲刚烈守城，宗泽北望中原，吴玠擅山地守关。
-必须让至少1名大臣提出支持、担忧或反对，不能全部只会遵旨。
+命令类型：dispatch_army、assign_officer、repair_city、raise_grain、suppress_officer、reward_officer、punish_officer、appoint_governor、appoint_garrison、dismiss_officer、transfer_officer、recruit_officer、form_army、move_army、disband_army、change_army_commander、resupply_army
+
+NPC都是南宋朝臣，不用现代词。至少1人支持、担忧或反对。
+人物性格：岳飞忠烈主战 秦桧主和避战 赵鼎重粮道 韩世忠豪勇 李纲刚烈守城 吴玠擅山地
 """.trimIndent()
     }
 }

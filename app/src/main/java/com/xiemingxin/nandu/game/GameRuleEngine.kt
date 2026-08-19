@@ -97,7 +97,7 @@ data class Army(
     val supplyCityId: String,
     // Stage 4: 正式状态码（旧 status 字符串保留兼容）
     val statusCode: ArmyStatus = ArmyStatus.STANDBY,
-    val status: String = statusCode.label,          // UI显示用，从statusCode派生或存档
+    val status: String = "待命",                    // UI显示；创建时应与statusCode.label一致
     val targetCityId: String = "",
     val routeFromCityId: String = "",
     val marchDaysTotal: Int = 0,

@@ -1,6 +1,9 @@
 package com.xiemingxin.nandu.ui.screens
 
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -266,4 +269,127 @@ private fun OfficerRow(officer: Officer, cityName: String, onClick: () -> Unit =
         Text("评估：${OfficerIntel.trustBrief(officer.loyalty, profile.ambition)}", color = Color(0xFF6F8A64), fontSize = 10.sp)
     }
     Spacer(Modifier.height(8.dp))
+}
+
+/**
+ * Stage 4 军团总览：驻扎/行军/待战三分类
+ */
+@Composable
+fun MilitaryScreenV4(
+    gameState: GameState,
+    onBack: () -> Unit = {}
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedArmyId by remember { mutableStateOf<String?>(null) }
+
+    val garrisoned = gameState.armies.filter { it.ownerFactionId == "song" && it.statusCode == ArmyStatus.GARRISONED }
+    val marching   = gameState.armies.filter { it.ownerFactionId == "song" && it.statusCode == ArmyStatus.MARCHING }
+    val engaging   = gameState.armies.filter { it.ownerFactionId == "song" && it.statusCode == ArmyStatus.ENGAGEMENT_PENDING }
+
+    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF0E0A05))) {
+        // 顶栏
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("←", color = Color(0xFFC9A227), fontSize = 20.sp,
+                modifier = Modifier.clickable { onBack() }.padding(end = 12.dp))
+            Text("军团总览", color = Color(0xFFC9A227), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            val total = garrisoned.size + marching.size + engaging.size
+            Text("共${total}支军团", color = Color(0xFF9A8862), fontSize = 12.sp)
+        }
+
+        HorizontalDivider(color = Color(0xFFC9A227).copy(alpha = 0.3f), thickness = 0.5.dp)
+
+        // 标签栏
+        val tabLabels = listOf(
+            "驻扎(${garrisoned.size})",
+            "行军(${marching.size})",
+            "待战(${engaging.size})"
+        )
+        LazyRow(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            itemsIndexed(tabLabels) { idx, label ->
+                FilterChip(
+                    selected = selectedTab == idx,
+                    onClick = { selectedTab = idx; selectedArmyId = null },
+                    label = { Text(label, fontSize = 12.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFC9A227).copy(alpha = 0.2f),
+                        selectedLabelColor = Color(0xFFC9A227),
+                        containerColor = Color(0xFF1A1208),
+                        labelColor = Color(0xFF9A8862)
+                    )
+                )
+            }
+        }
+
+        HorizontalDivider(color = Color(0xFFC9A227).copy(alpha = 0.2f), thickness = 0.5.dp)
+
+        val listToShow = when (selectedTab) { 0 -> garrisoned; 1 -> marching; else -> engaging }
+
+        if (listToShow.isEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    when (selectedTab) { 0 -> "暂无驻扎军团"; 1 -> "暂无行军军团"; else -> "暂无敌前待战军团" },
+                    color = Color(0xFF9A8862), fontSize = 14.sp
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(listToShow, key = { it.id }) { army ->
+                    val cmd = gameState.officers.find { it.id == army.commanderId }
+                    val city = gameState.cities.find { it.id == army.currentCityId }
+                    val isSelected = selectedArmyId == army.id
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            selectedArmyId = if (isSelected) null else army.id
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1208))
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(army.name, color = Color(0xFFC9A227), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "主帅：${cmd?.name ?: "无"} · ${city?.name ?: army.currentCityId}",
+                                    color = Color(0xFF9A8862), fontSize = 11.sp
+                                )
+                                if (army.statusCode == ArmyStatus.MARCHING && army.targetCityId.isNotBlank()) {
+                                    val tgt = gameState.cities.find { it.id == army.targetCityId }?.name ?: army.targetCityId
+                                    Text("→ $tgt 约${army.marchDaysRemaining}日", color = Color(0xFFFFD54F), fontSize = 10.sp)
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("${army.troops / 1000}k兵", color = Color(0xFFE8DCC0), fontSize = 13.sp)
+                                Text(
+                                    "粮${army.supplyLevel}%",
+                                    color = when {
+                                        army.supplyLevel < 25 -> Color(0xFFE57373)
+                                        army.supplyLevel < 50 -> Color(0xFFFFD54F)
+                                        else -> Color(0xFF8FB573)
+                                    },
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                    if (isSelected) {
+                        ArmyDetailPanel(
+                            army = army,
+                            gameState = gameState,
+                            onDismiss = { selectedArmyId = null }
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
