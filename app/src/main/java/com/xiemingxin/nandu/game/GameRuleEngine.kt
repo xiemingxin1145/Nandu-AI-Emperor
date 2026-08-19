@@ -303,7 +303,7 @@ object GameRuleEngine {
                 }
                 // Stage 3 新命令 ─────────────────────────────
                 "appoint_governor" -> {
-                    val result = AppointmentSystem.appointGovernor(currentState, cmd.officerId, cmd.cityId)
+                    val result = AppointmentSystem.appointGovernor(currentState, command.officerId, command.cityId)
                     when (result) {
                         is AppointmentSystem.AppointResult.Success -> {
                             currentState = result.newState
@@ -313,7 +313,7 @@ object GameRuleEngine {
                     }
                 }
                 "appoint_garrison" -> {
-                    val result = AppointmentSystem.appointGarrison(currentState, cmd.officerId, cmd.cityId)
+                    val result = AppointmentSystem.appointGarrison(currentState, command.officerId, command.cityId)
                     when (result) {
                         is AppointmentSystem.AppointResult.Success -> {
                             currentState = result.newState
@@ -323,7 +323,7 @@ object GameRuleEngine {
                     }
                 }
                 "dismiss_officer" -> {
-                    val result = AppointmentSystem.dismissOfficer(currentState, cmd.officerId)
+                    val result = AppointmentSystem.dismissOfficer(currentState, command.officerId)
                     when (result) {
                         is AppointmentSystem.AppointResult.Success -> {
                             currentState = result.newState
@@ -333,7 +333,7 @@ object GameRuleEngine {
                     }
                 }
                 "transfer_officer" -> {
-                    val result = AppointmentSystem.transferOfficer(currentState, cmd.officerId, cmd.cityId)
+                    val result = AppointmentSystem.transferOfficer(currentState, command.officerId, command.cityId)
                     when (result) {
                         is AppointmentSystem.AppointResult.Success -> {
                             currentState = result.newState
@@ -343,10 +343,10 @@ object GameRuleEngine {
                     }
                 }
                 "recruit_officer" -> {
-                    val cost = (cmd.amount.takeIf { it > 0 } ?: 3000).coerceIn(500, 20000)
+                    val cost = (command.amount.takeIf { it > 0 } ?: 3000).coerceIn(500, 20000)
                     val recResult = RecruitmentSystem.recruit(
-                        currentState, cmd.officerId, cost,
-                        seed = (currentState.turn * 97L + cmd.officerId.hashCode() * 31L)
+                        currentState, command.officerId, cost,
+                        seed = (currentState.turn * 97L + command.officerId.hashCode() * 31L)
                     )
                     when (recResult) {
                         is RecruitmentSystem.RecruitResult.Success -> {
