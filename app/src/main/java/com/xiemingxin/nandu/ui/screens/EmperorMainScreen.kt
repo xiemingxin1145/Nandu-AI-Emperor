@@ -21,6 +21,9 @@ import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.ai.NpcResponse
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
+import com.xiemingxin.nandu.game.controlledCityCount
+import com.xiemingxin.nandu.game.garrisonTroopsOf
+import com.xiemingxin.nandu.game.playerFaction
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
 import com.xiemingxin.nandu.ui.components.AssetImage
@@ -147,44 +150,55 @@ fun EmperorMainScreen(
 
 @Composable
 fun GameHUD(state: GameState, onSettings: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF0D0A04))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1.15f)) {
-            Text(
-                text = "🐉 ${state.calendar.displayText()}",
-                color = ImperialGold,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = "${state.season.label} · ${state.weather.label}｜${state.weather.effectText}",
-                color = Color(0xFF8B7355),
-                fontSize = 9.sp,
-                maxLines = 1
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-            HudStat("💰", "${state.gold / 1000}k")
-            HudStat("🌾", "${state.grain / 1000}k")
-            HudStat("⚔", "${state.troopMorale}")
-            HudStat("🏯", "${state.jinThreat}", if (state.jinThreat > 80) Color.Red else Color.White)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
-                Text("⚙", fontSize = 16.sp)
+    val player = state.playerFaction()
+    val controlledCities = player?.let { state.controlledCityCount(it.id) } ?: state.cities.count { it.owner == "song" }
+    val totalTroops = player?.let { state.garrisonTroopsOf(it.id) } ?: state.cities.filter { it.owner == "song" }.sumOf { it.troops }
+    Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF0D0A04))) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1.15f)) {
+                Text(
+                    text = "🐉 ${state.calendar.displayText()}",
+                    color = ImperialGold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "${player?.name ?: "大宋"} · ${state.season.label} · ${state.weather.label}",
+                    color = Color(0xFF8B7355),
+                    fontSize = 9.sp,
+                    maxLines = 1
+                )
             }
-            Text(
-                "V1.4.2",
-                color = Color(0xFF3A3020),
-                fontSize = 8.sp
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                HudStat("💰", "${state.gold / 1000}k")
+                HudStat("🌾", "${state.grain / 1000}k")
+                HudStat("⚔", "${state.troopMorale}")
+                HudStat("🏯", "${state.jinThreat}", if (state.jinThreat > 80) Color.Red else Color.White)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
+                    Text("⚙", fontSize = 16.sp)
+                }
+                Text(
+                    "V1.7",
+                    color = Color(0xFF3A3020),
+                    fontSize = 8.sp
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp).padding(bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            HudStat("🏙", "控城 ${controlledCities}")
+            HudStat("🛡", "总兵力 ${totalTroops / 1000}k")
         }
     }
 }

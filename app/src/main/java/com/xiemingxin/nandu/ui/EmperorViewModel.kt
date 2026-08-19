@@ -34,6 +34,7 @@ import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.TavernSystem
 import com.xiemingxin.nandu.game.VictoryJudge
+import com.xiemingxin.nandu.game.withUpdatedFactionStatus
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
 import com.xiemingxin.nandu.story.StoryEventEffectApplier
@@ -369,7 +370,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             calendar = working.calendar.advance(),
             storyFlags = clearedFlags,
             cityActionPoints = TavernSystem.MAX_ACTION_POINTS
-        )
+        ).withUpdatedFactionStatus()
         val event = EventDirector.selectForTurn(
             state = nextState,
             events = storyEvents,

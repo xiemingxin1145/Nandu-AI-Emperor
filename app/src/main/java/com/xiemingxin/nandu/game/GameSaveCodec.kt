@@ -7,7 +7,10 @@ import java.util.Base64
 
 object GameSaveCodec {
     private const val PREFIX = "NANDU_SAVE_V1:"
-    private const val SAVE_VERSION = 2
+    // V1.7 天下战略：Faction/City/Officer 补齐扩展字段序列化，存档结构升级到 V3。
+    // 旧存档（V1/V2）读取时所有新增字段均走 optXxx 默认值兜底，不会崩溃，只是那些旧存档里
+    // 本就没有记录过的扩展数值（如城池人口、势力关系等）会被重置为初始默认值。
+    private const val SAVE_VERSION = 3
 
     fun export(state: GameState): String {
         val root = JSONObject()
@@ -85,53 +88,107 @@ object GameSaveCodec {
         .put("id", id).put("name", name).put("shortName", shortName)
         .put("rulerName", rulerName).put("capitalCityId", capitalCityId)
         .put("stance", stance).put("isPlayable", isPlayable)
+        .put("colorArgb", colorArgb).put("gold", gold).put("grain", grain)
+        .put("prestige", prestige).put("isAI", isAI).put("isDestroyed", isDestroyed)
+        .put("relations", JSONObject().apply { relations.forEach { (k, v) -> put(k, v) } })
 
-    private fun JSONObject.toFaction() = Faction(
-        id = optString("id"),
-        name = optString("name"),
-        shortName = optString("shortName"),
-        rulerName = optString("rulerName"),
-        capitalCityId = optString("capitalCityId"),
-        stance = optString("stance"),
-        isPlayable = optBoolean("isPlayable", false)
-    )
+    private fun JSONObject.toFaction(): Faction {
+        val isPlayableValue = optBoolean("isPlayable", false)
+        return Faction(
+            id = optString("id"),
+            name = optString("name"),
+            shortName = optString("shortName"),
+            rulerName = optString("rulerName"),
+            capitalCityId = optString("capitalCityId"),
+            stance = optString("stance"),
+            isPlayable = isPlayableValue,
+            colorArgb = optLong("colorArgb", 0xFF8C8C8CL),
+            gold = optInt("gold", 0),
+            grain = optInt("grain", 0),
+            prestige = optInt("prestige", 0),
+            isAI = optBoolean("isAI", !isPlayableValue),
+            isDestroyed = optBoolean("isDestroyed", false),
+            relations = optJSONObject("relations")?.let { rel ->
+                rel.keys().asSequence().associateWith { rel.optInt(it, 0) }
+            } ?: emptyMap()
+        )
+    }
 
     private fun Officer.toJson() = JSONObject()
         .put("id", id).put("name", name).put("faction", faction)
         .put("command", command).put("force", force).put("strategy", strategy)
         .put("politics", politics).put("loyalty", loyalty)
         .put("currentCityId", currentCityId).put("status", status.name)
+        .put("charm", charm).put("ambition", ambition).put("rankLevel", rankLevel)
+        .put("merit", merit).put("origin", origin)
+        .put("skills", JSONArray(skills)).put("bio", bio)
 
-    private fun JSONObject.toOfficer() = Officer(
-        id = optString("id"),
-        name = optString("name"),
-        faction = optString("faction"),
-        command = optInt("command", 50),
-        force = optInt("force", 50),
-        strategy = optInt("strategy", 50),
-        politics = optInt("politics", 50),
-        loyalty = optInt("loyalty", 50),
-        currentCityId = optString("currentCityId"),
-        status = enumValueOf(optString("status", OfficerStatus.IN_COURT.name))
-    )
+    private fun JSONObject.toOfficer(): Officer {
+        val id = optString("id")
+        val fallback = InitialData.officers.find { it.id == id }
+        return Officer(
+            id = id,
+            name = optString("name"),
+            faction = optString("faction"),
+            command = optInt("command", 50),
+            force = optInt("force", 50),
+            strategy = optInt("strategy", 50),
+            politics = optInt("politics", 50),
+            loyalty = optInt("loyalty", 50),
+            currentCityId = optString("currentCityId"),
+            status = enumValueOf(optString("status", OfficerStatus.IN_COURT.name)),
+            charm = optInt("charm", fallback?.charm ?: 50),
+            ambition = optInt("ambition", fallback?.ambition ?: 50),
+            rankLevel = optInt("rankLevel", fallback?.rankLevel ?: 0),
+            merit = optInt("merit", fallback?.merit ?: 0),
+            origin = optString("origin", fallback?.origin ?: ""),
+            skills = optJSONArray("skills")?.toStringList() ?: fallback?.skills ?: emptyList(),
+            bio = optString("bio", fallback?.bio ?: "")
+        )
+    }
 
     private fun City.toJson() = JSONObject()
         .put("id", id).put("name", name).put("owner", owner)
         .put("troops", troops).put("defense", defense).put("grain", grain)
         .put("gold", gold).put("popularSupport", popularSupport)
         .put("controlState", controlState)
+        .put("route", route).put("cityLevel", cityLevel).put("terrain", terrain)
+        .put("population", population).put("commerce", commerce).put("agriculture", agriculture)
+        .put("isCapital", isCapital).put("isWaterNode", isWaterNode).put("isPass", isPass)
+        .put("x", x).put("y", y)
+        .put("buildings", JSONObject().apply { buildings.forEach { (k, v) -> put(k, v) } })
 
-    private fun JSONObject.toCity() = City(
-        id = optString("id"),
-        name = optString("name"),
-        owner = optString("owner", "song"),
-        troops = optInt("troops", 0),
-        defense = optInt("defense", 50),
-        grain = optInt("grain", 0),
-        gold = optInt("gold", 0),
-        popularSupport = optInt("popularSupport", 80),
-        controlState = optString("controlState", "STABLE")
-    )
+    private fun JSONObject.toCity(): City {
+        // 城池的"原始默认值"取自 InitialData，兼容旧存档：旧存档没记录过的扩展字段
+        // （人口/商业/农业/地理属性等）会回落到该城市的初始设定，而不是笼统的硬编码默认值。
+        val id = optString("id")
+        val fallback = InitialData.cities.find { it.id == id }
+        return City(
+            id = id,
+            name = optString("name"),
+            owner = optString("owner", fallback?.owner ?: "song"),
+            troops = optInt("troops", fallback?.troops ?: 0),
+            defense = optInt("defense", fallback?.defense ?: 50),
+            grain = optInt("grain", fallback?.grain ?: 0),
+            gold = optInt("gold", fallback?.gold ?: 0),
+            popularSupport = optInt("popularSupport", fallback?.popularSupport ?: 80),
+            controlState = optString("controlState", fallback?.controlState ?: "STABLE"),
+            route = optString("route", fallback?.route ?: ""),
+            cityLevel = optString("cityLevel", fallback?.cityLevel ?: "州"),
+            terrain = optString("terrain", fallback?.terrain ?: "plain"),
+            population = optInt("population", fallback?.population ?: 100000),
+            commerce = optInt("commerce", fallback?.commerce ?: 50),
+            agriculture = optInt("agriculture", fallback?.agriculture ?: 50),
+            isCapital = optBoolean("isCapital", fallback?.isCapital ?: false),
+            isWaterNode = optBoolean("isWaterNode", fallback?.isWaterNode ?: false),
+            isPass = optBoolean("isPass", fallback?.isPass ?: false),
+            x = optInt("x", fallback?.x ?: 0),
+            y = optInt("y", fallback?.y ?: 0),
+            buildings = optJSONObject("buildings")?.let { b ->
+                b.keys().asSequence().associateWith { b.optInt(it, 0) }
+            } ?: fallback?.buildings ?: emptyMap()
+        )
+    }
 
     private fun Army.toJson() = JSONObject()
         .put("id", id).put("name", name).put("ownerFactionId", ownerFactionId)

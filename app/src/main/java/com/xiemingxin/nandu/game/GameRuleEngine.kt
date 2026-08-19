@@ -61,8 +61,19 @@ data class Faction(
     val rulerName: String,
     val capitalCityId: String,
     val stance: String,
-    val isPlayable: Boolean = false
-)
+    val isPlayable: Boolean = false,
+    // V1.7 天下战略骨架扩展（全部带默认值，兼容旧存档与旧调用点）
+    val colorArgb: Long = 0xFF8C8C8CL,            // 势力地图标识色（ARGB，供地图/UI着色使用）
+    val gold: Int = 0,                            // 势力独立国库（骨架字段：本阶段只记录归属与结算，不接入完整多势力经济）
+    val grain: Int = 0,                           // 势力独立粮草（骨架字段，理由同上）
+    val prestige: Int = 0,                        // 声望/正统（骨架字段，供后续太庙/史评系统使用）
+    val relations: Map<String, Int> = emptyMap(), // 对其他势力关系值，-100（死敌）～100（盟好），key为对方势力id
+    val isAI: Boolean = !isPlayable,              // 是否由AI控制（非玩家势力默认AI，可显式覆盖）
+    val isDestroyed: Boolean = false              // 是否已灭亡（不再拥有任何城池）
+) {
+    /** 对某势力的关系值，未记录时按中立(0)处理 */
+    fun relationWith(otherFactionId: String): Int = relations[otherFactionId] ?: 0
+}
 
 data class Army(
     val id: String,
@@ -200,6 +211,35 @@ data class GameState(
     val talentLeads: Set<String> = emptySet()                     // 已发现的在野人才线索 officerId
 )
 
+// ═══ V1.7 天下战略：势力归属统计与存亡判定（骨架，不改动既有经济/战斗结算逻辑）═══
+
+/** 某势力当前控制的所有城池 */
+fun GameState.citiesOf(factionId: String): List<City> = cities.filter { it.owner == factionId }
+
+/** 某势力当前控制的城池数量 */
+fun GameState.controlledCityCount(factionId: String): Int = citiesOf(factionId).size
+
+/** 某势力麾下城池的驻军合计（骨架口径：仅计入城池驻军，行军中的部队见 armies） */
+fun GameState.garrisonTroopsOf(factionId: String): Int = citiesOf(factionId).sumOf { it.troops }
+
+/** 当前唯一的玩家势力（isPlayable=true），理论上恰好一个 */
+fun GameState.playerFaction(): Faction? = factions.firstOrNull { it.isPlayable }
+
+/** 开局即拥有城池的势力集合——只有这些势力会被判定"灭亡"，避免把从未分配过城池的势力（如尚未接入的义军/大理）误判为已灭亡 */
+private val FactionsWithInitialTerritory: Set<String> by lazy {
+    InitialData.cities.map { it.owner }.toSet()
+}
+
+/** 每旬结算后刷新各势力的存亡状态：曾经拥有过城池、当前控制城池数为0 → 判定灭亡 */
+fun GameState.withUpdatedFactionStatus(): GameState {
+    val newFactions = factions.map { faction ->
+        if (faction.id !in FactionsWithInitialTerritory) return@map faction
+        val alive = controlledCityCount(faction.id) > 0
+        if (faction.isDestroyed == !alive) faction else faction.copy(isDestroyed = !alive)
+    }
+    return if (newFactions == factions) this else copy(factions = newFactions)
+}
+
 object GameRuleEngine {
 
     data class ExecutionResult(
@@ -300,6 +340,7 @@ object GameRuleEngine {
             weather = state.weather
         )
         currentState = currentState.copy(chronicle = currentState.chronicle + entry)
+        currentState = currentState.withUpdatedFactionStatus()
         return ExecutionResult(currentState, outcomes, rejected)
     }
 
