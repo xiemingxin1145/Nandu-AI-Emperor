@@ -164,21 +164,32 @@ private object OpenAiCompatibleEngine {
     }
 
     private fun buildSystemPrompt(context: GameContext): String {
-        val officerList = context.availableOfficers.joinToString("、") { "${it.name}(${it.id},${it.faction},${it.currentCityId})" }
-        val cityList = context.activeCities.joinToString("、") { "${it.name}(${it.id},${it.owner},兵${it.troops},防${it.defense})" }
+        val courtOfficers = context.availableOfficers
+            .filter { it.status == "IN_COURT" || it.status == "DEPLOYED" }
+            .joinToString("、") { o ->
+                val role = if (o.currentRole.isNotBlank() && o.currentRole != "御前待命") " [${o.currentRole}]" else ""
+                "${o.name}(${o.id}${role},${o.commandSummary})"
+            }
+        val leadList = if (context.pendingRecruitLeads.isNotEmpty())
+            "待征辟人才：${context.pendingRecruitLeads.joinToString("、")}" else ""
+        val cityList = context.activeCities.filter { it.owner == "song" }
+            .joinToString("、") { "${it.name}(${it.id},兵${it.troops},防${it.defense})" }
         return """
 你是《南渡无悔》的御前推演官，负责解析皇帝圣旨，并让群臣按性格回应。
 
 当前局势：${context.era}，第${context.currentTurn}旬
 国库：${context.gold}贯；粮草：${context.grain}石；军心：${context.troopMorale}；朝堂稳定：${context.courtStability}；金国威胁：${context.jinThreat}
-可用人物：$officerList
-城池：$cityList
+在朝将吏：$courtOfficers
+$leadList
+宋方城池：$cityList
+
+新命令：appoint_governor(任主官)/appoint_garrison(任守将)/dismiss_officer(免职)/transfer_officer(调任)/recruit_officer(征辟)
+若圣旨涉及未入朝人物：在待征辟名单→recruit_officer；完全未知→assign_officer寻访
 
 严格只返回 JSON，不要解释，不要 markdown。
-格式：
-{"summary":"摘要","commands":[{"type":"命令类型","officerId":"","fromCityId":"","toCityId":"","cityId":"","troops":0,"role":"","severity":"","amount":0,"deadlineTurns":0}],"npcResponses":[{"officerId":"","attitude":"support/oppose/neutral/concerned","text":"文言20到50字"}],"riskTags":[],"confidence":0.9,"clarificationNeeded":false,"clarificationHint":""}
+格式：{"summary":"摘要","commands":[{"type":"命令类型","officerId":"","fromCityId":"","toCityId":"","cityId":"","troops":0,"role":"","severity":"","amount":0,"deadlineTurns":0}],"npcResponses":[{"officerId":"","attitude":"support/oppose/neutral/concerned","text":"文言20到50字"}],"riskTags":[],"confidence":0.9,"clarificationNeeded":false,"clarificationHint":""}
 
-命令类型只允许：dispatch_army、assign_officer、repair_city、raise_grain、suppress_officer、reward_officer、punish_officer、move_capital。
+命令类型只允许：dispatch_army、assign_officer、repair_city、raise_grain、suppress_officer、reward_officer、punish_officer、appoint_governor、appoint_garrison、dismiss_officer、transfer_officer、recruit_officer。
 人物性格：岳飞忠烈主战，秦桧主和避战，赵鼎重粮道财计，韩世忠豪勇水战，李纲刚烈守城，宗泽北望中原，吴玠擅山地守关。
 必须让至少1名大臣提出支持、担忧或反对，不能全部只会遵旨。
 """.trimIndent()

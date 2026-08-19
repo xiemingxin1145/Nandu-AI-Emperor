@@ -42,7 +42,7 @@ jobs:
           git config user.name "CI Bot"
           git add build-error-latest.txt
           git diff --cached --quiet || git commit -m "ci: build error [skip ci]"
-          git push
+          git push --force-with-lease || git push
 
       - name: Upload APK
         if: success()

@@ -208,7 +208,10 @@ data class GameState(
     val prestige: Int = 30,                                       // 名望
     val cityActionPoints: Int = TavernSystem.MAX_ACTION_POINTS,   // 每旬城中行动力
     val rumors: List<Rumor> = emptyList(),                        // 已持有的传闻情报
-    val talentLeads: Set<String> = emptySet()                     // 已发现的在野人才线索 officerId
+    val talentLeads: Set<String> = emptySet(),                    // 已发现的在野人才线索 officerId
+    // Stage 3 城池任职体系：正式任命记录（区别于"人在城里"）
+    val cityGovernors: Map<String, String> = emptyMap(),          // cityId → officerId，城池主官
+    val cityGarrisons: Map<String, String> = emptyMap()           // cityId → officerId，驻城守将
 )
 
 // ═══ V1.7 天下战略：势力归属统计与存亡判定（骨架，不改动既有经济/战斗结算逻辑）═══
@@ -298,6 +301,69 @@ object GameRuleEngine {
                     currentState = result.first
                     outcomes.add(result.second)
                 }
+                // Stage 3 新命令 ─────────────────────────────
+                "appoint_governor" -> {
+                    val result = AppointmentSystem.appointGovernor(currentState, command.officerId, command.cityId)
+                    when (result) {
+                        is AppointmentSystem.AppointResult.Success -> {
+                            currentState = result.newState
+                            outcomes.add(result.message)
+                        }
+                        is AppointmentSystem.AppointResult.Failure -> rejected.add(result.reason)
+                    }
+                }
+                "appoint_garrison" -> {
+                    val result = AppointmentSystem.appointGarrison(currentState, command.officerId, command.cityId)
+                    when (result) {
+                        is AppointmentSystem.AppointResult.Success -> {
+                            currentState = result.newState
+                            outcomes.add(result.message)
+                        }
+                        is AppointmentSystem.AppointResult.Failure -> rejected.add(result.reason)
+                    }
+                }
+                "dismiss_officer" -> {
+                    val result = AppointmentSystem.dismissOfficer(currentState, command.officerId)
+                    when (result) {
+                        is AppointmentSystem.AppointResult.Success -> {
+                            currentState = result.newState
+                            outcomes.add(result.message)
+                        }
+                        is AppointmentSystem.AppointResult.Failure -> rejected.add(result.reason)
+                    }
+                }
+                "transfer_officer" -> {
+                    val result = AppointmentSystem.transferOfficer(currentState, command.officerId, command.cityId)
+                    when (result) {
+                        is AppointmentSystem.AppointResult.Success -> {
+                            currentState = result.newState
+                            outcomes.add(result.message)
+                        }
+                        is AppointmentSystem.AppointResult.Failure -> rejected.add(result.reason)
+                    }
+                }
+                "recruit_officer" -> {
+                    val cost = (command.amount.takeIf { it > 0 } ?: 3000).coerceIn(500, 20000)
+                    val recResult = RecruitmentSystem.recruit(
+                        currentState, command.officerId, cost,
+                        seed = (currentState.turn * 97L + command.officerId.hashCode() * 31L)
+                    )
+                    when (recResult) {
+                        is RecruitmentSystem.RecruitResult.Success -> {
+                            currentState = recResult.newState
+                            outcomes.add(recResult.message)
+                        }
+                        is RecruitmentSystem.RecruitResult.Deferred -> {
+                            currentState = recResult.newState
+                            outcomes.add(recResult.message)
+                        }
+                        is RecruitmentSystem.RecruitResult.Declined ->
+                            outcomes.add(recResult.message)
+                        is RecruitmentSystem.RecruitResult.NotFound ->
+                            rejected.add(recResult.reason)
+                    }
+                }
+                // ─────────────────────────────────────────────────
                 "move_capital" -> rejected.add("【迁都暂缓】迁都系统尚未开放。")
             }
         }
@@ -525,23 +591,32 @@ object GameRuleEngine {
         val chosen = targetPool[(seed and Int.MAX_VALUE) % targetPool.size]
         if (roll > threshold) {
             val hintCity = state.cities.find { it.id == chosen.currentCityId }?.name ?: chosen.currentCityId
-            return state.copy(gold = state.gold - cost) to "【寻访】访才使得线索：$hintCity 一带似有可造之才，但此番未能请至御前，耗资${cost}贯。"
+            return state.copy(gold = state.gold - cost) to "【寻访】访才使得线索：$hintCity 一带似有可造之才，但此番未能近身探访，耗资${cost}贯。如欲征辟，可再遣使寻访或直接下旨征辟。"
         }
-        val newOfficers = state.officers.map {
-            if (it.id == chosen.id) it.copy(status = OfficerStatus.IN_COURT, faction = when (it.id) {
-                "yue_fei", "liu_qi" -> "新锐武将"
-                "han_shizhong", "wu_jie" -> "武将派"
-                "qin_hui" -> "文臣派"
-                else -> it.faction
-            }) else it
-        }
+        // Stage 3：寻访成功 → 只获得线索（talentLeads），不直接入朝
+        // 玩家需要再用 recruit_officer 命令正式征辟
         val cityName = state.cities.find { it.id == chosen.currentCityId }?.name ?: chosen.currentCityId
         val origin = when (chosen.status) {
             OfficerStatus.SOLDIER -> "军中低阶之人"
             OfficerStatus.WANDERING -> "流落未仕之士"
             else -> "民间未登记之才"
         }
-        return state.copy(gold = state.gold - cost, officers = newOfficers) to "【寻访得才】访才使在${cityName}寻得${origin}：${chosen.name}。此人已录入御前名册，可听候任用，耗资${cost}贯。"
+        val alreadyKnown = chosen.id in state.talentLeads
+        val newLeads = state.talentLeads + chosen.id
+        // 线索初见：才能描述模糊，激发玩家进一步行动欲望
+        val tease = when {
+            chosen.force >= 90 -> "据闻此人勇力出众，善于阵战"
+            chosen.strategy >= 88 -> "据闻此人腹有韬略，精研兵法"
+            chosen.politics >= 85 -> "据闻此人精于政务，善理民情"
+            chosen.command >= 88 -> "据闻此人统兵有方，治军严明"
+            else -> "据闻此人才学不俗，有待大用"
+        }
+        val msg = if (alreadyKnown) {
+            "【寻访确认】访才使再度探明：${cityName}确有${origin}${chosen.name}，$tease。可下旨征辟。耗资${cost}贯。"
+        } else {
+            "【寻访得线索】访才使在${cityName}探得${origin}一人，$tease。详情待征辟后方可知晓。耗资${cost}贯。"
+        }
+        return state.copy(gold = state.gold - cost, talentLeads = newLeads) to msg
     }
 
     private fun executeRepairCity(state: GameState, cmd: EdictCommand): Pair<GameState, String> {

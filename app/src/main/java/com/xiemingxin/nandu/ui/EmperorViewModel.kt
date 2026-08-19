@@ -11,6 +11,8 @@ import com.xiemingxin.nandu.ai.CityContext
 import com.xiemingxin.nandu.ai.ClaudeProvider
 import com.xiemingxin.nandu.ai.CustomApiProvider
 import com.xiemingxin.nandu.ai.EdictResult
+import com.xiemingxin.nandu.game.AppointmentSystem
+import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.ai.GameContext
 import com.xiemingxin.nandu.ai.GeminiProvider
 import com.xiemingxin.nandu.ai.MockProvider
@@ -526,17 +528,61 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         return if (parts.size == 2) parts[0].trim() to parts[1].trim() else "" to value.trim()
     }
 
-    private fun buildGameContext(state: GameState) = GameContext(
-        currentTurn = state.turn,
-        era = "${state.calendar.displayText()} / ${state.season.label} / 天气${state.weather.label}",
-        gold = state.gold,
-        grain = state.grain,
-        troopMorale = state.troopMorale,
-        courtStability = state.courtStability,
-        jinThreat = state.jinThreat,
-        activeCities = state.cities.map { CityContext(it.id, it.name, it.owner, it.troops, it.defense) },
-        availableOfficers = state.officers
-            .filter { it.status == OfficerStatus.IN_COURT || it.status == OfficerStatus.DEPLOYED }
-            .map { OfficerContext(it.id, it.name, it.faction, it.currentCityId, it.status.name) }
-    )
+    private fun buildGameContext(state: GameState): GameContext {
+        // Stage 3：只把已知（非HIDDEN）人物暴露给AI，防止泄露隐藏人才
+        val visibleStatuses = setOf(
+            OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED,
+            OfficerStatus.WANDERING, OfficerStatus.SOLDIER,
+            OfficerStatus.DISMISSED
+        )
+        // talentLeads 中的人物：玩家已发现但未征辟，也让AI知道（但只显示摸糊信息）
+        val leadIds = state.talentLeads
+        val officerContexts = state.officers
+            .filter { o ->
+                o.status in visibleStatuses ||
+                (o.status == OfficerStatus.HIDDEN && o.id in leadIds)
+            }
+            .map { o ->
+                val isLead = o.id in leadIds && o.status in setOf(
+                    OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING
+                )
+                val role = AppointmentSystem.currentRole(state, o.id)
+                val cmdSummary = when {
+                    o.force >= 85 && o.command >= 85 -> "猛将(武${o.force}/统${o.command})"
+                    o.command >= 85 -> "统帅(统${o.command}/谋${o.strategy})"
+                    o.politics >= 85 -> "文臣(政${o.politics}/谋${o.strategy})"
+                    o.strategy >= 85 -> "谋士(谋${o.strategy}/统${o.command})"
+                    else -> "将吏(武${o.force}/政${o.politics})"
+                }
+                OfficerContext(
+                    id = if (isLead) o.id else o.id,
+                    name = o.name,
+                    faction = o.faction,
+                    currentCityId = o.currentCityId,
+                    status = if (isLead) "LEAD_PENDING" else o.status.name,
+                    currentRole = role,
+                    commandSummary = cmdSummary,
+                    loyaltyLabel = OfficerIntel.loyaltyLabel(o.loyalty),
+                    isRecruitLead = isLead
+                )
+            }
+
+        // 待征辟名单（摸糊提示给AI，让AI帮玩家决策）
+        val pendingLeads = state.officers
+            .filter { it.id in leadIds && it.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING) }
+            .map { o -> "${o.name}（${state.cities.find { c -> c.id == o.currentCityId }?.name ?: o.currentCityId}，待征辟）" }
+
+        return GameContext(
+            currentTurn = state.turn,
+            era = "${state.calendar.displayText()} / ${state.season.label} / 天气${state.weather.label}",
+            gold = state.gold,
+            grain = state.grain,
+            troopMorale = state.troopMorale,
+            courtStability = state.courtStability,
+            jinThreat = state.jinThreat,
+            activeCities = state.cities.map { CityContext(it.id, it.name, it.owner, it.troops, it.defense) },
+            availableOfficers = officerContexts,
+            pendingRecruitLeads = pendingLeads
+        )
+    }
 }

@@ -48,7 +48,10 @@ fun CityManagePanel(
     city: City,
     onBuild: (String) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    governorName: String? = null,    // Stage 3: 正式任命主官名字（null=无专任）
+    garrisonName: String? = null,    // Stage 3: 正式任命守将名字
+    hiddenTalentHint: String? = null // Stage 3: 在野人才模糊提示
 ) {
     Card(
         modifier = modifier
@@ -67,6 +70,20 @@ fun CityManagePanel(
                 Column {
                     Text(city.name + " · 营建", color = MgGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("库银 " + (city.gold / 1000) + "k · 存粮 " + (city.grain / 1000) + "k", color = MgSub, fontSize = 11.sp)
+                    // Stage 3: 主官/守将信息
+                    Text(
+                        "主官：${governorName ?: "暂无专任（朝廷遥领）"}",
+                        color = if (governorName != null) Color(0xFF8FB573) else MgSub,
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        "守将：${garrisonName ?: "暂无专任守将"}",
+                        color = if (garrisonName != null) Color(0xFF8FB573) else MgSub,
+                        fontSize = 10.sp
+                    )
+                    hiddenTalentHint?.let { hint ->
+                        Text(hint, color = Color(0xFFC9A227).copy(alpha = 0.7f), fontSize = 10.sp)
+                    }
                 }
                 IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp)) {
                     Text("X", color = MgSub, fontSize = 14.sp)

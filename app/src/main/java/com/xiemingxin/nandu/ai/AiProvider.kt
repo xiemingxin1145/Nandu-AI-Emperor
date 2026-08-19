@@ -41,7 +41,12 @@ data class EdictCommand(
             "suppress_officer",   // 压制大臣
             "reward_officer",     // 赏赐
             "punish_officer",     // 惩处
-            "move_capital"        // 迁都（后期开放）
+            "appoint_governor",  // Stage3 任命城池主官
+            "appoint_garrison",  // Stage3 任命驻城守将
+            "dismiss_officer",   // Stage3 免职
+            "transfer_officer",  // Stage3 调任
+            "recruit_officer",   // Stage3 征辟人才（需先有talentLead）
+            "move_capital"       // 迁都（后期开放）
         )
 
         fun isValid(type: String) = type in ALLOWED_TYPES
@@ -79,7 +84,9 @@ data class GameContext(
     val courtStability: Int,
     val jinThreat: Int,
     val activeCities: List<CityContext>,
-    val availableOfficers: List<OfficerContext>
+    val availableOfficers: List<OfficerContext>,
+    // Stage 3 扩展
+    val pendingRecruitLeads: List<String> = emptyList()  // 已获得线索但尚未征辟的人名列表（给AI用于提示）
 )
 
 data class CityContext(
@@ -95,7 +102,12 @@ data class OfficerContext(
     val name: String,
     val faction: String,
     val currentCityId: String,
-    val status: String
+    val status: String,
+    // Stage 3 扩展：让AI知道人物职务和基本能力
+    val currentRole: String = "",           // 御前待命/某城主官/某城守将/待征辟
+    val commandSummary: String = "",        // 简短能力摘要供AI选将
+    val loyaltyLabel: String = "",          // 忠诚等级（忠直/可信/观望/不稳）
+    val isRecruitLead: Boolean = false      // 是否已获得talentLead（待征辟状态）
 )
 
 enum class AiProviderType(val displayName: String) {

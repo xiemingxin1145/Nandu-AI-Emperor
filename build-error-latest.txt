@@ -44,10 +44,19 @@ Starting a Gradle Daemon (subsequent builds will be faster)
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
-> Task :app:compileDebugKotlin
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:184:28 Unresolved reference: finish
 
 > Task :app:compileDebugKotlin FAILED
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:306:82 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:306:97 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:316:82 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:316:97 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:326:81 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:336:82 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:336:97 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:346:33 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:346:53 Unresolved reference: it
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:348:39 Unresolved reference: cmd
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:349:59 Unresolved reference: cmd
 
 FAILURE: Build failed with an exception.
 
@@ -254,5 +263,5 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 2m 27s
+BUILD FAILED in 2m 10s
 27 actionable tasks: 27 executed
