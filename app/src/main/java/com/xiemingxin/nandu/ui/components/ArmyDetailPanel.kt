@@ -39,7 +39,7 @@ fun ArmyDetailPanel(
 
     val routeDesc = if (army.routeNodeIds.size > 1) {
         army.routeNodeIds.mapNotNull { id ->
-            gameState.cities.find { it.id == id }?.name ?: MapData.nodeMap[id]?.label
+            gameState.cities.find { it.id == id }?.name ?: MapData.nodeMap[id]?.name
         }.joinToString(" → ")
     } else ""
 

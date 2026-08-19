@@ -261,7 +261,7 @@ object ArmyMovementSystem {
         val totalDays = calcRouteDays(route, army.armyType, state.season, state.weather, cmdStat)
         val fromName = state.cities.find { it.id == fromNode }?.name ?: fromNode
         val toName = state.cities.find { it.id == newTargetId }?.name ?: newTargetId
-        val routeDesc = route.mapNotNull { id -> state.cities.find { it.id == id }?.name ?: MapData.nodeMap[id]?.label }.joinToString("→")
+        val routeDesc = route.mapNotNull { id -> state.cities.find { it.id == id }?.name ?: MapData.nodeMap[id]?.name }.joinToString("→")
 
         val newArmy = army.copy(
             targetCityId = newTargetId,

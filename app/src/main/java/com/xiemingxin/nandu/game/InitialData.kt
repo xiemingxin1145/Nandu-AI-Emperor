@@ -88,11 +88,17 @@ object InitialData {
     )
 
     val armies = listOf(
-        Army("army_song_linan", "御营司残军", "song", "", "linan", "linan", 15000, 62, "field_army", "linan", "拱卫"),
-        Army("army_song_jiankang", "建康水军残部", "song", "", "jiankang", "jiankang", 9000, 60, "naval", "jiankang", "江防"),
-        Army("army_song_ezhou", "鄂州地方军", "song", "", "ezhou", "ezhou", 12000, 58, "frontier", "ezhou", "驻防"),
-        Army("army_jin_kaifeng", "金军开封大营", "jin", "", "kaifeng", "kaifeng", 30000, 82, "cavalry", "kaifeng", "占领"),
-        Army("army_jin_daming", "金军大名府兵团", "jin", "", "daming", "daming", 22000, 78, "cavalry", "daming", "南侵预备"),
-        Army("army_jin_taiyuan", "金军河东兵团", "jin", "", "taiyuan", "taiyuan", 25000, 80, "cavalry", "taiyuan", "镇守")
+        Army("army_song_linan", "御营司残军", "song", "", "linan", "linan", 15000, 62, "field_army", "linan",
+            statusCode = ArmyStatus.GARRISONED, status = "拱卫"),
+        Army("army_song_jiankang", "建康水军残部", "song", "", "jiankang", "jiankang", 9000, 60, "naval", "jiankang",
+            statusCode = ArmyStatus.GARRISONED, status = "江防"),
+        Army("army_song_ezhou", "鄂州地方军", "song", "", "ezhou", "ezhou", 12000, 58, "frontier", "ezhou",
+            statusCode = ArmyStatus.GARRISONED, status = "驻防"),
+        Army("army_jin_kaifeng", "金军开封大营", "jin", "", "kaifeng", "kaifeng", 30000, 82, "cavalry", "kaifeng",
+            statusCode = ArmyStatus.GARRISONED, status = "占领"),
+        Army("army_jin_daming", "金军大名府兵团", "jin", "", "daming", "daming", 22000, 78, "cavalry", "daming",
+            statusCode = ArmyStatus.GARRISONED, status = "南侵预备"),
+        Army("army_jin_taiyuan", "金军河东兵团", "jin", "", "taiyuan", "taiyuan", 25000, 80, "cavalry", "taiyuan",
+            statusCode = ArmyStatus.GARRISONED, status = "镇守")
     )
 }

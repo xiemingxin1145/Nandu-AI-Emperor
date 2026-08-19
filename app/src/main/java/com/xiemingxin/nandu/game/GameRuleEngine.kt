@@ -532,8 +532,6 @@ object GameRuleEngine {
             state.armies.map { army ->
                 if (army.id == existingArmy.id) army.copy(
                     currentCityId = cmd.fromCityId,
-                    targetCityId = cmd.toCityId,
-                    routeFromCityId = cmd.fromCityId,
                     troops = actualTroops,
                     morale = (army.morale + 3).coerceAtMost(100),
                     supplyCityId = cmd.fromCityId,
