@@ -62,6 +62,7 @@ import com.xiemingxin.nandu.game.MapNode
 import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.TerrainFeatures
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.game.RecruitmentSystem
 import com.xiemingxin.nandu.ui.components.CityManagePanel
 import com.xiemingxin.nandu.ui.components.RecruitPanel
 import com.xiemingxin.nandu.ui.theme.ImperialGold
@@ -103,10 +104,13 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     val cityMap = gameState.cities.associateBy { it.id }
     val armiesByCity = gameState.armies.groupBy { it.currentCityId }
     val officerNames = gameState.officers.associate { it.id to it.name }
-    val governorByCity = gameState.officers
-        .filter { it.currentCityId.isNotBlank() }
-        .groupBy { it.currentCityId }
-        .mapValues { (_, officers) -> officers.maxByOrNull { it.rankLevel }?.name }
+    // Stage 3: 正式任命优先；无正式任命时显示"朝廷遥领"而非随机拿rankLevel最高者冒充
+    val governorByCity: Map<String, String?> = gameState.cityGovernors.mapValues { (_, oid) ->
+        gameState.officers.find { it.id == oid }?.name
+    }
+    val garrisonByCity: Map<String, String?> = gameState.cityGarrisons.mapValues { (_, oid) ->
+        gameState.officers.find { it.id == oid }?.name
+    }
 
     fun focus(region: MapFocusRegion) {
         cameraX = region.x
@@ -206,7 +210,20 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             }
         }
 
-        manageCityId?.let { id -> cityMap[id]?.let { Dialog(onDismissRequest = { manageCityId = null }) { CityManagePanel(it, { buildingId -> onCitySelected("$id|build:$buildingId") }, { manageCityId = null }) } } }
+        manageCityId?.let { id ->
+            cityMap[id]?.let { city ->
+                Dialog(onDismissRequest = { manageCityId = null }) {
+                    CityManagePanel(
+                        city = city,
+                        onBuild = { buildingId -> onCitySelected("$id|build:$buildingId") },
+                        onDismiss = { manageCityId = null },
+                        governorName = governorByCity[id],
+                        garrisonName = garrisonByCity[id],
+                        hiddenTalentHint = com.xiemingxin.nandu.game.RecruitmentSystem.hiddenTalentHint(gameState, id)
+                    )
+                }
+            }
+        }
         recruitCityId?.let { id -> cityMap[id]?.let { Dialog(onDismissRequest = { recruitCityId = null }) { RecruitPanel(it, { unitId -> onCitySelected("$id|recruit:$unitId") }, { recruitCityId = null }) } } }
     }
 }

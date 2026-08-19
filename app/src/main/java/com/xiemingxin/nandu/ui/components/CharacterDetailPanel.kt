@@ -34,6 +34,9 @@ import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
+import com.xiemingxin.nandu.game.AppointmentSystem
+import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.OfficerStatus
 
 private val PanelGold = Color(0xFFC9A227)
 private val PanelCream = Color(0xFFE8DCC0)
@@ -44,12 +47,84 @@ private val PanelSub = Color(0xFF9A8862)
  * V0.8 人物详情面板：点击武将弹出，显示头像、五维、技能、评估。
  * 数据统一走 OfficerProfile 系统（profile()）。
  */
+/**
+ * Stage 3 扩展版：传入GameState，可显示职务信息、处理隐藏人物
+ */
+@Composable
+fun CharacterDetailPanelWithState(
+    officer: com.xiemingxin.nandu.game.Officer,
+    gameState: GameState,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name
+        ?: officer.currentCityId
+    val isLeadPending = officer.id in gameState.talentLeads &&
+        officer.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING)
+    val isFullyRevealed = officer.status in setOf(
+        OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED, OfficerStatus.DISMISSED, OfficerStatus.DECEASED
+    ) || (isLeadPending)
+    val currentRole = AppointmentSystem.currentRole(gameState, officer.id)
+
+    if (!isFullyRevealed && officer.status == OfficerStatus.HIDDEN) {
+        // 隐藏人物：只显示模糊信息
+        HiddenOfficerHintPanel(officer = officer, cityName = cityName, onDismiss = onDismiss, modifier = modifier)
+    } else {
+        CharacterDetailPanel(
+            officer = officer,
+            cityName = cityName,
+            currentRole = currentRole,
+            loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
+            onDismiss = onDismiss,
+            modifier = modifier
+        )
+    }
+}
+
+/** 隐藏人物的模糊信息面板 */
+@Composable
+private fun HiddenOfficerHintPanel(
+    officer: com.xiemingxin.nandu.game.Officer,
+    cityName: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = PanelDark),
+        border = BorderStroke(1.dp, PanelGold.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("？？？", color = PanelGold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Text("X", color = PanelSub, fontSize = 14.sp)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("此人尚未被发现", color = PanelCream, fontSize = 13.sp)
+            Text("所在：$cityName 附近", color = PanelSub, fontSize = 11.sp)
+            Spacer(Modifier.height(8.dp))
+            Text("统率：未知 / 武力：未知 / 智略：未知", color = PanelSub, fontSize = 11.sp)
+            Spacer(Modifier.height(6.dp))
+            Text("← 在此城走访或寻访，可能获得更多线索", color = Color(0xFF8FB573), fontSize = 10.sp)
+        }
+    }
+}
+
 @Composable
 fun CharacterDetailPanel(
     officer: Officer,
     cityName: String,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentRole: String = "",       // Stage 3: 职务说明
+    loyaltyRisk: String? = null     // Stage 3: 忠诚风险提示
 ) {
     val p = officer.profile()
     Card(
@@ -84,6 +159,9 @@ fun CharacterDetailPanel(
                     }
                     Text(p.rank + " · " + p.origin, color = PanelCream, fontSize = 13.sp)
                     Text("现驻 " + cityName, color = PanelSub, fontSize = 11.sp)
+                    if (currentRole.isNotBlank()) {
+                        Text("职务：$currentRole", color = Color(0xFF8FB573), fontSize = 11.sp)
+                    }
                     Spacer(Modifier.height(3.dp))
                     Text(
                         "忠：" + OfficerIntel.loyaltyLabel(officer.loyalty) + " · 志：" + OfficerIntel.ambitionLabel(p.ambition),
@@ -125,6 +203,17 @@ fun CharacterDetailPanel(
                 OfficerIntel.trustBrief(officer.loyalty, p.ambition),
                 color = Color(0xFF8FB573), fontSize = 12.sp
             )
+            if (loyaltyRisk != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(loyaltyRisk, color = Color(0xFFE57373), fontSize = 11.sp)
+            }
+            // bio简介
+            if (officer.bio.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Text("简介", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text(officer.bio, color = PanelSub, fontSize = 10.sp, lineHeight = 16.sp)
+            }
         }
     }
 }

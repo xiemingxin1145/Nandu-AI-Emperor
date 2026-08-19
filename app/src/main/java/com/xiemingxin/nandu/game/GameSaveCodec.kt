@@ -10,7 +10,7 @@ object GameSaveCodec {
     // V1.7 天下战略：Faction/City/Officer 补齐扩展字段序列化，存档结构升级到 V3。
     // 旧存档（V1/V2）读取时所有新增字段均走 optXxx 默认值兜底，不会崩溃，只是那些旧存档里
     // 本就没有记录过的扩展数值（如城池人口、势力关系等）会被重置为初始默认值。
-    private const val SAVE_VERSION = 3
+    private const val SAVE_VERSION = 4
 
     fun export(state: GameState): String {
         val root = JSONObject()
@@ -36,6 +36,9 @@ object GameSaveCodec {
             .put("cityActionPoints", state.cityActionPoints)
             .put("talentLeads", JSONArray(state.talentLeads.toList()))
             .put("rumors", JSONArray(state.rumors.map { it.toJson() }))
+            // Stage 3 任职体系
+            .put("cityGovernors", JSONObject().apply { state.cityGovernors.forEach { (k, v) -> put(k, v) } })
+            .put("cityGarrisons", JSONObject().apply { state.cityGarrisons.forEach { (k, v) -> put(k, v) } })
         val encoded = Base64.getEncoder().encodeToString(root.toString().toByteArray(StandardCharsets.UTF_8))
         return PREFIX + encoded
     }
@@ -67,7 +70,14 @@ object GameSaveCodec {
             prestige = root.optInt("prestige", 30),
             cityActionPoints = root.optInt("cityActionPoints", TavernSystem.MAX_ACTION_POINTS),
             talentLeads = root.optJSONArray("talentLeads").toStringList().toSet(),
-            rumors = root.optJSONArray("rumors").toListOrDefault(emptyList()) { it.toRumor() }
+            rumors = root.optJSONArray("rumors").toListOrDefault(emptyList()) { it.toRumor() },
+            // Stage 3 任职体系（旧存档默认空Map，向后兼容）
+            cityGovernors = root.optJSONObject("cityGovernors")?.let { obj ->
+                obj.keys().asSequence().associateWith { obj.optString(it, "") }.filterValues { it.isNotBlank() }
+            } ?: emptyMap(),
+            cityGarrisons = root.optJSONObject("cityGarrisons")?.let { obj ->
+                obj.keys().asSequence().associateWith { obj.optString(it, "") }.filterValues { it.isNotBlank() }
+            } ?: emptyMap()
         )
     }
 
