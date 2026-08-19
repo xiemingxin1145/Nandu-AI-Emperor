@@ -1,0 +1,49 @@
+name: One-time Stage2 Import Runner
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/stage2-import-runner.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-stage2-to-import-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Stage 2 import branch
+        uses: actions/checkout@v4
+        with:
+          ref: stage2-world-strategy-import
+          fetch-depth: 0
+
+      - name: Rebuild and validate Claude patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find .stage2-patch -maxdepth 1 -name 'chunk*.b64' | wc -l)" -eq 6
+          cat .stage2-patch/chunk*.b64 | tr -d '\n' | base64 --decode > /tmp/stage2.patch
+          test "$(wc -c < /tmp/stage2.patch)" -eq 30272
+          grep -q '^From 96f0c8d74c0f1d39c0f19f141cac92d9e41fb0fc ' /tmp/stage2.patch
+
+      - name: Apply Claude Stage 2 commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git am --3way /tmp/stage2.patch
+
+      - name: Remove branch-side import helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -r .stage2-patch .github/workflows/stage2-patch-import.yml
+          git commit -m 'chore: remove one-time stage2 import helpers [skip ci]'
+
+      - name: Push patched branch
+        shell: bash
+        run: git push origin HEAD:stage2-world-strategy-import
