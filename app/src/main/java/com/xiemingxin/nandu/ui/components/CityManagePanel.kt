@@ -71,10 +71,16 @@ fun CityManagePanel(
                     Text(city.name + " · 营建", color = MgGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Text("库银 " + (city.gold / 1000) + "k · 存粮 " + (city.grain / 1000) + "k", color = MgSub, fontSize = 11.sp)
                     // Stage 3: 主官/守将信息
-                    val govText = governorName ?: "暂无专任（朝廷遥领）"
-                    Text("主官：$govText", color = if (governorName != null) Color(0xFF8FB573) else MgSub, fontSize = 10.sp)
-                    val garText = garrisonName ?: "暂无专任守将"
-                    Text("守将：$garText", color = if (garrisonName != null) Color(0xFF8FB573) else MgSub, fontSize = 10.sp)
+                    Text(
+                        "主官：${governorName ?: "暂无专任（朝廷遥领）"}",
+                        color = if (governorName != null) Color(0xFF8FB573) else MgSub,
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        "守将：${garrisonName ?: "暂无专任守将"}",
+                        color = if (garrisonName != null) Color(0xFF8FB573) else MgSub,
+                        fontSize = 10.sp
+                    )
                     hiddenTalentHint?.let { hint ->
                         Text(hint, color = Color(0xFFC9A227).copy(alpha = 0.7f), fontSize = 10.sp)
                     }
