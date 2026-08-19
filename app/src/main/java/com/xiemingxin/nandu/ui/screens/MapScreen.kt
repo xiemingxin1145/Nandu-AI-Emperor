@@ -103,6 +103,10 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     val cityMap = gameState.cities.associateBy { it.id }
     val armiesByCity = gameState.armies.groupBy { it.currentCityId }
     val officerNames = gameState.officers.associate { it.id to it.name }
+    val governorByCity = gameState.officers
+        .filter { it.currentCityId.isNotBlank() }
+        .groupBy { it.currentCityId }
+        .mapValues { (_, officers) -> officers.maxByOrNull { it.rankLevel }?.name }
 
     fun focus(region: MapFocusRegion) {
         cameraX = region.x
@@ -191,6 +195,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
                     city = cityMap[id],
                     armies = armiesByCity[id].orEmpty().sortedByDescending { it.troops },
                     officerNames = officerNames,
+                    governorName = governorByCity[id],
                     layer = activeLayer,
                     onDismiss = { selectedId = null },
                     onDraft = { action ->
@@ -332,13 +337,15 @@ private fun terrainLabel(terrain: String): String = when (terrain) { "river" -> 
 @Composable private fun CityArmyRow(army: Army, commander: String) { Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF1D150B), RoundedCornerShape(7.dp)).padding(8.dp)) { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(army.name, color = if (army.ownerFactionId == "jin") JinRed else SongBright, fontSize = 12.sp, fontWeight = FontWeight.Bold); Text("${army.troops / 1000}k", color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold) }; Text("统帅：$commander · 士气${army.morale} · ${army.status}", color = Color(0xFFB9AA82), fontSize = 10.sp) }; Spacer(Modifier.height(6.dp)) }
 
 @Composable
-fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames: Map<String, String>, layer: MapLayerMode = MapLayerMode.MILITARY, onDismiss: () -> Unit, modifier: Modifier = Modifier, onDraft: (String) -> Unit = {}) {
+fun CityDetailPanel(node: MapNode, city: City?, armies: List<Army>, officerNames: Map<String, String>, governorName: String? = null, layer: MapLayerMode = MapLayerMode.MILITARY, onDismiss: () -> Unit, modifier: Modifier = Modifier, onDraft: (String) -> Unit = {}) {
     val visual = CityVisualRegistry.visualFor(city, node)
     Card(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color(0xF01A1208)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.60f))) {
         Column(modifier = Modifier.padding(14.dp)) {
             if (city != null) { AssetImage(path = visual.panelBackgroundPath, fallbackPath = ArtResourceRegistry.cityBackground(city.id), contentDescription = node.name, contentScale = ContentScale.Crop, placeholderText = visual.tier.label.take(1), modifier = Modifier.fillMaxWidth().height(112.dp)); Spacer(Modifier.height(10.dp)) }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { AssetImage(path = ArtResourceRegistry.mapIcon(visual.iconKey), fallbackPath = ArtResourceRegistry.mapIcon("county"), contentDescription = visual.displayName, contentScale = ContentScale.Fit, placeholderText = "城", modifier = Modifier.size(42.dp)); Column(modifier = Modifier.weight(1f)) { Text(visual.displayName, color = nodeColor(node, city, layer), fontSize = 17.sp, fontWeight = FontWeight.Bold); Text("${visual.tier.label}｜${visual.tags.joinToString(" / ")}", color = ImperialGold, fontSize = 10.sp); Text(city.ownerLabel(node), color = Color(0xFFB9AA82), fontSize = 12.sp); if (city != null) Text("${city.route} · ${city.cityLevel} · ${terrainLabel(city.terrain)} · 口${city.population / 10000}万", color = Color(0xFF8C7A60), fontSize = 10.sp) }; IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) { Text("X", color = Color(0xFF8B7355), fontSize = 14.sp) } }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { AssetImage(path = ArtResourceRegistry.mapIcon(visual.iconKey), fallbackPath = ArtResourceRegistry.mapIcon("county"), contentDescription = visual.displayName, contentScale = ContentScale.Fit, placeholderText = "城", modifier = Modifier.size(42.dp)); Column(modifier = Modifier.weight(1f)) { Text(visual.displayName, color = nodeColor(node, city, layer), fontSize = 17.sp, fontWeight = FontWeight.Bold); Text("${visual.tier.label}｜${visual.tags.joinToString(" / ")}", color = ImperialGold, fontSize = 10.sp); Text(city.ownerLabel(node), color = Color(0xFFB9AA82), fontSize = 12.sp); if (city != null) { Text("${city.route} · ${city.cityLevel} · ${terrainLabel(city.terrain)} · 口${city.population / 10000}万", color = Color(0xFF8C7A60), fontSize = 10.sp); Text("太守：${governorName ?: "暂无专任，由朝廷遥领"}", color = Color(0xFF8C7A60), fontSize = 10.sp) } }; IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) { Text("X", color = Color(0xFF8B7355), fontSize = 14.sp) } }
             Text(visual.visualHint, color = Color(0xFFC6A96C), fontSize = 10.sp, lineHeight = 14.sp)
+            val neighborNames = MapData.neighborsOf(node.id).mapNotNull { MapData.nodeMap[it]?.name }
+            if (neighborNames.isNotEmpty()) Text("相邻：${neighborNames.joinToString(" · ")}", color = Color(0xFF8C7A60), fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp))
             if (city != null) { Spacer(Modifier.height(10.dp)); Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) { CityStatItem("兵", "兵力", "${city.troops / 1000}k"); CityStatItem("防", "城防", "${city.defense}"); CityStatItem("粮", "粮草", "${city.grain / 1000}k"); CityStatItem("财", "金库", "${city.gold / 1000}k"); CityStatItem("民", "民心", "${city.popularSupport}") }; Spacer(Modifier.height(10.dp)); if (armies.isEmpty()) Text("此城暂无正式军团驻防。", color = Color(0xFF8C7A60), fontSize = 11.sp) else armies.take(3).forEach { CityArmyRow(it, officerNames[it.commanderId] ?: it.status) }; Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) { CityActionButton("修城", Modifier.weight(1f)) { onDraft("repair") }; CityActionButton("调兵", Modifier.weight(1f)) { onDraft("dispatch") }; CityActionButton("筹粮", Modifier.weight(1f)) { onDraft("grain") } }; Spacer(Modifier.height(7.dp)); CityActionButton("◈ 进 入 城 池 ◈", Modifier.fillMaxWidth()) { onDraft("enter") }; if (city.owner == "song") { Spacer(Modifier.height(7.dp)); Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) { CityActionButton("营建", Modifier.weight(1f)) { onDraft("manage") }; CityActionButton("募兵", Modifier.weight(1f)) { onDraft("recruit") } } } } else { Spacer(Modifier.height(10.dp)); Text("此节点用于外交、外贸或战略显示；完整经营数据会在后续城池扩容中接入。", color = Color(0xFFB9AA82), fontSize = 11.sp, lineHeight = 16.sp) }
         }
     }
