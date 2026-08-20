@@ -26,28 +26,29 @@ Starting a Gradle Daemon (subsequent builds will be faster)
 > Task :app:parseDebugLocalResources
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
-> Task :app:processDebugManifestForPackage
 > Task :app:javaPreCompileDebug
 > Task :app:mergeDebugShaders
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
-> Task :app:processDebugResources
 > Task :app:mergeDebugAssets
 > Task :app:compressDebugAssets
 > Task :app:desugarDebugFileDependencies
-> Task :app:mergeDebugJniLibFolders
+> Task :app:processDebugManifestForPackage
 > Task :app:checkDebugDuplicateClasses
-> Task :app:mergeDebugNativeLibs NO-SOURCE
-> Task :app:compileDebugKotlin
+> Task :app:processDebugResources
 > Task :app:mergeExtDexDebug
-> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:mergeDebugJniLibFolders
 > Task :app:mergeLibDexDebug
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
+> Task :app:compileDebugKotlin
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/audio/GameAudioPlayer.kt:184:37 Unresolved reference: voice
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/audio/GameAudioPlayer.kt:184:70 Unresolved reference: master
 
 > Task :app:compileDebugKotlin FAILED
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/screens/PalaceHallScreen.kt:18:43 Cannot access 'weight': it is internal in 'androidx.compose.foundation.layout'
 
 FAILURE: Build failed with an exception.
 
@@ -254,5 +255,5 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 2m 52s
+BUILD FAILED in 2m 45s
 27 actionable tasks: 27 executed
