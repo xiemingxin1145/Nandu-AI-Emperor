@@ -31,48 +31,298 @@ Starting a Gradle Daemon (subsequent builds will be faster)
 > Task :app:compileDebugShaders NO-SOURCE
 > Task :app:generateDebugAssets UP-TO-DATE
 > Task :app:mergeDebugAssets
-> Task :app:compressDebugAssets
-> Task :app:desugarDebugFileDependencies
-> Task :app:mergeDebugJniLibFolders
-> Task :app:checkDebugDuplicateClasses
-> Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:processDebugManifestForPackage
-> Task :app:mergeExtDexDebug
-> Task :app:mergeLibDexDebug
-> Task :app:stripDebugDebugSymbols NO-SOURCE
+> Task :app:compressDebugAssets
 > Task :app:processDebugResources
+> Task :app:checkDebugDuplicateClasses
+> Task :app:desugarDebugFileDependencies
+> Task :app:compileDebugKotlin
+> Task :app:mergeExtDexDebug
+> Task :app:mergeDebugJniLibFolders
+> Task :app:mergeLibDexDebug
+> Task :app:mergeDebugNativeLibs NO-SOURCE
+> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
+
 > Task :app:compileDebugKotlin
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:340:18 Expecting '->'
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:338:17 Incompatible types: Unit? and Int
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:339:82 Overload resolution ambiguity: 
-public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:391:75 Overload resolution ambiguity: 
-public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:403:71 Overload resolution ambiguity: 
-public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:226:13 Cannot find a parameter with this name: attackerTroops
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:227:13 Cannot find a parameter with this name: attackerMorale
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:228:13 Cannot find a parameter with this name: commanderCommand
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:230:13 Cannot find a parameter with this name: season
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 Cannot find a parameter with this name: weather
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'attackerArmy'
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'attackerCommander'
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'garrisonOfficer'
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'state'
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'seed'
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:280:5 Conflicting overloads: public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel, public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:399:5 Conflicting overloads: public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel, public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:92:13 Unresolved reference: StatRow
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:93:13 Unresolved reference: StatRow
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:94:13 Unresolved reference: StatRow
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:99:13 Unresolved reference: StatRow
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:101:17 Unresolved reference: StatRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:16:41 Unresolved reference: REQUEST_BATTLE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:20:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:21:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:21:49 Unresolved reference: LOYAL_DEVOTED
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:22:25 Type mismatch: inferred type is List<???> but Map<String, RelationRecord> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:23:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:23:51 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:24:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:24:51 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:25:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:25:51 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:36:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:37:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:37:49 Unresolved reference: LOYAL_DEVOTED
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:38:25 Type mismatch: inferred type is List<???> but Map<String, RelationRecord> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:39:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:39:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:40:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:40:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:41:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:41:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:47:38 Unresolved reference: COURT_DOMINANCE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:52:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:53:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:53:49 Unresolved reference: RESPECTFUL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:54:25 Type mismatch: inferred type is List<???> but Map<String, RelationRecord> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:55:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:55:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:56:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:56:51 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:57:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:57:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:63:38 Unresolved reference: FISCAL_STABILITY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:64:41 Unresolved reference: PETITION_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:68:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:69:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:69:49 Unresolved reference: RESPECTFUL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:70:25 Type mismatch: inferred type is List<???> but Map<String, RelationRecord> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:71:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:71:47 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:72:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:72:47 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:73:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:73:47 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:84:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:85:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:85:49 Unresolved reference: RESPECTFUL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:86:25 Type mismatch: inferred type is List<???> but Map<String, RelationRecord> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:87:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:87:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:88:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:88:48 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:94:38 Unresolved reference: HOLD_FRONTIER
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:95:41 Unresolved reference: REQUEST_SUPPLY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:99:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:100:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:100:49 Unresolved reference: RESPECTFUL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:101:25 Type mismatch: inferred type is List<???> but Map<String, RelationRecord> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:102:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:102:51 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:103:17 Unresolved reference: CharacterRelation
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:103:51 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:109:38 Unresolved reference: HOLD_FRONTIER
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:110:41 Unresolved reference: REQUEST_BATTLE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:114:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:120:41 Unresolved reference: PETITION_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:124:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:125:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:125:49 Unresolved reference: RESPECTFUL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:128:42 Type mismatch: inferred type is String but MemoryCategory was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:130:21 Cannot find a parameter with this name: emotionalImpact
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:137:38 Unresolved reference: MILITARY_REFORM
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:138:41 Unresolved reference: RECOMMEND_TALENT
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:142:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:148:38 Unresolved reference: COURT_DOMINANCE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:153:13 An argument is already passed for this parameter
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:154:13 Cannot find a parameter with this name: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:163:45 Unresolved reference: PERSONAL_POWER
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:164:45 Unresolved reference: PROTECT_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentRegistry.kt:165:45 Unresolved reference: SURVIVAL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:56:52 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:58:42 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:63:30 Unresolved reference: isActive
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:84:39 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:89:32 Cannot find a parameter with this name: isActive
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:94:33 Unresolved reference: frustration
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:105:57 Unresolved reference: MAX_ACTIVE_PROPOSALS
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:106:32 Cannot find a parameter with this name: activeProposals
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:116:53 Unresolved reference: longTermGoalTurnSet
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:135:27 Unresolved reference: addMemory
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:137:24 Type mismatch: inferred type is String but MemoryCategory was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:139:13 Cannot find a parameter with this name: emotionalImpact
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:146:35 Unresolved reference: CharacterGoalType
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:147:9 Comparison of incompatible enums '[Error type: Unresolved type for CharacterGoalType]' and 'AgentGoal' is always unsuccessful
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:152:9 Comparison of incompatible enums '[Error type: Unresolved type for CharacterGoalType]' and 'AgentGoal' is always unsuccessful
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:157:19 Unresolved reference: FISCAL_STABILITY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:161:19 Unresolved reference: COURT_DOMINANCE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:165:19 Unresolved reference: PERSONAL_POWER
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:169:19 Unresolved reference: PROTECT_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:173:19 Unresolved reference: HOLD_FRONTIER
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:177:19 Unresolved reference: SURVIVAL
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:189:53 Unresolved reference: currentPlanTurnSet
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:195:13 Type mismatch: inferred type is RankedUtilityOption<???> but Nothing was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:200:13 Cannot find a parameter with this name: currentPlanTurnSet
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:206:27 Unresolved reference: CharacterPlanType
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:208:16 Not enough information to infer type variable E
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:209:63 Unresolved reference: REQUEST_BATTLE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:212:63 Unresolved reference: REQUEST_SUPPLY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:216:65 Unresolved reference: PETITION_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:218:65 Unresolved reference: RECOMMEND_TALENT
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:222:66 Unresolved reference: DIPLOMATIC_ADVICE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:224:61 Unresolved reference: WAIT_AND_SEE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:227:17 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:231:35 Unresolved reference: FISCAL_STABILITY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:232:35 Unresolved reference: COURT_DOMINANCE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:233:35 Unresolved reference: PROTECT_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:234:35 Unresolved reference: HOLD_FRONTIER
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:245:13 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:246:39 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:250:27 Unresolved reference: REQUEST_BATTLE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:258:31 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:260:42 Unresolved reference: REQUEST_BATTLE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:271:27 Unresolved reference: REQUEST_SUPPLY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:272:31 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:274:42 Unresolved reference: REQUEST_SUPPLY
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:284:34 Unresolved reference: kind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:284:42 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:284:69 Unresolved reference: kind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:284:77 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:285:34 Type mismatch: inferred type is Unit but Comparable<TypeVariable(R)> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:285:34 Type mismatch: inferred type is Unit but Comparable<Unit> was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:285:39 Unresolved reference: intensity
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:286:71 Unresolved reference: targetOfficerId
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:287:31 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:290:46 Unresolved reference: targetOfficerId
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:294:68 Unresolved reference: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:302:31 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:312:27 Unresolved reference: RECOMMEND_TALENT
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:317:35 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:319:46 Unresolved reference: RECOMMEND_TALENT
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:329:27 Unresolved reference: PETITION_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:330:31 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:332:42 Unresolved reference: PETITION_EMPEROR
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:353:25 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:360:73 Unresolved reference: REQUEST_BATTLE
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:373:51 Unresolved reference: it
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:373:78 Unresolved reference: it
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:374:22 Overload resolution ambiguity: 
+public inline fun <T> Iterable<TypeVariable(T)>.forEach(action: (TypeVariable(T)) -> Unit): Unit defined in kotlin.collections
+public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.forEach(action: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Unit): Unit defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:374:32 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:376:41 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:384:39 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:385:35 Overload resolution ambiguity: 
+public inline fun <T> Iterable<TypeVariable(T)>.forEach(action: (TypeVariable(T)) -> Unit): Unit defined in kotlin.collections
+public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.forEach(action: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Unit): Unit defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:385:45 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:388:51 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public inline fun <T> Array<out TypeVariable(T)>.find(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.collections
+public inline fun BooleanArray.find(predicate: (Boolean) -> Boolean): Boolean? defined in kotlin.collections
+public inline fun ByteArray.find(predicate: (Byte) -> Boolean): Byte? defined in kotlin.collections
+public inline fun CharArray.find(predicate: (Char) -> Boolean): Char? defined in kotlin.collections
+public inline fun CharSequence.find(predicate: (Char) -> Boolean): Char? defined in kotlin.text
+public inline fun DoubleArray.find(predicate: (Double) -> Boolean): Double? defined in kotlin.collections
+public inline fun FloatArray.find(predicate: (Float) -> Boolean): Float? defined in kotlin.collections
+public inline fun IntArray.find(predicate: (Int) -> Boolean): Int? defined in kotlin.collections
+public inline fun LongArray.find(predicate: (Long) -> Boolean): Long? defined in kotlin.collections
+public inline fun ShortArray.find(predicate: (Short) -> Boolean): Short? defined in kotlin.collections
+public inline fun UByteArray.find(predicate: (UByte) -> Boolean): UByte? defined in kotlin.collections
+public inline fun UIntArray.find(predicate: (UInt) -> Boolean): UInt? defined in kotlin.collections
+public inline fun ULongArray.find(predicate: (ULong) -> Boolean): ULong? defined in kotlin.collections
+public inline fun UShortArray.find(predicate: (UShort) -> Boolean): UShort? defined in kotlin.collections
+public inline fun <T> Iterable<TypeVariable(T)>.find(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.collections
+public inline fun <T> Sequence<TypeVariable(T)>.find(predicate: (TypeVariable(T)) -> Boolean): TypeVariable(T)? defined in kotlin.sequences
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:388:58 Unresolved reference: it
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:389:34 Unresolved reference: RelationKind
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:411:23 None of the following functions can be called with the arguments supplied: 
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Array<out Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pair: Pair<TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Iterable<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(map: Map<out TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Sequence<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:411:47 Unresolved reference: onProposalAccepted
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:424:23 None of the following functions can be called with the arguments supplied: 
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Array<out Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pair: Pair<TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Iterable<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(map: Map<out TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Sequence<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:424:47 Unresolved reference: onProposalRejected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:440:24 Type mismatch: inferred type is String but MemoryCategory was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:442:13 Cannot find a parameter with this name: emotionalImpact
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:444:31 Unresolved reference: addMemory
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:449:23 None of the following functions can be called with the arguments supplied: 
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Array<out Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pair: Pair<TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Iterable<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(map: Map<out TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Sequence<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:465:24 Type mismatch: inferred type is String but MemoryCategory was expected
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:467:13 Cannot find a parameter with this name: emotionalImpact
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:469:31 Unresolved reference: addMemory
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:473:50 Unresolved reference: frustration
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:474:41 Unresolved reference: frustration
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:475:64 Unresolved reference: lastRewardedTurn
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:476:65 Unresolved reference: lastPunishedTurn
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:478:23 None of the following functions can be called with the arguments supplied: 
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Array<out Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pair: Pair<TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Iterable<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(map: Map<out TypeVariable(K), TypeVariable(V)>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+public operator fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.plus(pairs: Sequence<Pair<TypeVariable(K), TypeVariable(V)>>): Map<TypeVariable(K), TypeVariable(V)> defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/agent/CharacterAgentSystem.kt:503:29 Unresolved reference: activeProposals
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:238:64 Unresolved reference: IntentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:240:64 Unresolved reference: AgentConflict
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:29:35 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:81:30 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:15:35 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:48:38 Unresolved reference: attitudeToEmperor
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:62:39 Unresolved reference: ambitionLevel
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:63:39 Unresolved reference: frustration
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:67:24 Unresolved reference: edictAcceptedCount
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:67:56 Unresolved reference: edictRejectedCount
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:70:36 Unresolved reference: edictAcceptedCount
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:70:73 Unresolved reference: edictRejectedCount
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:81:34 Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: 
+public fun <T> Array<out TypeVariable(T)>.take(n: Int): List<TypeVariable(T)> defined in kotlin.collections
+public fun BooleanArray.take(n: Int): List<Boolean> defined in kotlin.collections
+public fun ByteArray.take(n: Int): List<Byte> defined in kotlin.collections
+public fun CharArray.take(n: Int): List<Char> defined in kotlin.collections
+public fun CharSequence.take(n: Int): CharSequence defined in kotlin.text
+public fun DoubleArray.take(n: Int): List<Double> defined in kotlin.collections
+public fun FloatArray.take(n: Int): List<Float> defined in kotlin.collections
+public fun IntArray.take(n: Int): List<Int> defined in kotlin.collections
+public fun LongArray.take(n: Int): List<Long> defined in kotlin.collections
+public fun ShortArray.take(n: Int): List<Short> defined in kotlin.collections
+public fun String.take(n: Int): String defined in kotlin.text
+public fun UByteArray.take(n: Int): List<UByte> defined in kotlin.collections
+public fun UIntArray.take(n: Int): List<UInt> defined in kotlin.collections
+public fun ULongArray.take(n: Int): List<ULong> defined in kotlin.collections
+public fun UShortArray.take(n: Int): List<UShort> defined in kotlin.collections
+public fun <T> Iterable<TypeVariable(T)>.take(n: Int): List<TypeVariable(T)> defined in kotlin.collections
+public fun <T> Sequence<TypeVariable(T)>.take(n: Int): Sequence<TypeVariable(T)> defined in kotlin.sequences
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:81:42 Overload resolution ambiguity: 
+public inline fun <T> Iterable<TypeVariable(T)>.forEach(action: (TypeVariable(T)) -> Unit): Unit defined in kotlin.collections
+public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.forEach(action: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Unit): Unit defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:81:52 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:88:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:94:21 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:99:24 Unresolved reference: recentMemories
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:104:24 Unresolved reference: recentMemories
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:104:62 Overload resolution ambiguity: 
+public inline fun <T> Iterable<TypeVariable(T)>.forEach(action: (TypeVariable(T)) -> Unit): Unit defined in kotlin.collections
+public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.forEach(action: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Unit): Unit defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:104:72 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:110:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:119:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:124:24 Unresolved reference: activeProposals
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:129:24 Unresolved reference: activeProposals
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:129:48 Overload resolution ambiguity: 
+public inline fun <T> Iterable<TypeVariable(T)>.forEach(action: (TypeVariable(T)) -> Unit): Unit defined in kotlin.collections
+public inline fun <K, V> Map<out TypeVariable(K), TypeVariable(V)>.forEach(action: (Map.Entry<TypeVariable(K), TypeVariable(V)>) -> Unit): Unit defined in kotlin.collections
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:129:58 Cannot infer a type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:130:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:132:21 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:133:17 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/AgentStatusPanel.kt:142:15 Unresolved reference: AgentProposal
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:52:14 Unresolved reference: Officer
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:84:14 Unresolved reference: Officer
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:119:14 Unresolved reference: Officer
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:305:1 Modifier 'internal' is not applicable to 'local function'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:320:9 Unresolved reference: InfoRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:321:9 Unresolved reference: InfoRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:323:13 Unresolved reference: InfoRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:333:9 Unresolved reference: InfoRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/CharacterDetailPanel.kt:334:9 Unresolved reference: InfoRow
 
 > Task :app:compileDebugKotlin FAILED
 
@@ -120,36 +370,6 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:com
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:463)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:380)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:116)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:44)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:264)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:128)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:80)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionException: A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
@@ -275,36 +495,6 @@ Caused by: org.gradle.workers.internal.DefaultWorkerExecutor$WorkExecutionExcept
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:463)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:380)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:116)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:199)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:157)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.internal.operations.DefaultBuildOperationExecutor.call(DefaultBuildOperationExecutor.java:73)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:44)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:264)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:128)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:80)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:47)
 Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilation error. See log for more details
@@ -341,5 +531,5 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 2m 42s
+BUILD FAILED in 2m 12s
 27 actionable tasks: 27 executed
