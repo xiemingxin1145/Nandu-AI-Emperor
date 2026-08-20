@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,12 +36,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.VideoResourceRegistry
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.AssetVideoSurface
 import com.xiemingxin.nandu.ui.theme.ImperialGold
-import com.xiemingxin.nandu.ui.theme.InkBlack
-import com.xiemingxin.nandu.ui.theme.XuanCream
 
-// ── 主菜单局部色 ──────────────────────────────────────
 private val MenuBg       = Color(0xFF0C0907)
 private val GoldDim      = Color(0xFFAA8820)
 private val CreamDim     = Color(0xFFB8A88A)
@@ -47,12 +48,9 @@ private val ItemBorder   = Color(0xFF8B6914)
 private val ItemPressed  = Color(0xFF2A1E08)
 
 /**
- * V1.0 主菜单。
- *
- * @param onNewGame   开辟新局 → 播序章 IntroScreen
- * @param onContinue  旧梦回溯 → 跳序章直接进游戏
- * @param onSettings  世事设置
- * @param onExit      退出
+ * V1.2 主菜单。
+ * 静态背景永远保留为 fallback；V3 动态主菜单视频可解码时自动覆盖其上。
+ * “天命绘卷”同时作为真机视频资产验收入口，可直接浏览全部 V3 MP4。
  */
 @Composable
 fun MainMenuScreen(
@@ -61,7 +59,13 @@ fun MainMenuScreen(
     onSettings: () -> Unit,
     onExit: () -> Unit
 ) {
-    // 标题字微浮动动画
+    var showGallery by remember { mutableStateOf(false) }
+
+    if (showGallery) {
+        VideoGalleryOverlay(onBack = { showGallery = false })
+        return
+    }
+
     val pulse = rememberInfiniteTransition(label = "title_pulse")
     val titleAlpha by pulse.animateFloat(
         initialValue = 0.90f, targetValue = 1f,
@@ -72,8 +76,6 @@ fun MainMenuScreen(
     )
 
     Box(modifier = Modifier.fillMaxSize().background(MenuBg)) {
-
-        // ── 全屏背景图 ──────────────────────────────────
         AssetImage(
             path = ArtResourceRegistry.menuBackground(),
             contentDescription = "南渡无悔主菜单",
@@ -82,7 +84,15 @@ fun MainMenuScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // ── 渐变遮罩：上轻下重，给按钮区留暗底 ──────────
+        VideoResourceRegistry.find("menu_loop")?.let { clip ->
+            AssetVideoSurface(
+                path = clip.path,
+                loop = true,
+                muted = true,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
         Box(
             modifier = Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
@@ -94,17 +104,14 @@ fun MainMenuScreen(
             )
         )
 
-        // ── 主内容列 ────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp, vertical = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Spacer(Modifier.weight(1f))
 
-            // ── 标题区 ──────────────────────────────────
             Text(
                 text = "南 渡 无 悔",
                 color = ImperialGold.copy(alpha = titleAlpha),
@@ -122,7 +129,6 @@ fun MainMenuScreen(
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(4.dp))
-            // 装饰分割线
             Box(
                 Modifier
                     .fillMaxWidth(0.55f)
@@ -136,44 +142,40 @@ fun MainMenuScreen(
 
             Spacer(Modifier.height(40.dp))
 
-            // ── 五项菜单 ─────────────────────────────────
             MenuEntry(
-                label    = "开 辟 新 局",
+                label = "开 辟 新 局",
                 subtitle = "靖康板荡，天命未绝。",
-                onClick  = onNewGame
+                onClick = onNewGame
             )
             Spacer(Modifier.height(14.dp))
             MenuEntry(
-                label    = "旧 梦 回 溯",
+                label = "旧 梦 回 溯",
                 subtitle = "历史已然走过，记忆尚在。",
-                onClick  = onContinue
+                onClick = onContinue
             )
             Spacer(Modifier.height(14.dp))
             MenuEntry(
-                label    = "天 命 绘 卷",
+                label = "天 命 绘 卷",
                 subtitle = "已见之人，已历之事，皆有迹可寻。",
-                onClick  = { /* 图鉴：后续版本实装 */ },
-                enabled  = false
+                onClick = { showGallery = true }
             )
             Spacer(Modifier.height(14.dp))
             MenuEntry(
-                label    = "世 事 设 置",
+                label = "世 事 设 置",
                 subtitle = "音律、文字、AI接引——皆可调适。",
-                onClick  = onSettings
+                onClick = onSettings
             )
             Spacer(Modifier.height(14.dp))
             MenuEntry(
-                label    = "退 出",
+                label = "退 出",
                 subtitle = "此去关山万里，山河待君归来。",
-                onClick  = onExit,
+                onClick = onExit,
                 isPrimary = false
             )
 
             Spacer(Modifier.height(20.dp))
-
-            // 版本号
             Text(
-                text  = "建炎元年  Demo 版",
+                text = "建炎元年  Demo 版",
                 color = Color(0xFF5A4A30),
                 fontSize = 9.sp,
                 letterSpacing = 1.sp
@@ -182,7 +184,6 @@ fun MainMenuScreen(
     }
 }
 
-// ── 单条菜单项 ───────────────────────────────────────────
 @Composable
 private fun MenuEntry(
     label: String,
@@ -191,23 +192,23 @@ private fun MenuEntry(
     isPrimary: Boolean = true,
     enabled: Boolean = true
 ) {
-    val source   = remember { MutableInteractionSource() }
-    val pressed  by source.collectIsPressedAsState()
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
 
-    val bgColor  = when {
+    val bgColor = when {
         !enabled -> Color(0xFF120E06).copy(alpha = 0.4f)
-        pressed  -> ItemPressed
-        else     -> Color(0xFF0F0B05).copy(alpha = 0.72f)
+        pressed -> ItemPressed
+        else -> Color(0xFF0F0B05).copy(alpha = 0.72f)
     }
     val textColor = when {
         !enabled -> GoldDim.copy(alpha = 0.38f)
         isPrimary -> ImperialGold
-        else      -> CreamDim
+        else -> CreamDim
     }
     val borderColor = when {
         !enabled -> ItemBorder.copy(alpha = 0.25f)
-        pressed  -> ImperialGold.copy(alpha = 0.8f)
-        else     -> ItemBorder.copy(alpha = 0.6f)
+        pressed -> ImperialGold.copy(alpha = 0.8f)
+        else -> ItemBorder.copy(alpha = 0.6f)
     }
 
     Box(
@@ -227,18 +228,18 @@ private fun MenuEntry(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text       = label,
-                color      = textColor,
-                fontSize   = if (isPrimary) 18.sp else 15.sp,
+                text = label,
+                color = textColor,
+                fontSize = if (isPrimary) 18.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 4.sp
             )
             if (subtitle.isNotEmpty()) {
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    text      = subtitle,
-                    color     = CreamDim.copy(alpha = if (enabled) 0.55f else 0.25f),
-                    fontSize  = 10.sp,
+                    text = subtitle,
+                    color = CreamDim.copy(alpha = if (enabled) 0.55f else 0.25f),
+                    fontSize = 10.sp,
                     letterSpacing = 0.5.sp,
                     textAlign = TextAlign.Center
                 )

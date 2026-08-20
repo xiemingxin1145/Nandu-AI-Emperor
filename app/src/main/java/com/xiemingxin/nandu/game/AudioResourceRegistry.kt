@@ -1,37 +1,56 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V2.7 音频资源注册表。
+ * 音频资源注册表。
  *
- * Claude/Cursor 可逐批上传到 app/src/main/assets/audio/。
- * 这里先把 BGM、UI、SFX、环境声、语音提示的路径和路由稳定下来。
+ * BGM 已于 2026-08-20 做“清仓重建”：旧 15 首全部退出运行时，
+ * 新库只允许人工试听通过的纯器乐场景曲进入。
  *
- * 设计原则：
- * - 测试期允许缺文件，播放器组件应当静默跳过缺失资源。
- * - 资源命名稳定后，后续只替换 ogg 文件，不改代码。
- * - 场景、事件、天气、按钮行为都从这里取音频路径。
+ * 规则：
+ * - 已验收场景曲使用稳定文件名；后续只替换音频，不乱改路由。
+ * - 尚未制作/验收的用途使用 __pending_*.ogg，播放器找不到时静默，宁缺毋滥。
+ * - SFX、环境声、语音继续沿用现有路径，不与本次 BGM 清仓混在一起。
  */
 object AudioResourceRegistry {
     private const val BASE = "audio"
 
     object Bgm {
-        const val mainMenu = "$BASE/bgm/bgm_main_menu.ogg"
-        const val court = "$BASE/bgm/bgm_court.ogg"
-        const val palace = "$BASE/bgm/bgm_palace_hall.ogg"
-        const val council = "$BASE/bgm/bgm_court_council.ogg"
-        const val map = "$BASE/bgm/bgm_map.ogg"
-        const val city = "$BASE/bgm/bgm_city.ogg"
-        const val market = "$BASE/bgm/bgm_market.ogg"
-        const val diplomacy = "$BASE/bgm/bgm_diplomacy.ogg"
-        const val military = "$BASE/bgm/bgm_military.ogg"
-        const val crisis = "$BASE/bgm/bgm_crisis.ogg"
-        const val eventSad = "$BASE/bgm/bgm_event_sad.ogg"
-        const val ritual = "$BASE/bgm/bgm_ritual.ogg"
-        const val victory = "$BASE/bgm/bgm_victory.ogg"
-        const val defeat = "$BASE/bgm/bgm_defeat.ogg"
+        // === 已验收的新南宋场景音乐 ===
+        const val chuigongEntry = "$BASE/bgm/bgm_chuigong_hall_entry.ogg"
+        const val chuigongLoop = "$BASE/bgm/bgm_chuigong_hall_loop.ogg"
+        const val garden = "$BASE/bgm/bgm_garden_loop.ogg"
+        const val study = "$BASE/bgm/bgm_study_loop.ogg"
+        const val worldMap = "$BASE/bgm/bgm_worldmap_loop.ogg"
+        const val linan = "$BASE/bgm/bgm_linan_loop.ogg"
+        const val militaryCamp = "$BASE/bgm/bgm_military_camp_loop.ogg"
 
-        // Backward-compatible names used by older screens.
-        const val battle = military
+        // === 尚待专门制作/试听的音乐：故意指向不存在文件，避免错曲顶包 ===
+        const val pendingMainMenu = "$BASE/bgm/__pending_main_menu.ogg"
+        const val pendingPrologueCrisis = "$BASE/bgm/__pending_prologue_crisis.ogg"
+        const val pendingPrologueSad = "$BASE/bgm/__pending_prologue_sad.ogg"
+        const val pendingBattle = "$BASE/bgm/__pending_battle.ogg"
+        const val pendingVictory = "$BASE/bgm/__pending_victory.ogg"
+        const val pendingDefeat = "$BASE/bgm/__pending_defeat.ogg"
+        const val pendingDiplomacy = "$BASE/bgm/__pending_diplomacy.ogg"
+        const val pendingRitual = "$BASE/bgm/__pending_ritual.ogg"
+        const val pendingMarket = "$BASE/bgm/__pending_market.ogg"
+
+        // 兼容旧调用名，但全部映射到“新白名单/待制作槽位”。
+        const val mainMenu = pendingMainMenu
+        const val court = chuigongLoop
+        const val palace = chuigongLoop
+        const val council = chuigongLoop
+        const val map = worldMap
+        const val city = linan
+        const val market = pendingMarket
+        const val diplomacy = pendingDiplomacy
+        const val military = militaryCamp
+        const val crisis = pendingPrologueCrisis
+        const val eventSad = pendingPrologueSad
+        const val ritual = pendingRitual
+        const val victory = pendingVictory
+        const val defeat = pendingDefeat
+        const val battle = pendingBattle
     }
 
     object Ui {
@@ -70,7 +89,6 @@ object AudioResourceRegistry {
         const val relationUp = "$BASE/sfx/sfx_relation_up.ogg"
         const val relationDown = "$BASE/sfx/sfx_relation_down.ogg"
 
-        // Backward-compatible names used by older screens.
         const val battleStart = encounterStart
         const val swordClash = metalClash
         const val arrowVolley = arrows
@@ -104,40 +122,42 @@ object AudioResourceRegistry {
     fun bgmForScene(scene: String): String = when (scene) {
         "main_menu" -> Bgm.mainMenu
         "palace" -> Bgm.palace
-        "court" -> Bgm.court
-        "council" -> Bgm.council
-        "map" -> Bgm.map
-        "city" -> Bgm.city
+        "court", "council" -> Bgm.chuigongLoop
+        "study" -> Bgm.study
+        "garden" -> Bgm.garden
+        "map" -> Bgm.worldMap
+        "city", "linan" -> Bgm.linan
         "market" -> Bgm.market
         "diplomacy" -> Bgm.diplomacy
-        "battle", "military" -> Bgm.military
+        "camp", "military" -> Bgm.militaryCamp
+        "battle" -> Bgm.battle
         "crisis" -> Bgm.crisis
         "event_sad" -> Bgm.eventSad
         "ritual" -> Bgm.ritual
         "victory" -> Bgm.victory
         "defeat" -> Bgm.defeat
-        else -> Bgm.map
+        else -> Bgm.worldMap
     }
 
     fun bgmForTab(tabIndex: Int): String = when (tabIndex) {
-        0 -> Bgm.palace
-        1 -> Bgm.court
-        2 -> Bgm.map
-        3 -> Bgm.court
-        4 -> Bgm.military
-        else -> Bgm.court
+        0 -> Bgm.chuigongLoop
+        1 -> Bgm.chuigongLoop
+        2 -> Bgm.worldMap
+        3 -> Bgm.study
+        4 -> Bgm.militaryCamp
+        else -> Bgm.chuigongLoop
     }
 
     fun bgmForPalace(palaceId: String): String = when (palaceId) {
-        PalaceIds.CHUIGONG -> Bgm.court
-        PalaceIds.ZHENGSHI -> Bgm.council
-        PalaceIds.SHUMI -> Bgm.military
-        PalaceIds.WENDE -> Bgm.ritual
-        PalaceIds.YUSHU -> Bgm.council
-        PalaceIds.HUANGCHENG -> Bgm.crisis
-        PalaceIds.HOUYUAN -> Bgm.eventSad
-        PalaceIds.TAIMIAO -> Bgm.ritual
-        else -> Bgm.palace
+        PalaceIds.CHUIGONG -> Bgm.chuigongLoop
+        PalaceIds.ZHENGSHI -> Bgm.study
+        PalaceIds.SHUMI -> Bgm.militaryCamp
+        PalaceIds.WENDE -> Bgm.study
+        PalaceIds.YUSHU -> Bgm.study
+        PalaceIds.HUANGCHENG -> Bgm.pendingPrologueCrisis
+        PalaceIds.HOUYUAN -> Bgm.garden
+        PalaceIds.TAIMIAO -> Bgm.pendingRitual
+        else -> Bgm.chuigongLoop
     }
 
     fun sfxForUi(action: String): String = when (action) {
@@ -198,11 +218,11 @@ object AudioResourceRegistry {
     }
 
     fun ambienceForScene(scene: String): String? = when (scene) {
-        "palace", "court", "council" -> Ambience.palaceMurmur
-        "city" -> Ambience.cityDay
+        "palace", "court", "council", "study", "garden" -> Ambience.palaceMurmur
+        "city", "linan" -> Ambience.cityDay
         "market" -> Ambience.market
         "map" -> Ambience.river
-        "military" -> Ambience.frontierWind
+        "military", "camp" -> Ambience.frontierWind
         "harbor" -> Ambience.harbor
         else -> null
     }
