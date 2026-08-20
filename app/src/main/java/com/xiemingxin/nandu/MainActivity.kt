@@ -180,8 +180,18 @@ fun NanduApp() {
 
     // ── 主菜单 ──────────────────────────────────────────
     if (showIntro && !showPrologue) {
+        val prologueWatched = audioPrefs.getBoolean("prologue_watched", false)
         MainMenuScreen(
-            onNewGame  = { playSfx("confirm"); showPrologue = true },
+            onNewGame  = {
+                playSfx("confirm")
+                if (prologueWatched) {
+                    // 已看过序章，直接进入游戏
+                    showIntro = false
+                } else {
+                    // 第一次玩，播放序章
+                    showPrologue = true
+                }
+            },
             onContinue = { playSfx("confirm"); showIntro = false },
             onSettings = { playSfx("open_panel"); showSettings = true },
             onExit     = { (context as? android.app.Activity)?.finish() }
@@ -191,11 +201,17 @@ fun NanduApp() {
 
     // ── 序章（开辟新局后播放）───────────────────────────
     if (showPrologue) {
-        IntroScreen(onStart = {
-            playSfx("confirm")
-            showPrologue = false
-            showIntro = false
-        })
+        val audioPlayer = com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer()
+        PrologueScreen(
+            audioPlayer = audioPlayer,
+            onPrologueComplete = {
+                playSfx("confirm")
+                showPrologue = false
+                showIntro = false
+                // 记录已看过序章，第二次进入不强制播放
+                audioPrefs.edit().putBoolean("prologue_watched", true).apply()
+            }
+        )
         return
     }
 

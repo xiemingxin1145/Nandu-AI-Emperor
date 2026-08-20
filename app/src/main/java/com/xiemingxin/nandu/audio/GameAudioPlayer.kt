@@ -16,10 +16,34 @@ class GameAudioPlayer(private val context: Context) {
     private val soundIds = mutableMapOf<String, Int>()
     private var bgmPlayer: MediaPlayer? = null
     private var ambiencePlayer: MediaPlayer? = null
+    private var voicePlayer: MediaPlayer? = null
     private var currentAmbiencePath: String? = null
+    private var currentBgmVolume: Float = 0.75f
+    private var isVoicePlaying: Boolean = false
+
+    // ═══════════════════════════════════════════════════════
+    // 音量控制层（V1.0 七声道独立调节）
+    // ═══════════════════════════════════════════════════════
+    data class VolumeSettings(
+        var master: Float = 1f,
+        var bgm: Float = 0.75f,
+        var ambience: Float = 0.5f,
+        var ui: Float = 0.8f,
+        var sfx: Float = 0.85f,
+        var voice: Float = 1f,
+        var narrator: Float = 1f,
+        var battle: Float = 0.9f,
+        var video: Float = 0.8f
+    )
+
+    var volume = VolumeSettings()
     var masterEnabled: Boolean = true
     var bgmEnabled: Boolean = true
     var sfxEnabled: Boolean = true
+    var voiceEnabled: Boolean = true
+
+    /** 人声播放时 BGM 自动降低到的比例（ducking） */
+    private val voiceDuckFactor: Float = 0.35f
 
     companion object {
         /**
@@ -146,9 +170,67 @@ class GameAudioPlayer(private val context: Context) {
         currentAmbiencePath = null
     }
 
+    // ═══════════════════════════════════════════════════════
+    // 人声/旁白通道（V1.0）
+    // 播放时自动降低 BGM 音量（ducking），播放结束恢复
+    // ═══════════════════════════════════════════════════════
+    fun playVoice(path: String, volume: Float? = null, onComplete: (() -> Unit)? = null) {
+        if (!masterEnabled || !voiceEnabled) {
+            onComplete?.invoke()
+            return
+        }
+        stopVoice()
+        val file = materializeAsset(path) ?: run { onComplete?.invoke(); return }
+        val vol = (volume ?: volume.voice).coerceIn(0f, 1f) * volume.master
+        isVoicePlaying = true
+        applyBgmDucking(true)
+        voicePlayer = MediaPlayer().apply {
+            setDataSource(file.absolutePath)
+            setVolume(vol, vol)
+            setOnPreparedListener { it.start() }
+            setOnCompletionListener {
+                isVoicePlaying = false
+                applyBgmDucking(false)
+                release()
+                if (voicePlayer === this@apply) voicePlayer = null
+                onComplete?.invoke()
+            }
+            setOnErrorListener { mp, _, _ ->
+                isVoicePlaying = false
+                applyBgmDucking(false)
+                mp.release()
+                if (voicePlayer === mp) voicePlayer = null
+                onComplete?.invoke()
+                true
+            }
+            prepareAsync()
+        }
+    }
+
+    fun stopVoice() {
+        voicePlayer?.runCatching {
+            stop()
+            release()
+        }
+        voicePlayer = null
+        if (isVoicePlaying) {
+            isVoicePlaying = false
+            applyBgmDucking(false)
+        }
+    }
+
+    /** BGM 人声闪避：人声播放时降低 BGM 音量 */
+    private fun applyBgmDucking(duck: Boolean) {
+        bgmPlayer?.let { player ->
+            val target = if (duck) currentBgmVolume * voiceDuckFactor else currentBgmVolume
+            player.setVolume(target, target)
+        }
+    }
+
     fun release() {
         stopBgm()
         stopAmbience()
+        stopVoice()
         soundPool.release()
         soundIds.clear()
     }
