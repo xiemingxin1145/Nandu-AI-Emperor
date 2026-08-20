@@ -41,6 +41,13 @@ data class EdictCommand(
             "suppress_officer",   // 压制大臣
             "reward_officer",     // 赏赐
             "punish_officer",     // 惩处
+            // Stage 4 军团命令
+            "form_army",          // 组建军团
+            "move_army",          // 移动/改道军团
+            "disband_army",       // 解散军团
+            "change_army_commander", // 更换主帅
+            "resupply_army",      // 主动补给
+            // Stage 3 人事命令
             "appoint_governor",  // Stage3 任命城池主官
             "appoint_garrison",  // Stage3 任命驻城守将
             "dismiss_officer",   // Stage3 免职
@@ -75,9 +82,22 @@ interface AiProvider {
 }
 
 // 传给AI的游戏上下文（让AI知道当前局势）
+data class ArmyContext(
+    val id: String,
+    val name: String,
+    val commanderName: String,
+    val commanderId: String,
+    val currentCityId: String,
+    val troops: Int,
+    val morale: Int,
+    val supplyLevel: Int,
+    val statusLabel: String,
+    val targetCityId: String = ""
+)
+
 data class GameContext(
     val currentTurn: Int,
-    val era: String,            // e.g. "靖康元年"
+    val era: String,
     val gold: Int,
     val grain: Int,
     val troopMorale: Int,
@@ -86,7 +106,9 @@ data class GameContext(
     val activeCities: List<CityContext>,
     val availableOfficers: List<OfficerContext>,
     // Stage 3 扩展
-    val pendingRecruitLeads: List<String> = emptyList()  // 已获得线索但尚未征辟的人名列表（给AI用于提示）
+    val pendingRecruitLeads: List<String> = emptyList(),
+    // Stage 4 扩展：让AI知道已有军团，避免重复创建
+    val songArmies: List<ArmyContext> = emptyList()
 )
 
 data class CityContext(

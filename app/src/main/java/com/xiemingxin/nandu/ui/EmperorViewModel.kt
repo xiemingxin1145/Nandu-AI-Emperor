@@ -12,7 +12,12 @@ import com.xiemingxin.nandu.ai.ClaudeProvider
 import com.xiemingxin.nandu.ai.CustomApiProvider
 import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.game.AppointmentSystem
+import com.xiemingxin.nandu.game.ArmyMovementSystem
+import com.xiemingxin.nandu.game.ArmySupplySystem
+import com.xiemingxin.nandu.game.ArmySystem
+import com.xiemingxin.nandu.game.ArmyStatus
 import com.xiemingxin.nandu.game.OfficerIntel
+import com.xiemingxin.nandu.ai.ArmyContext
 import com.xiemingxin.nandu.ai.GameContext
 import com.xiemingxin.nandu.ai.GeminiProvider
 import com.xiemingxin.nandu.ai.MockProvider
@@ -366,6 +371,19 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val state = _uiState.value.gameState
         val jinResult = JinAI.executeTurn(state, state.jinThreat)
         var working = jinResult.newState
+
+        // Stage 4 唯一战略Tick入口 ─────────────────────────────
+        // 1. 行军推进（沿道路图逐节点推进）
+        val marchResult = ArmyMovementSystem.tickAllArmies(working, tickDays = 10)
+        working = marchResult.first
+        val marchReports = marchResult.second
+
+        // 2. 补给结算（驻扎补粮，行军消耗）
+        val supplyResult = ArmySupplySystem.tickAllSupply(working)
+        working = supplyResult.first
+        val supplyReports = supplyResult.second
+        // ──────────────────────────────────────────────────────
+
         val clearedFlags = working.storyFlags - "sieged_this_turn"
         val nextState = working.copy(
             turn = working.turn + 1,
@@ -388,7 +406,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             lastOutcomes = emptyList(),
             lastRejected = emptyList(),
             currentStoryEvent = event,
-            storyOutcomes = jinResult.reports,
+            storyOutcomes = jinResult.reports + marchReports + supplyReports,
             ending = ending,
             earnedAchievements = earned + newAch,
             newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement
@@ -572,6 +590,25 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             .filter { it.id in leadIds && it.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING) }
             .map { o -> "${o.name}（${state.cities.find { c -> c.id == o.currentCityId }?.name ?: o.currentCityId}，待征辟）" }
 
+        // Stage 4: 构建宋方军团摘要（让AI知道已有军团）
+        val armyContexts = state.armies
+            .filter { it.ownerFactionId == "song" && it.statusCode != ArmyStatus.DISBANDED }
+            .map { a ->
+                val cmdName = state.officers.find { it.id == a.commanderId }?.name ?: a.name
+                ArmyContext(
+                    id = a.id,
+                    name = a.name,
+                    commanderName = cmdName,
+                    commanderId = a.commanderId,
+                    currentCityId = a.currentCityId,
+                    troops = a.troops,
+                    morale = a.morale,
+                    supplyLevel = a.supplyLevel,
+                    statusLabel = a.status,
+                    targetCityId = a.targetCityId
+                )
+            }
+
         return GameContext(
             currentTurn = state.turn,
             era = "${state.calendar.displayText()} / ${state.season.label} / 天气${state.weather.label}",
@@ -582,7 +619,8 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             jinThreat = state.jinThreat,
             activeCities = state.cities.map { CityContext(it.id, it.name, it.owner, it.troops, it.defense) },
             availableOfficers = officerContexts,
-            pendingRecruitLeads = pendingLeads
+            pendingRecruitLeads = pendingLeads,
+            songArmies = armyContexts
         )
     }
 }

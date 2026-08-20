@@ -1,5 +1,6 @@
 package com.xiemingxin.nandu.game
 
+
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -10,7 +11,7 @@ object GameSaveCodec {
     // V1.7 天下战略：Faction/City/Officer 补齐扩展字段序列化，存档结构升级到 V3。
     // 旧存档（V1/V2）读取时所有新增字段均走 optXxx 默认值兜底，不会崩溃，只是那些旧存档里
     // 本就没有记录过的扩展数值（如城池人口、势力关系等）会被重置为初始默认值。
-    private const val SAVE_VERSION = 4
+    private const val SAVE_VERSION = 5
 
     fun export(state: GameState): String {
         val root = JSONObject()
@@ -208,6 +209,13 @@ object GameSaveCodec {
         .put("status", status).put("targetCityId", targetCityId)
         .put("routeFromCityId", routeFromCityId).put("marchDaysTotal", marchDaysTotal)
         .put("marchDaysRemaining", marchDaysRemaining)
+        // Stage 4 新字段
+        .put("statusCode", statusCode.name)
+        .put("routeNodeIds", org.json.JSONArray(routeNodeIds))
+        .put("routeIndex", routeIndex)
+        .put("supplyLevel", supplyLevel)
+        .put("lastSuppliedTurn", lastSuppliedTurn)
+        .put("createdTurn", createdTurn)
 
     private fun JSONObject.toArmy() = Army(
         id = optString("id"),
@@ -224,7 +232,25 @@ object GameSaveCodec {
         targetCityId = optString("targetCityId", ""),
         routeFromCityId = optString("routeFromCityId", ""),
         marchDaysTotal = optInt("marchDaysTotal", 0),
-        marchDaysRemaining = optInt("marchDaysRemaining", 0)
+        marchDaysRemaining = optInt("marchDaysRemaining", 0),
+        // Stage 4 新字段（旧存档向后兼容）
+        statusCode = try {
+            ArmyStatus.valueOf(optString("statusCode", "GARRISONED"))
+        } catch (e: IllegalArgumentException) {
+            // 旧存档按status字符串迁移
+            when {
+                optString("status","").contains("进军") || optString("status","").contains("行军") -> ArmyStatus.MARCHING
+                optString("status","").contains("待战") -> ArmyStatus.ENGAGEMENT_PENDING
+                else -> ArmyStatus.GARRISONED
+            }
+        },
+        routeNodeIds = optJSONArray("routeNodeIds")?.let { arr ->
+            (0 until arr.length()).map { arr.optString(it) }
+        } ?: emptyList(),
+        routeIndex = optInt("routeIndex", 0),
+        supplyLevel = optInt("supplyLevel", 100),
+        lastSuppliedTurn = optInt("lastSuppliedTurn", 0),
+        createdTurn = optInt("createdTurn", 0)
     )
 
     private fun ChronicleEntry.toJson() = JSONObject()
