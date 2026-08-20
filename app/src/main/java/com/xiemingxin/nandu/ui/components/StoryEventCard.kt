@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.CgResourceRegistry
+import com.xiemingxin.nandu.game.PropResourceRegistry
 import com.xiemingxin.nandu.game.VisualAssetV3
 import com.xiemingxin.nandu.story.StoryEvent
 
@@ -41,9 +42,10 @@ private val EventSub = Color(0xFF9A8862)
 private val EventRed = Color(0xFF7D1D16)
 
 /**
- * Visual Integration V3 event card.
+ * Visual Integration V3 + Prop System V1 event card.
  * Static CG is selected from the restored art batch first; matching military events can
- * also open a real bundled short CG video. Video playback is always one-shot, never BGM.
+ * also open a real bundled short CG video. Contextual props are visual/narrative cues only
+ * and never mutate authoritative GameState resources.
  */
 @Composable
 fun StoryEventCard(
@@ -52,6 +54,13 @@ fun StoryEventCard(
     onChoice: (String) -> Unit
 ) {
     val video = CgResourceRegistry.videoFor(
+        eventId = event.eventId,
+        type = event.type,
+        title = event.title,
+        description = event.description,
+        artHint = event.artHint
+    )
+    val eventProps = PropResourceRegistry.propsForEvent(
         eventId = event.eventId,
         type = event.type,
         title = event.title,
@@ -86,6 +95,7 @@ fun StoryEventCard(
                 TagText(text = if (event.chapter == "数据事件包") "JSON事件" else event.chapter.ifBlank { "朝堂事件" })
                 TagText(text = eventTypeName(event.type))
                 TagText(text = if (video == null) "CG" else "CG · 视频")
+                if (eventProps.isNotEmpty()) TagText(text = "物件")
             }
 
             Text(
@@ -116,6 +126,13 @@ fun StoryEventCard(
                     color = EventSub,
                     fontSize = 10.sp,
                     lineHeight = 15.sp
+                )
+            }
+
+            if (eventProps.isNotEmpty()) {
+                PropShelf(
+                    title = "案上物件",
+                    props = eventProps
                 )
             }
 
