@@ -1,0 +1,29 @@
+{
+  "auditVersion": 1,
+  "auditedAt": "2026-08-20",
+  "branch": "art/video-batch4-living-world",
+  "sourcePlan": "assets/videos/VIDEO_USAGE_PLAN.md",
+  "goal": "Minimize new generation by reusing existing 51 V3 clips where possible.",
+  "results": [
+    {"id": "B4_01_chuigong_empty_loop", "verdict": "MUST_GENERATE", "reuse": null},
+    {"id": "B4_02_emperor_enter_hall", "verdict": "OPTIONAL", "reuse": null, "note": "Fade + static hall sufficient for v1"},
+    {"id": "B4_03_imperial_garden_loop", "verdict": "MUST_GENERATE", "reuse": null},
+    {"id": "B4_04_yushu_study_loop", "verdict": "MUST_GENERATE", "reuse": null},
+    {"id": "B4_05_linan_city_loop", "verdict": "MUST_GENERATE", "reuse": null},
+    {"id": "B4_06_world_map_loop", "verdict": "MUST_GENERATE", "reuse": null, "note": "Season clips are overlays only"},
+    {"id": "B4_07_song_camp_loop", "verdict": "MUST_GENERATE", "reuse": null},
+    {"id": "B4_08_prewar_council", "verdict": "CAN_REUSE_EXISTING", "reuse": "assets/videos/cinematic/NanduWuhui_Prewar_CG_V01.mp4"},
+    {"id": "B4_09_become_zhaogou", "verdict": "MUST_GENERATE", "reuse": null, "note": "V38 is portrait loop only, not POV awakening"},
+    {"id": "B4_10a_jingkang_fall", "verdict": "CAN_REUSE_EXISTING", "reuse": "assets/videos/intro/V03_intro_cinematic.mp4"},
+    {"id": "B4_10b_two_emperors_north", "verdict": "OPTIONAL", "reuse": null},
+    {"id": "B4_10c_south_crossing", "verdict": "OPTIONAL", "reuse": null},
+    {"id": "B4_10d_kangwang_enthronement", "verdict": "OPTIONAL", "reuse": null},
+    {"id": "B4_10e_jiangnan_ruins", "verdict": "OPTIONAL", "reuse": null}
+  ],
+  "counts": {
+    "MUST_GENERATE": 7,
+    "CAN_REUSE_EXISTING": 2,
+    "OPTIONAL": 5,
+    "originalBatch4Planned": 14
+  }
+}
