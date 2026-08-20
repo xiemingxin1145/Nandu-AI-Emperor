@@ -28,6 +28,7 @@ import com.xiemingxin.nandu.game.WarSystem
 import com.xiemingxin.nandu.agent.CharacterAgentSystem
 import com.xiemingxin.nandu.agent.AgentProposal
 import com.xiemingxin.nandu.game.ArmyStatus
+import com.xiemingxin.nandu.game.CharacterTravelSystem
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.AchievementSystem
 import com.xiemingxin.nandu.game.BattleResolver
