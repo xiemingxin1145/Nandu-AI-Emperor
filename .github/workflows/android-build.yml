@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - ai-palace-simulator-v1
+      - art-cg-batch1-integration
   pull_request:
     branches:
       - main
