@@ -7,11 +7,13 @@ on:
       - ai-palace-simulator-v1
       - feature/living-world-court-v1
       - integration/living-world-canon-recovery-v1
+      - ci/living-world-canon-base
   pull_request:
     branches:
       - main
       - fix/prologue-audio-timeline-20260820
       - feature/living-world-court-v1
+      - ci/living-world-canon-base
   workflow_dispatch:
 
 jobs:
