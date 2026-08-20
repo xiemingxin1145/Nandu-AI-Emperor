@@ -90,7 +90,7 @@ object RecruitmentSystem {
                 }
                 val newLeads = paidState.talentLeads - officerId
                 val travelNote = if (alreadyThere) {
-                    "已在$capitalName候旨。"
+                    "已在${capitalName}候旨。"
                 } else {
                     "已奉召启程赴$capitalName，约${travelTurns}旬后抵达；途中不得列班奏对。"
                 }
