@@ -11,13 +11,6 @@ import com.xiemingxin.nandu.ai.CityContext
 import com.xiemingxin.nandu.ai.ClaudeProvider
 import com.xiemingxin.nandu.ai.CustomApiProvider
 import com.xiemingxin.nandu.ai.EdictResult
-import com.xiemingxin.nandu.game.AppointmentSystem
-import com.xiemingxin.nandu.game.ArmyMovementSystem
-import com.xiemingxin.nandu.game.ArmySupplySystem
-import com.xiemingxin.nandu.game.ArmySystem
-import com.xiemingxin.nandu.game.WarSystem
-import com.xiemingxin.nandu.game.ArmyStatus
-import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.ai.ArmyContext
 import com.xiemingxin.nandu.ai.GameContext
 import com.xiemingxin.nandu.ai.GeminiProvider
@@ -25,6 +18,15 @@ import com.xiemingxin.nandu.ai.MockProvider
 import com.xiemingxin.nandu.ai.OfficerContext
 import com.xiemingxin.nandu.ai.OpenAiProvider
 import com.xiemingxin.nandu.ai.OpenRouterProvider
+import com.xiemingxin.nandu.ai.WorldContextFactory
+import com.xiemingxin.nandu.ai.WorldPlanningProvider
+import com.xiemingxin.nandu.game.AppointmentSystem
+import com.xiemingxin.nandu.game.ArmyMovementSystem
+import com.xiemingxin.nandu.game.ArmySupplySystem
+import com.xiemingxin.nandu.game.ArmySystem
+import com.xiemingxin.nandu.game.WarSystem
+import com.xiemingxin.nandu.game.ArmyStatus
+import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.AchievementSystem
 import com.xiemingxin.nandu.game.BattleResolver
 import com.xiemingxin.nandu.game.BattleUnitCatalog
@@ -37,11 +39,11 @@ import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
-import com.xiemingxin.nandu.game.JinAI
 import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.TavernSystem
 import com.xiemingxin.nandu.game.VictoryJudge
+import com.xiemingxin.nandu.game.WorldAiTurnExecutor
 import com.xiemingxin.nandu.game.withUpdatedFactionStatus
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
@@ -98,8 +100,9 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     fun testProviderConnection() {
         val state = _uiState.value
         val config = AiEngineConfig(state.providerType, state.apiKey, state.customModel)
-        if (config.providerType != AiProviderType.MOCK && config.apiKey.isBlank()) {
-            _uiState.value = state.copy(saveMessage = "请先填写 API Key，再叩问接口。")
+        val keylessCustomReady = config.providerType == AiProviderType.CUSTOM && config.isRealAiEnabled
+        if (config.providerType != AiProviderType.MOCK && config.apiKey.isBlank() && !keylessCustomReady) {
+            _uiState.value = state.copy(saveMessage = "请先填写 API Key；若是免鉴权中转站，请选择“自定义API”并填写 Base URL 与模型名。")
             return
         }
         _uiState.value = state.copy(saveMessage = "正在叩问 ${config.providerType.displayName}……")
@@ -210,7 +213,6 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         }
         executeAttackCity(army.id, targetCityId)
     }
-
 
     fun visitCity(cityId: String, action: CityVisitAction) {
         val state = _uiState.value.gameState
@@ -330,52 +332,108 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     fun dismissBattleReport() {
         _uiState.value = _uiState.value.copy(lastBattleOutcome = null, battleReport = null)
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Stage 6 唯一世界 Tick：
+     *  - 有支持世界推演的真实模型：每旬只调用一次，让它给出非玩家势力行动 + NPC主动上奏；
+     *  - 接口失败/超时/坏JSON：立即退回本地战略脑，不阻断游戏；
+     *  - AI只提动作，WorldAiTurnExecutor 按本地规则验证和执行；
+     *  - 随后再推进玩家军团行军、双方补给、事件与胜负判断。
+     */
     fun advanceTurn() {
-        val state = _uiState.value.gameState
-        val jinResult = JinAI.executeTurn(state, state.jinThreat)
-        var working = jinResult.newState
+        val snapshot = _uiState.value
+        if (snapshot.phase == GamePhase.AI_PROCESSING) return
 
-        // Stage 4 唯一战略Tick入口 ─────────────────────────────
-        // 1. 行军推进（沿道路图逐节点推进）
-        val marchResult = ArmyMovementSystem.tickAllArmies(working, tickDays = 10)
-        working = marchResult.first
-        val marchReports = marchResult.second
+        val state = snapshot.gameState
+        val planner = currentProvider as? WorldPlanningProvider
+        val useRemoteWorldAi = snapshot.isRealAiEnabled && planner != null
 
-        // 2. 补给结算（驻扎补粮，行军消耗）
-        val supplyResult = ArmySupplySystem.tickAllSupply(working)
-        working = supplyResult.first
-        val supplyReports = supplyResult.second
-        // ──────────────────────────────────────────────────────
-
-        val clearedFlags = working.storyFlags - "sieged_this_turn"
-        val nextState = working.copy(
-            turn = working.turn + 1,
-            calendar = working.calendar.advance(),
-            storyFlags = clearedFlags,
-            cityActionPoints = TavernSystem.MAX_ACTION_POINTS
-        ).withUpdatedFactionStatus()
-        val event = EventDirector.selectForTurn(
-            state = nextState,
-            events = storyEvents,
-            firedEventIds = nextState.firedEventIds,
-            flags = nextState.storyFlags
-        ).firstOrNull()
-        val ending = VictoryJudge.judgeDefeat(nextState)
-        val earned = _uiState.value.earnedAchievements
-        val newAch = AchievementSystem.checkNewAchievements(nextState, earned)
-        _uiState.value = _uiState.value.copy(
-            gameState = nextState,
-            phase = GamePhase.IDLE,
-            lastOutcomes = emptyList(),
-            lastRejected = emptyList(),
-            currentStoryEvent = event,
-            storyOutcomes = jinResult.reports + marchReports + supplyReports,
-            ending = ending,
-            earnedAchievements = earned + newAch,
-            newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement
+        _uiState.value = snapshot.copy(
+            phase = GamePhase.AI_PROCESSING,
+            storyOutcomes = listOf("【天下推演】诸势力正在议定本旬行动……"),
+            errorMessage = null
         )
+
+        viewModelScope.launch {
+            val planningResult = if (useRemoteWorldAi) {
+                planner!!.planWorldTurn(WorldContextFactory.fromState(state))
+            } else {
+                Result.failure(IllegalStateException("当前模型通道未启用世界推演"))
+            }
+
+            val remoteSucceeded = planningResult.isSuccess
+            val plan = planningResult.getOrElse { WorldAiTurnExecutor.heuristicPlan(state) }
+            val worldResult = WorldAiTurnExecutor.execute(state, plan)
+            var working = worldResult.newState
+
+            val worldReports = mutableListOf<String>()
+            if (plan.strategySummary.isNotBlank()) {
+                worldReports += if (remoteSucceeded) {
+                    "【AI世界推演】${plan.strategySummary}"
+                } else {
+                    "【本地战略脑】${plan.strategySummary}"
+                }
+            }
+            if (snapshot.isRealAiEnabled && !remoteSucceeded) {
+                val reason = planningResult.exceptionOrNull()?.message.orEmpty().take(160)
+                worldReports += "【AI自动降级】本旬世界模型未能完成推演，已无缝切换本地战略脑${if (reason.isBlank()) "。" else "：$reason"}"
+            }
+            worldReports += worldResult.reports
+            worldResult.npcInitiatives.forEach { initiative ->
+                val officerName = working.officers.firstOrNull { it.id == initiative.officerId }?.name ?: initiative.officerId
+                val label = when (initiative.kind) {
+                    "warning" -> "警奏"
+                    "request" -> "请命"
+                    "advice" -> "进言"
+                    else -> "奏对"
+                }
+                worldReports += "【$label·$officerName】${initiative.text}"
+            }
+
+            // Stage 4 玩家军团战略 Tick：世界AI不越权替玩家行动。
+            val marchResult = ArmyMovementSystem.tickAllArmies(working, tickDays = 10)
+            working = marchResult.first
+            val marchReports = marchResult.second
+
+            val supplyResult = ArmySupplySystem.tickAllSupply(working)
+            working = supplyResult.first
+            val supplyReports = supplyResult.second
+
+            val clearedFlags = working.storyFlags - "sieged_this_turn"
+            val nextState = working.copy(
+                turn = working.turn + 1,
+                calendar = working.calendar.advance(),
+                storyFlags = clearedFlags,
+                cityActionPoints = TavernSystem.MAX_ACTION_POINTS
+            ).withUpdatedFactionStatus()
+
+            val event = EventDirector.selectForTurn(
+                state = nextState,
+                events = storyEvents,
+                firedEventIds = nextState.firedEventIds,
+                flags = nextState.storyFlags
+            ).firstOrNull()
+            val ending = VictoryJudge.judgeDefeat(nextState)
+            val earned = _uiState.value.earnedAchievements
+            val newAch = AchievementSystem.checkNewAchievements(nextState, earned)
+
+            _uiState.value = _uiState.value.copy(
+                gameState = nextState,
+                phase = GamePhase.IDLE,
+                lastOutcomes = emptyList(),
+                lastRejected = emptyList(),
+                currentStoryEvent = event,
+                storyOutcomes = worldReports + marchReports + supplyReports,
+                ending = ending,
+                earnedAchievements = earned + newAch,
+                newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement,
+                providerStatusMessage = if (remoteSucceeded) {
+                    "${snapshot.providerType.displayName} 世界AI已接管：每旬一次低成本推演"
+                } else {
+                    buildProviderStatus(AiEngineConfig(snapshot.providerType, snapshot.apiKey, snapshot.customModel))
+                }
+            )
+        }
     }
 
     fun dismissAchievement() {
@@ -482,22 +540,24 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val customParts = parseCustomConfig(customModel)
         return when (type) {
             AiProviderType.CLAUDE -> ClaudeProvider(apiKey)
-            AiProviderType.OPENAI -> OpenAiProvider(apiKey, customModel.ifEmpty { "gpt-4o" })
+            AiProviderType.OPENAI -> OpenAiProvider(apiKey, customModel.ifEmpty { "gpt-4o-mini" })
             AiProviderType.GEMINI -> GeminiProvider(apiKey)
-            AiProviderType.OPENROUTER -> OpenRouterProvider(apiKey, customModel.ifEmpty { "anthropic/claude-3.5-sonnet" })
+            AiProviderType.OPENROUTER -> OpenRouterProvider(apiKey, customModel.ifEmpty { "deepseek/deepseek-chat" })
             AiProviderType.CUSTOM -> CustomApiProvider(
                 baseUrl = customParts.first.ifBlank { "https://api.example.com/v1" },
                 apiKey = apiKey,
-                model = customParts.second.ifBlank { "gpt-4o" }
+                model = customParts.second.ifBlank { "deepseek-chat" }
             )
             AiProviderType.MOCK -> MockProvider()
         }
     }
 
     private fun buildProviderStatus(config: AiEngineConfig): String = when {
-        config.providerType == AiProviderType.MOCK -> "离线 Mock 推演：可试玩，但不是真 AI 理解"
-        config.apiKey.isBlank() -> "${config.providerType.displayName} 未填 Key，仍无法叩问真 AI"
-        else -> "${config.providerType.displayName} 已启用：圣旨将交给真实模型解析"
+        config.providerType == AiProviderType.MOCK -> "离线 Mock：圣旨和世界行动使用本地规则脑"
+        config.providerType == AiProviderType.CUSTOM && config.isRealAiEnabled ->
+            "自定义 OpenAI-compatible 引擎已启用：圣旨 + 每旬世界推演；API Key 可为空"
+        config.apiKey.isBlank() -> "${config.providerType.displayName} 未填 Key，世界推演将使用本地战略脑"
+        else -> "${config.providerType.displayName} 已启用：圣旨交给真实模型；支持时每旬驱动世界AI"
     }
 
     private fun providerLabel(config: AiEngineConfig): String = when {
@@ -538,7 +598,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                     else -> "将吏(武${o.force}/政${o.politics})"
                 }
                 OfficerContext(
-                    id = if (isLead) o.id else o.id,
+                    id = o.id,
                     name = o.name,
                     faction = o.faction,
                     currentCityId = o.currentCityId,
@@ -550,12 +610,10 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
 
-        // 待征辟名单（摸糊提示给AI，让AI帮玩家决策）
         val pendingLeads = state.officers
             .filter { it.id in leadIds && it.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING) }
             .map { o -> "${o.name}（${state.cities.find { c -> c.id == o.currentCityId }?.name ?: o.currentCityId}，待征辟）" }
 
-        // Stage 4: 构建宋方军团摘要（让AI知道已有军团）
         val armyContexts = state.armies
             .filter { it.ownerFactionId == "song" && it.statusCode != ArmyStatus.DISBANDED }
             .map { a ->
