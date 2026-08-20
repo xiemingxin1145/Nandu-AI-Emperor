@@ -21,6 +21,15 @@ class GameAudioPlayer(private val context: Context) {
     var bgmEnabled: Boolean = true
     var sfxEnabled: Boolean = true
 
+    companion object {
+        /**
+         * Demo 期曾把几十 KB 的占位/提示语音误放进 BGM 槽位。真正 60–120 秒的
+         * OGG 配乐不应小到这个程度。低于阈值的 BGM 直接静默跳过，避免把提示词
+         * 当背景音乐无限循环。替换为真实配乐后无需改代码，会自动恢复播放。
+         */
+        private const val MIN_BGM_BYTES = 128 * 1024L
+    }
+
     init {
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_GAME)
@@ -51,7 +60,7 @@ class GameAudioPlayer(private val context: Context) {
     /**
      * 同类音效随机播放：给定基础路径（如 audio/sfx/sfx_drum_war.ogg），
      * 自动收集同目录下 sfx_drum_war.ogg / sfx_drum_war_2.ogg / _3.ogg ... 随机挑一个播。
-     * 何老师只需丢入带 _2/_3 后缀的同名文件即可扩充随机池，无需改代码。缺文件则回退基础路径。
+     * 只需丢入带 _2/_3 后缀的同名文件即可扩充随机池，无需改代码。缺文件则回退基础路径。
      */
     fun playSfxVariant(basePath: String, volume: Float = 1f) {
         if (!masterEnabled || !sfxEnabled) return
@@ -82,6 +91,8 @@ class GameAudioPlayer(private val context: Context) {
         if (!masterEnabled || !bgmEnabled) return
         stopBgm()
         val file = materializeAsset(path) ?: return
+        // 防止把短占位音/生成器提示语误当 BGM 无限循环。
+        if (file.length() < MIN_BGM_BYTES) return
         bgmPlayer = MediaPlayer().apply {
             setDataSource(file.absolutePath)
             isLooping = loop
