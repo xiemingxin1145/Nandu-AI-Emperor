@@ -30,20 +30,15 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --stacktrace
-        continue-on-error: true
-        id: unit_tests
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: app/build/reports/tests/testDebugUnitTest/
-
-      - name: Fail if tests failed
-        if: steps.unit_tests.outcome == 'failure'
-        run: exit 1
+        run: |
+          ./gradlew :app:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/test_output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          # Print failed test details from XML
+          find app/build/test-results -name "*.xml" 2>/dev/null | xargs grep -l "failure" 2>/dev/null | while read f; do
+            echo "=== FAILED TEST FILE: $f ==="
+            cat "$f"
+          done
+          exit $EXIT_CODE
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
