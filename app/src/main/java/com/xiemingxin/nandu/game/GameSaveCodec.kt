@@ -167,7 +167,7 @@ object GameSaveCodec {
             bio = optString("bio", fallback?.bio ?: ""),
             travelDestinationCityId = if (has("travelDestinationCityId")) optString("travelDestinationCityId") else null,
             travelArrivalTurn = if (has("travelArrivalTurn")) optInt("travelArrivalTurn") else null,
-            scheduledStatus = if (has("scheduledStatus")) enumValueOf(optString("scheduledStatus")) else null,
+            scheduledStatus = if (has("scheduledStatus")) enumValueOf<OfficerStatus>(optString("scheduledStatus")) else null,
             scheduledCityId = if (has("scheduledCityId")) optString("scheduledCityId") else null,
             scheduledTurn = if (has("scheduledTurn")) optInt("scheduledTurn") else null
         )
