@@ -8,9 +8,8 @@ import androidx.security.crypto.MasterKey
 /**
  * AI 引擎本机配置库。
  *
- * 目标：像「玄机阁」一样由玩家自己填 Key / Base URL / 模型名，配置只保存在本机，
- * 优先走 Android Keystore + EncryptedSharedPreferences；极端机型失败时降级到普通 SharedPreferences，
- * 避免设置页崩溃。
+ * 自定义中转仍沿用 "baseUrl|model" 存在 customModel 中，保持旧版本设置兼容；
+ * Stage 6 起 CUSTOM 允许 API Key 为空，方便接 Ollama/LM Studio/局域网网关/免鉴权中转。
  */
 data class AiEngineConfig(
     val providerType: AiProviderType = AiProviderType.MOCK,
@@ -18,7 +17,14 @@ data class AiEngineConfig(
     val customModel: String = ""
 ) {
     val isRealAiEnabled: Boolean
-        get() = providerType != AiProviderType.MOCK && apiKey.isNotBlank()
+        get() = when (providerType) {
+            AiProviderType.MOCK -> false
+            AiProviderType.CUSTOM -> {
+                val parts = customModel.split("|", limit = 2)
+                parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()
+            }
+            else -> apiKey.isNotBlank()
+        }
 }
 
 class AiSettingsStore(context: Context) {
@@ -44,7 +50,10 @@ class AiSettingsStore(context: Context) {
 
     fun load(): AiEngineConfig {
         val provider = runCatching {
-            AiProviderType.valueOf(prefs.getString(KEY_PROVIDER, AiProviderType.MOCK.name) ?: AiProviderType.MOCK.name)
+            AiProviderType.valueOf(
+                prefs.getString(KEY_PROVIDER, AiProviderType.MOCK.name)
+                    ?: AiProviderType.MOCK.name
+            )
         }.getOrDefault(AiProviderType.MOCK)
         return AiEngineConfig(
             providerType = provider,
