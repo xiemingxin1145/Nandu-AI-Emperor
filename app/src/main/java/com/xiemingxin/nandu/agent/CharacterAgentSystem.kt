@@ -91,7 +91,7 @@ object CharacterAgentSystem {
 
         // 2. 情绪自然恢复（每旬挫败感-1，下限0）
         updated = updated.copy(
-            frustration = (updated.frustration - 1).coerceAtLeast(0)
+            ambition = (updated.frustration - 1).coerceAtLeast(0)
         )
 
         // 3. 重评长期目标（只有距上次设定≥3旬且条件变化明显才考虑）
@@ -114,10 +114,10 @@ object CharacterAgentSystem {
         agentState: CharacterAgentState, officer: Officer, state: GameState
     ): CharacterAgentState {
         val turnsSinceSet = state.turn - agentState.longTermGoalTurnSet
-        if (turnsSinceSet < CharacterAgentState.MIN_GOAL_STABILITY_TURNS) return agentState
+        if (turnsSinceSet < 3) return agentState
 
         val metrics = buildMetrics(agentState, officer, state)
-        val goalOptions = CharacterGoalType.entries.map { goal ->
+        val goalOptions = AgentGoal.entries.map { goal ->
             UtilityOption(
                 id = goal.name,
                 payload = goal,
@@ -144,37 +144,37 @@ object CharacterAgentSystem {
     }
 
     private fun goalFactors(goal: CharacterGoalType, officer: Officer): List<UtilityFactor> = when (goal) {
-        CharacterGoalType.NORTHERN_EXPEDITION -> listOf(
+        AgentGoal.NORTHERN_EXPEDITION -> listOf(
             UtilityFactor("jinThreat", 1.2, UtilityCurve.LINEAR),
             UtilityFactor("command_score", 0.9, UtilityCurve.QUADRATIC),
             UtilityFactor("officer_loyal", 0.7, UtilityCurve.LINEAR)
         )
-        CharacterGoalType.PEACE_NEGOTIATION -> listOf(
+        AgentGoal.PEACE_NEGOTIATION -> listOf(
             UtilityFactor("jinThreat", 0.8, UtilityCurve.QUADRATIC, invert = true),
             UtilityFactor("grain_ratio", 0.6, UtilityCurve.LINEAR, invert = true),
             UtilityFactor("ambition_score", 0.5, UtilityCurve.LINEAR)
         )
-        CharacterGoalType.FISCAL_STABILITY -> listOf(
+        AgentGoal.FISCAL_STABILITY -> listOf(
             UtilityFactor("grain_ratio", 1.0, UtilityCurve.SQRT, invert = true),
             UtilityFactor("politics_score", 0.8, UtilityCurve.LINEAR)
         )
-        CharacterGoalType.COURT_DOMINANCE -> listOf(
+        AgentGoal.COURT_DOMINANCE -> listOf(
             UtilityFactor("ambition_score", 1.5, UtilityCurve.QUADRATIC),
             UtilityFactor("frustration_rate", 0.6, UtilityCurve.LINEAR)
         )
-        CharacterGoalType.PERSONAL_POWER -> listOf(
+        AgentGoal.PERSONAL_POWER -> listOf(
             UtilityFactor("ambition_score", 1.3, UtilityCurve.QUADRATIC),
             UtilityFactor("loyalty_rate", 0.4, UtilityCurve.LINEAR, invert = true)
         )
-        CharacterGoalType.PROTECT_EMPEROR -> listOf(
+        AgentGoal.PROTECT_EMPEROR -> listOf(
             UtilityFactor("loyalty_rate", 1.4, UtilityCurve.QUADRATIC),
             UtilityFactor("courtStability", 0.6, UtilityCurve.LINEAR, invert = true)
         )
-        CharacterGoalType.HOLD_FRONTIER -> listOf(
+        AgentGoal.HOLD_FRONTIER -> listOf(
             UtilityFactor("command_score", 1.0, UtilityCurve.LINEAR),
             UtilityFactor("jinThreat", 0.9, UtilityCurve.SQRT)
         )
-        CharacterGoalType.SURVIVAL -> listOf(
+        AgentGoal.SURVIVAL -> listOf(
             UtilityFactor("frustration_rate", 1.0, UtilityCurve.QUADRATIC),
             UtilityFactor("loyalty_rate", 0.5, UtilityCurve.LINEAR, invert = true)
         )
@@ -206,32 +206,32 @@ object CharacterAgentSystem {
     ): List<UtilityOption<CharacterPlanType>> {
         val goal = agentState.longTermGoal
         return buildList {
-            add(UtilityOption("REQUEST_BATTLE", CharacterPlanType.REQUEST_BATTLE, 0.0,
+            add(UtilityOption("REQUEST_BATTLE", AgentPlanType.REQUEST_BATTLE, 0.0,
                 listOf(UtilityFactor("command_score", 1.2), UtilityFactor("jinThreat", 0.8)),
                 continuityBonus = 0.12))
-            add(UtilityOption("REQUEST_SUPPLY", CharacterPlanType.REQUEST_SUPPLY, 0.0,
+            add(UtilityOption("REQUEST_SUPPLY", AgentPlanType.REQUEST_SUPPLY, 0.0,
                 listOf(UtilityFactor("grain_ratio", 1.0, invert = true)), continuityBonus = 0.10))
-            add(UtilityOption("OPPOSE_POLICY", CharacterPlanType.OPPOSE_POLICY, 0.0,
+            add(UtilityOption("OPPOSE_POLICY", AgentPlanType.OPPOSE_POLICY, 0.0,
                 listOf(UtilityFactor("frustration_rate", 1.0), UtilityFactor("politics_score", 0.5))))
-            add(UtilityOption("PETITION_EMPEROR", CharacterPlanType.PETITION_EMPEROR, 0.0,
+            add(UtilityOption("PETITION_EMPEROR", AgentPlanType.PETITION_EMPEROR, 0.0,
                 listOf(UtilityFactor("loyalty_rate", 0.9), UtilityFactor("frustration_rate", 0.6))))
-            add(UtilityOption("RECOMMEND_TALENT", CharacterPlanType.RECOMMEND_TALENT, 0.0,
+            add(UtilityOption("RECOMMEND_TALENT", AgentPlanType.RECOMMEND_TALENT, 0.0,
                 listOf(UtilityFactor("politics_score", 0.8), UtilityFactor("loyalty_rate", 0.6))))
-            add(UtilityOption("WARN_DANGER", CharacterPlanType.WARN_DANGER, 0.0,
+            add(UtilityOption("WARN_DANGER", AgentPlanType.WARN_DANGER, 0.0,
                 listOf(UtilityFactor("jinThreat", 1.1, curve = UtilityCurve.QUADRATIC))))
-            add(UtilityOption("DIPLOMATIC_ADVICE", CharacterPlanType.DIPLOMATIC_ADVICE, 0.0,
+            add(UtilityOption("DIPLOMATIC_ADVICE", AgentPlanType.DIPLOMATIC_ADVICE, 0.0,
                 listOf(UtilityFactor("politics_score", 1.0), UtilityFactor("jinThreat", 0.5))))
-            add(UtilityOption("WAIT_AND_SEE", CharacterPlanType.WAIT_AND_SEE, 0.0,
+            add(UtilityOption("WAIT_AND_SEE", AgentPlanType.WAIT_AND_SEE, 0.0,
                 listOf(UtilityFactor("frustration_rate", 0.6, invert = true),
                        UtilityFactor("loyalty_rate", 0.5, invert = true))))
         }.map { opt ->
             // 根据长期目标给对应计划加分
             val goalBonus = when {
-                goal == CharacterGoalType.NORTHERN_EXPEDITION && opt.id == "REQUEST_BATTLE" -> 0.25
-                goal == CharacterGoalType.FISCAL_STABILITY && opt.id == "REQUEST_SUPPLY"   -> 0.20
-                goal == CharacterGoalType.COURT_DOMINANCE && opt.id == "OPPOSE_POLICY"     -> 0.18
-                goal == CharacterGoalType.PROTECT_EMPEROR && opt.id == "PETITION_EMPEROR"  -> 0.15
-                goal == CharacterGoalType.HOLD_FRONTIER && opt.id == "WARN_DANGER"         -> 0.15
+                goal == AgentGoal.NORTHERN_EXPEDITION && opt.id == "REQUEST_BATTLE" -> 0.25
+                goal == AgentGoal.FISCAL_STABILITY && opt.id == "REQUEST_SUPPLY"   -> 0.20
+                goal == AgentGoal.COURT_DOMINANCE && opt.id == "OPPOSE_POLICY"     -> 0.18
+                goal == AgentGoal.PROTECT_EMPEROR && opt.id == "PETITION_EMPEROR"  -> 0.15
+                goal == AgentGoal.HOLD_FRONTIER && opt.id == "WARN_DANGER"         -> 0.15
                 else -> 0.0
             }
             opt.copy(baseScore = opt.baseScore + goalBonus)
@@ -247,17 +247,17 @@ object CharacterAgentSystem {
         val metrics = buildMetrics(agentState, officer, state)
 
         when (agentState.currentPlan) {
-            CharacterPlanType.REQUEST_BATTLE -> {
+            AgentPlanType.REQUEST_BATTLE -> {
                 val frontCities = state.armies.filter {
                     it.ownerFactionId == "song" &&
                     it.commanderId == officer.id &&
                     it.statusCode.name == "ENGAGEMENT_PENDING"
                 }
                 val city = frontCities.firstOrNull()
-                val urgency = (50 + agentState.frustration / 3).coerceAtMost(95)
+                val urgency = (50 + agentState.ambition / 3).coerceAtMost(95)
                 proposals.add(AgentProposal(
                     id = "${officer.id}_battle_${state.turn}",
-                    kind = CharacterPlanType.REQUEST_BATTLE,
+                    kind = AgentPlanType.REQUEST_BATTLE,
                     targetCityId = city?.targetCityId ?: "",
                     edictSuggestion = if (city != null)
                         "命${officer.name}部即刻进攻${state.cities.find { it.id == city.targetCityId }?.name ?: "前线"}，克复失地。"
@@ -268,10 +268,10 @@ object CharacterAgentSystem {
                     turn = state.turn
                 ))
             }
-            CharacterPlanType.REQUEST_SUPPLY -> {
+            AgentPlanType.REQUEST_SUPPLY -> {
                 proposals.add(AgentProposal(
                     id = "${officer.id}_supply_${state.turn}",
-                    kind = CharacterPlanType.REQUEST_SUPPLY,
+                    kind = AgentPlanType.REQUEST_SUPPLY,
                     edictSuggestion = "命户部调拨军粮，以资${officer.name}所部。",
                     reason = "${officer.name}奏称粮道吃紧，请求朝廷接济。",
                     urgency = if (state.grain < 120000) 80 else 50,
@@ -279,29 +279,29 @@ object CharacterAgentSystem {
                     turn = state.turn
                 ))
             }
-            CharacterPlanType.OPPOSE_POLICY -> {
+            AgentPlanType.OPPOSE_POLICY -> {
                 val rival = agentState.relations
                     .filter { it.kind == RelationKind.HOSTILE || it.kind == RelationKind.RIVAL }
                     .maxByOrNull { it.intensity }
                 val rivalName = state.officers.find { it.id == rival?.targetOfficerId }?.name
                 proposals.add(AgentProposal(
                     id = "${officer.id}_oppose_${state.turn}",
-                    kind = CharacterPlanType.OPPOSE_POLICY,
+                    kind = AgentPlanType.OPPOSE_POLICY,
                     targetOfficerId = rival?.targetOfficerId ?: "",
                     edictSuggestion = if (rivalName != null)
                         "请陛下三思，勿轻信${rivalName}之议，以免误国。"
                     else "请陛下三思当前政议，臣恐有碍军国大计。",
                     reason = "${officer.name}对当前政策持异议，${agentState.attitudeToEmperor.label}。",
-                    urgency = (agentState.frustration / 2 + 30).coerceAtMost(85),
+                    urgency = (agentState.ambition / 2 + 30).coerceAtMost(85),
                     score = metrics.getOrDefault("frustration_rate", 0.3),
                     turn = state.turn
                 ))
             }
-            CharacterPlanType.WARN_DANGER -> {
+            AgentPlanType.WARN_DANGER -> {
                 val threat = state.jinThreat
                 proposals.add(AgentProposal(
                     id = "${officer.id}_warn_${state.turn}",
-                    kind = CharacterPlanType.WARN_DANGER,
+                    kind = AgentPlanType.WARN_DANGER,
                     edictSuggestion = "金军威胁不可轻视（当前威胁值${threat}），请陛下早作部署。",
                     reason = "${officer.name}示警：金军动向有异，请圣上加强戒备。",
                     urgency = (threat * 0.9).toInt().coerceAtMost(95),
@@ -309,14 +309,14 @@ object CharacterAgentSystem {
                     turn = state.turn
                 ))
             }
-            CharacterPlanType.RECOMMEND_TALENT -> {
+            AgentPlanType.RECOMMEND_TALENT -> {
                 val hiddenTalent = state.officers.firstOrNull {
                     it.status == OfficerStatus.HIDDEN && it.id !in state.talentLeads
                 }
                 if (hiddenTalent != null) {
                     proposals.add(AgentProposal(
                         id = "${officer.id}_talent_${state.turn}",
-                        kind = CharacterPlanType.RECOMMEND_TALENT,
+                        kind = AgentPlanType.RECOMMEND_TALENT,
                         targetOfficerId = hiddenTalent.id,
                         edictSuggestion = "臣举荐${hiddenTalent.name}，其人才干出众，可为朝廷所用。",
                         reason = "${officer.name}举荐在野人才${hiddenTalent.name}。",
@@ -326,10 +326,10 @@ object CharacterAgentSystem {
                     ))
                 }
             }
-            CharacterPlanType.PETITION_EMPEROR -> {
+            AgentPlanType.PETITION_EMPEROR -> {
                 proposals.add(AgentProposal(
                     id = "${officer.id}_petition_${state.turn}",
-                    kind = CharacterPlanType.PETITION_EMPEROR,
+                    kind = AgentPlanType.PETITION_EMPEROR,
                     edictSuggestion = "臣${officer.name}上奏：${agentState.longTermGoal.label}乃当务之急，请圣上定夺。",
                     reason = "${officer.name}就${agentState.longTermGoal.label}一事上奏陈情。",
                     urgency = 60,
@@ -357,8 +357,8 @@ object CharacterAgentSystem {
         val conflicts = mutableListOf<String>()
 
         // 检查：主战派提案 vs 主和派提案
-        val warProposals  = proposals.filter { it.kind == CharacterPlanType.REQUEST_BATTLE }
-        val peaceProposals = proposals.filter { it.kind == CharacterPlanType.OPPOSE_POLICY &&
+        val warProposals  = proposals.filter { it.kind == AgentPlanType.REQUEST_BATTLE }
+        val peaceProposals = proposals.filter { it.kind == AgentPlanType.OPPOSE_POLICY &&
             it.edictSuggestion.contains("议和", ignoreCase = true) }
 
         if (warProposals.isNotEmpty() && peaceProposals.isNotEmpty()) {
@@ -490,8 +490,8 @@ object CharacterAgentSystem {
         "command_score"     to officer.command / 100.0,
         "politics_score"    to officer.politics / 100.0,
         "loyalty_rate"      to agentState.loyaltyToEmperor / 100.0,
-        "ambition_score"    to agentState.ambitionLevel / 100.0,
-        "frustration_rate"  to agentState.frustration / 100.0,
+        "ambition_score"    to agentState.ambition / 100.0,
+        "frustration_rate"  to agentState.ambition / 100.0,
         "officer_loyal"     to officer.loyalty / 100.0,
         "fear_rate"         to agentState.fearLevel / 100.0
     )
@@ -499,7 +499,7 @@ object CharacterAgentSystem {
     /** 计算人物本旬的优先级分数（决定处理顺序） */
     private fun priorityScore(officer: Officer, agentState: CharacterAgentState?): Int {
         if (agentState == null) return 0
-        return agentState.frustration / 2 +
+        return agentState.ambition / 2 +
             (if (agentState.activeProposals.isNotEmpty()) 20 else 0) +
             officer.politics / 5 +
             officer.command / 5

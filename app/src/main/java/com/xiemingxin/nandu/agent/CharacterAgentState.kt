@@ -1,217 +1,220 @@
 package com.xiemingxin.nandu.agent
 
-import kotlinx.serialization.Serializable
+/**
+ * Stage 8：人物 Agent 状态
+ *
+ * 每个核心历史人物拥有独立的持久 Agent 状态，跨旬保持目标连续性。
+ *
+ * 设计原则：
+ *  - 所有字段均有默认值（旧存档兼容）
+ *  - AgentState 只记录"人物的主观意图/记忆/关系"
+ *  - 任何对 GameState 的真实修改必须经过 GameRuleEngine 的确定性规则校验
+ *  - Agent 只能通过 IntentProposal 表达意图，不能直接写权威数据
+ */
+data class CharacterAgentState(
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Stage 8 人物 Agent 系统核心数据结构
-//
-// 设计原则：
-//   - Agent 只存意图和记忆，不直接存修改过的 GameState 数值
-//   - 所有实际状态改变必须经过 GameRuleEngine 确定性校验
-//   - 记忆有上限防止无限增长
-// ──────────────────────────────────────────────────────────────────────────────
+    val officerId: String,
 
-/** 人物长期目标类型 */
-enum class CharacterGoalType(val label: String) {
-    NORTHERN_EXPEDITION("北伐复土"),
-    PEACE_NEGOTIATION("议和止战"),
-    FISCAL_STABILITY("充实国库"),
-    MILITARY_REFORM("整军备战"),
-    PERSONAL_POWER("扩张权势"),
-    PROTECT_EMPEROR("护佑圣上"),
-    HOLD_FRONTIER("守御边关"),
-    TALENT_CULTIVATION("培植人才"),
-    COURT_DOMINANCE("控制朝局"),
-    SURVIVAL("明哲保身")
+    // ── 目标层 ───────────────────────────────────────────────────────────────
+    /** 长期目标（几乎不变，代表人物历史宿命）*/
+    val longTermGoal: AgentGoal = AgentGoal.UNDEFINED,
+
+    /** 当前旬的短期目标（受局势影响，但不能每旬无理由翻转）*/
+    val currentGoal: AgentGoal = AgentGoal.UNDEFINED,
+
+    /** 上一旬的目标 ID（用于连续性校验，防止随机翻转）*/
+    val previousGoalId: String = "",
+
+    /** 当前目标已持续的旬数（连续性权重依据）*/
+    val goalPersistTurns: Int = 0,
+
+    // ── 性格/立场 ────────────────────────────────────────────────────────────
+    /** 对战争/进攻的态度 0=绝对主和 100=狂热主战 */
+    val warBias: Int = 50,
+
+    /** 对皇帝的忠诚度（动态，会受事件影响）0=叛逆 100=绝对忠诚 */
+    val loyaltyToEmperor: Int = 70,
+
+    /** 野心值（高野心者在受压时更可能结党/消极）*/
+    val ambition: Int = 40,
+
+    /** 风险偏好（高=愿意冒险，低=倾向保守）*/
+    val riskTolerance: Int = 50,
+
+    /** 当前恐惧/压力值（高时倾向保守或求和）*/
+    val fearLevel: Int = 20,
+
+    // ── 对皇帝的态度 ─────────────────────────────────────────────────────────
+    /** 人物对皇帝的整体态度 */
+    val emperorAttitude: EmperorAttitude = EmperorAttitude.NEUTRAL,
+
+    /** 建议被皇帝采纳次数 */
+    val adviceAdoptedCount: Int = 0,
+
+    /** 建议被皇帝驳回次数 */
+    val adviceRejectedCount: Int = 0,
+
+    /** 被赏赐次数 */
+    val rewardCount: Int = 0,
+
+    /** 被责罚次数 */
+    val punishCount: Int = 0,
+
+    // ── 与其他人物的关系 ─────────────────────────────────────────────────────
+    /**
+     * 关系网 officerId → RelationRecord
+     * 注意：这是人物的"主观感受"，不是权威游戏数据。
+     * 不允许根据此字段直接改变游戏状态，只允许影响评分和台词。
+     */
+    val relations: Map<String, RelationRecord> = emptyMap(),
+
+    // ── 计划层 ───────────────────────────────────────────────────────────────
+    /** 当前旬的行动计划（从候选中选出的最优意图）*/
+    val currentPlan: AgentPlanType = AgentPlanType.OBSERVE,
+
+    /** 计划附带的目标说明 */
+    val planDetail: String = "",
+
+    // ── 记忆层（最多10条，自动压缩）─────────────────────────────────────────
+    /** 近期记忆列表（滑动窗口，超过上限后摘要压缩）*/
+    val recentMemory: List<AgentMemoryEntry> = emptyList(),
+
+    /** 压缩后的长期记忆摘要文本 */
+    val compressedMemorySummary: String = "",
+
+    // ── 元数据 ───────────────────────────────────────────────────────────────
+    /** 上一次触发 Agent 决策的旬数 */
+    val lastActiveTurn: Int = -1,
+
+    /** 是否已死亡/被罢黜（此状态下不再产生任何行动候选）*/
+    val inactive: Boolean = false
+) {
+    companion object {
+        const val MAX_RECENT_MEMORY = 10
+        const val MIN_GOAL_PERSIST_TURNS = 2  // 目标至少坚持这么多旬才能改变
+
+        /** 把超出窗口的记忆压缩成摘要 */
+        fun compressMemory(
+            existing: List<AgentMemoryEntry>,
+            newEntry: AgentMemoryEntry,
+            existingSummary: String
+        ): Pair<List<AgentMemoryEntry>, String> {
+            val all = existing + newEntry
+            return if (all.size <= MAX_RECENT_MEMORY) {
+                all to existingSummary
+            } else {
+                // 把最老的一半压缩成摘要
+                val half = all.size / 2
+                val toCompress = all.take(half)
+                val keep = all.drop(half)
+                val newSummary = buildString {
+                    if (existingSummary.isNotBlank()) append(existingSummary).append("；")
+                    toCompress.filter { it.significance >= 2 }.forEach { e ->
+                        append("[旬${e.turn}]${e.summary}；")
+                    }
+                }.trimEnd('；').take(300)
+                keep to newSummary
+            }
+        }
+    }
 }
 
-/** 当前短期计划 */
-enum class CharacterPlanType(val label: String) {
-    REQUEST_BATTLE("请战出征"),
-    REQUEST_SUPPLY("请求补给"),
-    OPPOSE_POLICY("反对政策"),
-    SUPPORT_ALLY("支持盟友"),
-    UNDERMINE_RIVAL("掣肘政敌"),
-    PETITION_EMPEROR("上奏陈情"),
-    RECOMMEND_TALENT("举荐人才"),
-    REQUEST_TRANSFER("请求调任"),
-    WARN_DANGER("示警危机"),
-    SEEK_ALLIANCE("私下交好"),
-    DIPLOMATIC_ADVICE("建议外交"),
-    WAIT_AND_SEE("静观其变"),
-    NONE("无特定计划")
+// ── 目标枚举 ─────────────────────────────────────────────────────────────────
+
+enum class AgentGoal(val label: String, val description: String) {
+    UNDEFINED("无明确目标", "等待局势明朗"),
+
+    // 军事类
+    NORTHERN_EXPEDITION("北伐收复", "收复中原、迎回二圣"),
+    DEFEND_FRONTLINE("固守前线", "确保前线稳固，防止金军南下"),
+    CONSOLIDATE_MILITARY("整顿军务", "整编军队、提升战力"),
+    SEEK_BATTLE("请战出征", "主动请求统兵出征"),
+
+    // 政治类
+    PEACE_NEGOTIATION("议和止兵", "推动与金国和谈，结束战争"),
+    STRENGTHEN_COURT("巩固朝堂", "稳定朝局，防范政敌"),
+    BUILD_INFLUENCE("积累威望", "扩大自身在朝堂的影响力"),
+    OPPOSE_FACTIONS("打压政敌", "削弱政见相反的势力"),
+    RECOMMEND_TALENT("举荐人才", "向皇帝推荐有才干的人物"),
+
+    // 财政类
+    SECURE_SUPPLY("充实粮草", "确保军需和民用粮草供给"),
+    RESTORE_ECONOMY("恢复民力", "减轻赋税，恢复生产"),
+
+    // 个人类
+    SURVIVE_POLITICAL("明哲保身", "在政治夹缝中保持安全"),
+    SEEK_PROMOTION("寻求升迁", "争取更高官职和更大权力"),
+    SEEK_REVENGE("伺机报复", "等待机会打击曾经压制自己的人")
 }
 
-/** 人物态度（对皇帝） */
+// ── 对皇帝态度 ───────────────────────────────────────────────────────────────
+
 enum class EmperorAttitude(val label: String) {
-    LOYAL_DEVOTED("忠心耿耿"),
-    RESPECTFUL("恭敬克制"),
-    NEUTRAL("不偏不倚"),
-    DISAPPOINTED("心有失望"),
-    ALIENATED("日渐疏离"),
-    RESENTFUL("心存怨望")
+    DEVOTED("竭诚效忠"),
+    SUPPORTIVE("拥护信任"),
+    NEUTRAL("恭谨侍奉"),
+    DISAPPOINTED("失望消极"),
+    ESTRANGED("疏远冷淡"),
+    RESENTFUL("心存芥蒂")
 }
 
-/** 关系类型 */
-enum class RelationKind(val label: String) {
-    ALLY("政治盟友"),
-    RIVAL("政治对手"),
-    MENTOR("授业恩师"),
-    PROTEGE("提携门生"),
-    NEUTRAL("关系平淡"),
-    HOSTILE("嫌隙颇深"),
-    SUSPICIOUS("互存猜疑")
-}
+// ── 关系记录 ─────────────────────────────────────────────────────────────────
 
-/** 人际关系记录 */
-@Serializable
-data class CharacterRelation(
+data class RelationRecord(
     val targetOfficerId: String,
-    val kind: RelationKind,
-    val intensity: Int = 50,            // 0-100，数值越高关系越深
-    val lastInteractionTurn: Int = -1,
-    val note: String = ""
+    /** -100=死仇 0=陌路 100=至交 */
+    val score: Int = 0,
+    val tag: RelationTag = RelationTag.ACQUAINTANCE,
+    /** 最近一次影响关系的事件摘要 */
+    val lastEventSummary: String = ""
 )
 
-/** 记忆条目 */
-@Serializable
+enum class RelationTag(val label: String) {
+    ALLY("盟友"),
+    SUPPORTER("支持者"),
+    ACQUAINTANCE("相识"),
+    RIVAL("政敌"),
+    ENEMY("死敌"),
+    FACTION_BROTHER("同僚"),
+    MENTOR("提携"),
+    SUBORDINATE("部属")
+}
+
+// ── 记忆条目 ─────────────────────────────────────────────────────────────────
+
 data class AgentMemoryEntry(
     val turn: Int,
-    val category: String,               // "edict_rejected" / "rewarded" / "battle_result" / "rivalry" 等
+    val category: MemoryCategory,
     val summary: String,
-    val emotionalImpact: Int = 0,       // -10..+10，负为负面
+    /** 重要程度 1=普通 2=重要 3=极重要（影响压缩权重）*/
+    val significance: Int = 1,
+    /** 相关人物 ID 列表 */
     val relatedOfficerIds: List<String> = emptyList()
 )
 
-/** 自主行为候选（不修改 GameState，由规则校验后才能生效） */
-@Serializable
-data class AgentProposal(
-    val id: String,
-    val kind: CharacterPlanType,
-    val targetOfficerId: String = "",
-    val targetCityId: String = "",
-    val edictSuggestion: String = "",
-    val reason: String,
-    val urgency: Int = 50,             // 0-100
-    val score: Double = 0.0,
-    val turn: Int = 0
-) {
-    /** 是否允许直接改 GameState（永远 false，只是意图） */
-    val canModifyState: Boolean get() = false
+enum class MemoryCategory(val label: String) {
+    BATTLE("战役"),
+    EMPEROR_DECISION("皇帝决策"),
+    COURT_CONFLICT("朝堂冲突"),
+    PERSONAL_INTERACTION("人物互动"),
+    POLITICAL_CHANGE("政治变局"),
+    APPOINTMENT("任命调动"),
+    REWARD_PUNISHMENT("赏罚"),
+    STRATEGY("军事动向")
 }
 
-/**
- * 人物 Agent 核心状态
- *
- * 存储在 GameState.characterAgentStates[officerId]，随存档持久化。
- * 记忆上限：recentMemories ≤ 10，keyMemories ≤ 5，activeProposals ≤ 3。
- */
-@Serializable
-data class CharacterAgentState(
-    val officerId: String,
+// ── 行动计划类型 ─────────────────────────────────────────────────────────────
 
-    // ── 长期目标 ─────────────────────────────────────────────────────────────
-    val longTermGoal: CharacterGoalType = CharacterGoalType.SURVIVAL,
-    val longTermGoalTurnSet: Int = 0,   // 目标确立于第几旬（防止无理由翻转）
-
-    // ── 当前计划 ─────────────────────────────────────────────────────────────
-    val currentPlan: CharacterPlanType = CharacterPlanType.NONE,
-    val currentPlanTurnSet: Int = 0,    // 计划确立于第几旬
-    val currentPlanTargetId: String = "", // 计划针对的人物/城池
-
-    // ── 内心数值 ──────────────────────────────────────────────────────────────
-    val loyaltyToEmperor: Int = 70,     // 0-100（≠ Officer.loyalty，这是动态的）
-    val ambitionLevel: Int = 30,        // 0-100
-    val fearLevel: Int = 20,            // 0-100（越高越倾向自保）
-    val frustration: Int = 0,           // 0-100（建议被驳回累积，影响态度）
-
-    // ── 对皇帝态度 ───────────────────────────────────────────────────────────
-    val attitudeToEmperor: EmperorAttitude = EmperorAttitude.LOYAL_DEVOTED,
-
-    // ── 人际关系 ──────────────────────────────────────────────────────────────
-    val relations: List<CharacterRelation> = emptyList(),
-
-    // ── 记忆（有上限） ────────────────────────────────────────────────────────
-    val recentMemories: List<AgentMemoryEntry> = emptyList(), // 最多10条，旧的自动淘汰
-    val keyMemories: List<AgentMemoryEntry> = emptyList(),    // 最多5条，高情感冲击永久保留
-
-    // ── 活跃提案（等待皇帝处理） ──────────────────────────────────────────────
-    val activeProposals: List<AgentProposal> = emptyList(),   // 最多3条
-
-    // ── 统计：皇帝采纳/驳回建议次数 ───────────────────────────────────────────
-    val edictAcceptedCount: Int = 0,
-    val edictRejectedCount: Int = 0,
-
-    // ── 上次战役结果 ──────────────────────────────────────────────────────────
-    val lastBattleWon: Boolean? = null,
-    val lastBattleTurn: Int = -1,
-
-    // ── 上次被赏/罚旬 ─────────────────────────────────────────────────────────
-    val lastRewardedTurn: Int = -1,
-    val lastPunishedTurn: Int = -1,
-
-    // ── 激活标志（DECEASED/HIDDEN 不参与 Agent 计算） ─────────────────────────
-    val isActive: Boolean = true
-) {
-    companion object {
-        const val MAX_RECENT_MEMORIES = 10
-        const val MAX_KEY_MEMORIES = 5
-        const val MAX_ACTIVE_PROPOSALS = 3
-        /** 计划/目标最少持续旬数（防止频繁翻转） */
-        const val MIN_GOAL_STABILITY_TURNS = 3
-    }
-
-    /** 添加记忆，自动淘汰旧的 */
-    fun addMemory(entry: AgentMemoryEntry): CharacterAgentState {
-        val isKey = kotlin.math.abs(entry.emotionalImpact) >= 7
-        val newRecent = (recentMemories + entry).takeLast(MAX_RECENT_MEMORIES)
-        val newKey = if (isKey) (keyMemories + entry).takeLast(MAX_KEY_MEMORIES) else keyMemories
-        return copy(recentMemories = newRecent, keyMemories = newKey)
-    }
-
-    /** 更新关系（若已存在则更新，否则新增） */
-    fun updateRelation(relation: CharacterRelation): CharacterAgentState {
-        val existing = relations.filter { it.targetOfficerId != relation.targetOfficerId }
-        return copy(relations = existing + relation)
-    }
-
-    /** 计算对皇帝态度（基于各数值动态派生） */
-    fun deriveAttitude(): EmperorAttitude = when {
-        loyaltyToEmperor >= 80 && frustration < 20 -> EmperorAttitude.LOYAL_DEVOTED
-        loyaltyToEmperor >= 60 && frustration < 40 -> EmperorAttitude.RESPECTFUL
-        loyaltyToEmperor >= 50 && frustration < 60 -> EmperorAttitude.NEUTRAL
-        frustration >= 60 || loyaltyToEmperor < 40 -> EmperorAttitude.DISAPPOINTED
-        frustration >= 75 || loyaltyToEmperor < 25 -> EmperorAttitude.ALIENATED
-        else -> EmperorAttitude.RESENTFUL
-    }
-
-    /** 建议被驳回后的状态更新 */
-    fun onProposalRejected(turn: Int, reason: String): CharacterAgentState {
-        val newFrustration = (frustration + 8).coerceAtMost(100)
-        val newLoyalty = (loyaltyToEmperor - if (frustration >= 50) 3 else 1).coerceAtLeast(0)
-        return addMemory(AgentMemoryEntry(
-            turn = turn, category = "proposal_rejected",
-            summary = "所上奏章未获圣纳：$reason",
-            emotionalImpact = -4
-        )).copy(
-            frustration = newFrustration,
-            loyaltyToEmperor = newLoyalty,
-            edictRejectedCount = edictRejectedCount + 1
-        ).let { it.copy(attitudeToEmperor = it.deriveAttitude()) }
-    }
-
-    /** 建议被采纳后的状态更新 */
-    fun onProposalAccepted(turn: Int): CharacterAgentState {
-        val newFrustration = (frustration - 5).coerceAtLeast(0)
-        val newLoyalty = (loyaltyToEmperor + 3).coerceAtMost(100)
-        return addMemory(AgentMemoryEntry(
-            turn = turn, category = "proposal_accepted",
-            summary = "所请之事蒙圣允，甚感圣恩。",
-            emotionalImpact = +5
-        )).copy(
-            frustration = newFrustration,
-            loyaltyToEmperor = newLoyalty,
-            edictAcceptedCount = edictAcceptedCount + 1
-        ).let { it.copy(attitudeToEmperor = it.deriveAttitude()) }
-    }
+enum class AgentPlanType(val label: String, val edict: String) {
+    OBSERVE("观望局势", ""),
+    PETITION_BATTLE("上奏请战", "臣请率军出征，收复故土。"),
+    PETITION_PEACE("上奏议和", "臣以为当务之急在于休养生息，宜遣使议和。"),
+    RECOMMEND_OFFICER("举荐人才", "臣举荐一人，可委以重任。"),
+    OPPOSE_POLICY("反对政策", "臣以为此议不妥，恳请圣上三思。"),
+    REQUEST_TRANSFER("请求调任", "臣愿赴边境，为国效命。"),
+    SUPPORT_ALLY("声援同僚", "臣以为此议甚善，附议。"),
+    WARN_DANGER("警告危险", "臣有要事密奏，事关社稷安危。"),
+    SUGGEST_DIPLOMACY("建议外交", "臣建议遣使，以外交手段破局。"),
+    MILITARY_REQUEST("军务请求", "臣请求补充粮草辎重。"),
+    PRIVATE_ALLIANCE("私下结交", "") // 仅记录关系变化，不触发公开行为
 }

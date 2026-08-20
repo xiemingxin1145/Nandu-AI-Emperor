@@ -31,15 +31,14 @@ import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
-import com.xiemingxin.nandu.game.Officer
-import com.xiemingxin.nandu.game.OfficerIntel
-import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.agent.CharacterAgentState
+import com.xiemingxin.nandu.agent.AgentPlanType
 import com.xiemingxin.nandu.game.PropResourceRegistry
 import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.VisualAssetV3
+import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.commandLimit
-import com.xiemingxin.nandu.agent.CharacterAgentState
-import com.xiemingxin.nandu.agent.CharacterAgentSystem
 import com.xiemingxin.nandu.game.profile
 
 private val PanelGold = Color(0xFFC9A227)
@@ -53,8 +52,7 @@ fun CharacterDetailPanelWithState(
     officer: Officer,
     gameState: GameState,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-    agentState: CharacterAgentState? = gameState.characterAgentStates[officer.id]
+    modifier: Modifier = Modifier
 ) {
     val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name ?: officer.currentCityId
     val isLeadPending = officer.id in gameState.talentLeads &&
@@ -82,7 +80,7 @@ fun CharacterDetailPanelWithState(
 }
 
 @Composable
-private fun HiddenOfficerHintPanel(
+fun HiddenOfficerHintPanel(
     officer: Officer,
     cityName: String,
     onDismiss: () -> Unit,
@@ -242,7 +240,7 @@ fun CharacterDetailPanel(
 }
 
 @Composable
-private fun StatBar(label: String, value: Int) {
+fun StatBar(label: String, value: Int) {
     val frac = value.coerceIn(0, 100) / 100f
     val barColor = when {
         value >= 90 -> Color(0xFFD4AF37)
@@ -276,7 +274,7 @@ private fun StatBar(label: String, value: Int) {
 }
 
 @Composable
-private fun MiniStat(label: String, value: String) {
+fun MiniStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.Start) {
         Text(value, color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(label, color = PanelSub, fontSize = 9.sp)
@@ -284,7 +282,7 @@ private fun MiniStat(label: String, value: String) {
 }
 
 @Composable
-private fun SkillTagRow(skills: List<String>) {
+fun SkillTagRow(skills: List<String>) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         skills.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -302,4 +300,82 @@ private fun SkillTagRow(skills: List<String>) {
             }
         }
     }
+
+@Composable
+internal fun AgentInfoSection(agentState: CharacterAgentState) {
+    val Gold = androidx.compose.ui.graphics.Color(0xFFC9A227)
+    val Sub  = androidx.compose.ui.graphics.Color(0xFF9A8862)
+    val Cream= androidx.compose.ui.graphics.Color(0xFFE8DCC0)
+    val Red  = androidx.compose.ui.graphics.Color(0xFFE57373)
+    val Green= androidx.compose.ui.graphics.Color(0xFF8FB573)
+
+    androidx.compose.foundation.layout.Column(
+        modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text("人物当前状态", color = Gold,
+             fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+
+        // 志向与计划
+        InfoRow("长期志向", agentState.longTermGoal.label, Gold)
+        InfoRow("当前目标", agentState.currentGoal.label, Cream)
+        if (agentState.currentPlan != AgentPlanType.OBSERVE && agentState.currentPlan != AgentPlanType.PRIVATE_ALLIANCE) {
+            InfoRow("当前计划", agentState.currentPlan.label, Green)
+        }
+
+        // 对皇帝态度
+        val attColor = when (agentState.emperorAttitude) {
+            com.xiemingxin.nandu.agent.EmperorAttitude.DEVOTED,
+            com.xiemingxin.nandu.agent.EmperorAttitude.SUPPORTIVE -> Green
+            com.xiemingxin.nandu.agent.EmperorAttitude.NEUTRAL -> Cream
+            else -> Red
+        }
+        InfoRow("对君上态度", agentState.emperorAttitude.label, attColor)
+        InfoRow("忠诚度", "${agentState.loyaltyToEmperor}%",
+            if (agentState.loyaltyToEmperor >= 70) Green else if (agentState.loyaltyToEmperor >= 45) Cream else Red)
+
+        // 记忆摘要
+        if (agentState.recentMemory.isNotEmpty() || agentState.compressedMemorySummary.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text("近期记忆", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            agentState.recentMemory.takeLast(3).forEach { mem ->
+                Text("· [旬${mem.turn}] ${mem.summary}", color = Sub, fontSize = 11.sp)
+            }
+            if (agentState.compressedMemorySummary.isNotBlank()) {
+                Text("· 往事：${agentState.compressedMemorySummary.take(80)}…",
+                     color = Sub.copy(alpha = 0.7f), fontSize = 10.sp)
+            }
+        }
+
+        // 关键关系
+        val notableRelations = agentState.relations.values
+            .filter { kotlin.math.abs(it.score) >= 30 }
+            .sortedByDescending { kotlin.math.abs(it.score) }
+            .take(4)
+        if (notableRelations.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text("人际关系", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            notableRelations.forEach { rel ->
+                val relColor = if (rel.score >= 0) Green else Red
+                Text("· ${rel.targetOfficerId} (${rel.tag.label} ${if (rel.score > 0) "+" else ""}${rel.score})",
+                     color = relColor, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoRow(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color) {
+    val Sub = androidx.compose.ui.graphics.Color(0xFF9A8862)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = Sub, fontSize = 12.sp)
+        Text(value, color = valueColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
 }

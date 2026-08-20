@@ -12,12 +12,12 @@ object CharacterAgentRegistry {
 
         "yue_fei" to CharacterAgentState(
             officerId = "yue_fei",
-            longTermGoal = CharacterGoalType.NORTHERN_EXPEDITION,
-            currentPlan = CharacterPlanType.REQUEST_BATTLE,
+            longTermGoal = AgentGoal.NORTHERN_EXPEDITION,
+            currentPlan = AgentPlanType.REQUEST_BATTLE,
             loyaltyToEmperor = 92,
-            ambitionLevel = 18,
+            ambition = 18,
             fearLevel = 8,
-            frustration = 0,
+            ambition = 0,
             attitudeToEmperor = EmperorAttitude.LOYAL_DEVOTED,
             relations = listOf(
                 CharacterRelation("han_shizhong", RelationKind.ALLY, 75, note = "同为主战，惺惺相惜"),
@@ -28,12 +28,12 @@ object CharacterAgentRegistry {
 
         "han_shizhong" to CharacterAgentState(
             officerId = "han_shizhong",
-            longTermGoal = CharacterGoalType.NORTHERN_EXPEDITION,
-            currentPlan = CharacterPlanType.WARN_DANGER,
+            longTermGoal = AgentGoal.NORTHERN_EXPEDITION,
+            currentPlan = AgentPlanType.WARN_DANGER,
             loyaltyToEmperor = 85,
-            ambitionLevel = 32,
+            ambition = 32,
             fearLevel = 12,
-            frustration = 0,
+            ambition = 0,
             attitudeToEmperor = EmperorAttitude.LOYAL_DEVOTED,
             relations = listOf(
                 CharacterRelation("yue_fei",   RelationKind.ALLY,    72, note = "同为武将，共谋北伐"),
@@ -44,12 +44,12 @@ object CharacterAgentRegistry {
 
         "qin_hui" to CharacterAgentState(
             officerId = "qin_hui",
-            longTermGoal = CharacterGoalType.COURT_DOMINANCE,
-            currentPlan = CharacterPlanType.OPPOSE_POLICY,
+            longTermGoal = AgentGoal.COURT_DOMINANCE,
+            currentPlan = AgentPlanType.OPPOSE_POLICY,
             loyaltyToEmperor = 55,
-            ambitionLevel = 88,
+            ambition = 88,
             fearLevel = 45,
-            frustration = 10,
+            ambition = 10,
             attitudeToEmperor = EmperorAttitude.RESPECTFUL,
             relations = listOf(
                 CharacterRelation("yue_fei",   RelationKind.HOSTILE,   88, note = "主战派之首，必欲除之"),
@@ -60,12 +60,12 @@ object CharacterAgentRegistry {
 
         "zhao_ding" to CharacterAgentState(
             officerId = "zhao_ding",
-            longTermGoal = CharacterGoalType.FISCAL_STABILITY,
-            currentPlan = CharacterPlanType.PETITION_EMPEROR,
+            longTermGoal = AgentGoal.FISCAL_STABILITY,
+            currentPlan = AgentPlanType.PETITION_EMPEROR,
             loyaltyToEmperor = 78,
-            ambitionLevel = 38,
+            ambition = 38,
             fearLevel = 25,
-            frustration = 5,
+            ambition = 5,
             attitudeToEmperor = EmperorAttitude.RESPECTFUL,
             relations = listOf(
                 CharacterRelation("li_gang",  RelationKind.ALLY,   60, note = "同为国事忧心"),
@@ -76,12 +76,12 @@ object CharacterAgentRegistry {
 
         "li_gang" to CharacterAgentState(
             officerId = "li_gang",
-            longTermGoal = CharacterGoalType.NORTHERN_EXPEDITION,
-            currentPlan = CharacterPlanType.OPPOSE_POLICY,
+            longTermGoal = AgentGoal.NORTHERN_EXPEDITION,
+            currentPlan = AgentPlanType.OPPOSE_POLICY,
             loyaltyToEmperor = 82,
-            ambitionLevel = 22,
+            ambition = 22,
             fearLevel = 15,
-            frustration = 20,
+            ambition = 20,
             attitudeToEmperor = EmperorAttitude.RESPECTFUL,
             relations = listOf(
                 CharacterRelation("zhao_ding", RelationKind.ALLY,  62, note = "共事多年，志同道合"),
@@ -91,12 +91,12 @@ object CharacterAgentRegistry {
 
         "wu_jie" to CharacterAgentState(
             officerId = "wu_jie",
-            longTermGoal = CharacterGoalType.HOLD_FRONTIER,
-            currentPlan = CharacterPlanType.REQUEST_SUPPLY,
+            longTermGoal = AgentGoal.HOLD_FRONTIER,
+            currentPlan = AgentPlanType.REQUEST_SUPPLY,
             loyaltyToEmperor = 80,
-            ambitionLevel = 28,
+            ambition = 28,
             fearLevel = 20,
-            frustration = 12,
+            ambition = 12,
             attitudeToEmperor = EmperorAttitude.RESPECTFUL,
             relations = listOf(
                 CharacterRelation("han_shizhong", RelationKind.ALLY, 55, note = "各守一方，互相声援"),
@@ -106,24 +106,24 @@ object CharacterAgentRegistry {
 
         "liu_qi" to CharacterAgentState(
             officerId = "liu_qi",
-            longTermGoal = CharacterGoalType.HOLD_FRONTIER,
-            currentPlan = CharacterPlanType.REQUEST_BATTLE,
+            longTermGoal = AgentGoal.HOLD_FRONTIER,
+            currentPlan = AgentPlanType.REQUEST_BATTLE,
             loyaltyToEmperor = 82,
-            ambitionLevel = 22,
+            ambition = 22,
             fearLevel = 18,
-            frustration = 8
+            ambition = 8
         ),
 
         "zong_ze" to CharacterAgentState(
             officerId = "zong_ze",
-            longTermGoal = CharacterGoalType.NORTHERN_EXPEDITION,
-            currentPlan = CharacterPlanType.PETITION_EMPEROR,
+            longTermGoal = AgentGoal.NORTHERN_EXPEDITION,
+            currentPlan = AgentPlanType.PETITION_EMPEROR,
             loyaltyToEmperor = 96,
-            ambitionLevel = 10,
+            ambition = 10,
             fearLevel = 5,
-            frustration = 35,  // 多次请战未获准，积郁已深
+            ambition = 35,  // 多次请战未获准，积郁已深
             attitudeToEmperor = EmperorAttitude.RESPECTFUL,
-            keyMemories = listOf(
+            recentMemory = listOf(
                 AgentMemoryEntry(
                     turn = 1, category = "petition_denied",
                     summary = "数度上书请战北上，圣意未定，老将扼腕。",
@@ -134,23 +134,23 @@ object CharacterAgentRegistry {
 
         "zhang_jun" to CharacterAgentState(
             officerId = "zhang_jun",
-            longTermGoal = CharacterGoalType.MILITARY_REFORM,
-            currentPlan = CharacterPlanType.RECOMMEND_TALENT,
+            longTermGoal = AgentGoal.MILITARY_REFORM,
+            currentPlan = AgentPlanType.RECOMMEND_TALENT,
             loyaltyToEmperor = 76,
-            ambitionLevel = 42,
+            ambition = 42,
             fearLevel = 30,
-            frustration = 0
+            ambition = 0
         ),
 
         // 金方人物
         "wanyan_zongbi" to CharacterAgentState(
             officerId = "wanyan_zongbi",
-            longTermGoal = CharacterGoalType.COURT_DOMINANCE,
-            currentPlan = CharacterPlanType.WARN_DANGER,
+            longTermGoal = AgentGoal.COURT_DOMINANCE,
+            currentPlan = AgentPlanType.WARN_DANGER,
             loyaltyToEmperor = 30,   // 对金帝的忠诚，非宋皇帝
-            ambitionLevel = 75,
+            ambition = 75,
             fearLevel = 15,
-            frustration = 0,
+            ambition = 0,
             attitudeToEmperor = EmperorAttitude.NEUTRAL  // 对宋皇帝态度
         )
     )
@@ -160,12 +160,12 @@ object CharacterAgentRegistry {
         defaults[officerId] ?: CharacterAgentState(
             officerId = officerId,
             longTermGoal = when {
-                ambition >= 70 -> CharacterGoalType.PERSONAL_POWER
-                loyalty >= 80  -> CharacterGoalType.PROTECT_EMPEROR
-                else           -> CharacterGoalType.SURVIVAL
+                ambition >= 70 -> AgentGoal.PERSONAL_POWER
+                loyalty >= 80  -> AgentGoal.PROTECT_EMPEROR
+                else           -> AgentGoal.SURVIVAL
             },
             loyaltyToEmperor = loyalty,
-            ambitionLevel = ambition
+            ambition = ambition
         )
 
     val allRegisteredIds: Set<String> get() = defaults.keys

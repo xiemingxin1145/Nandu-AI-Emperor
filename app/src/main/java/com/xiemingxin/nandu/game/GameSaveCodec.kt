@@ -295,154 +295,72 @@ object GameSaveCodec {
         if (this == null) return emptyList()
         return (0 until length()).map { optString(it) }
     }
-    // ── Stage 8 CharacterAgentState 序列化 ─────────────────────────────────
+    // ── Stage 8 AgentState 序列化 ─────────────────────────────────────────────
 
-    private fun encodeAgentStates(
+    private fun agentStatesToJson(
         states: Map<String, com.xiemingxin.nandu.agent.CharacterAgentState>
-    ): org.json.JSONObject {
-        val obj = org.json.JSONObject()
+    ): org.json.JSONArray {
+        val arr = org.json.JSONArray()
         states.forEach { (id, s) ->
-            obj.put(id, encodeAgentState(s))
-        }
-        return obj
-    }
-
-    private fun encodeAgentState(
-        s: com.xiemingxin.nandu.agent.CharacterAgentState
-    ): org.json.JSONObject = org.json.JSONObject()
-        .put("officerId", s.officerId)
-        .put("longTermGoal", s.longTermGoal.name)
-        .put("longTermGoalTurnSet", s.longTermGoalTurnSet)
-        .put("currentPlan", s.currentPlan.name)
-        .put("currentPlanTurnSet", s.currentPlanTurnSet)
-        .put("currentPlanTargetId", s.currentPlanTargetId)
-        .put("loyaltyToEmperor", s.loyaltyToEmperor)
-        .put("ambitionLevel", s.ambitionLevel)
-        .put("fearLevel", s.fearLevel)
-        .put("frustration", s.frustration)
-        .put("attitudeToEmperor", s.attitudeToEmperor.name)
-        .put("edictAcceptedCount", s.edictAcceptedCount)
-        .put("edictRejectedCount", s.edictRejectedCount)
-        .put("lastBattleWon", s.lastBattleWon?.toString() ?: "null")
-        .put("lastBattleTurn", s.lastBattleTurn)
-        .put("lastRewardedTurn", s.lastRewardedTurn)
-        .put("lastPunishedTurn", s.lastPunishedTurn)
-        .put("isActive", s.isActive)
-        .put("recentMemories", encodeMemories(s.recentMemories))
-        .put("keyMemories", encodeMemories(s.keyMemories))
-        .put("relations", encodeRelations(s.relations))
-
-    private fun encodeMemories(list: List<com.xiemingxin.nandu.agent.AgentMemoryEntry>): org.json.JSONArray {
-        val arr = org.json.JSONArray()
-        list.forEach { m ->
             arr.put(org.json.JSONObject()
-                .put("turn", m.turn)
-                .put("category", m.category)
-                .put("summary", m.summary)
-                .put("emotionalImpact", m.emotionalImpact)
-                .put("relatedOfficerIds", org.json.JSONArray(m.relatedOfficerIds)))
+                .put("id", id)
+                .put("longTermGoal", s.longTermGoal.name)
+                .put("currentGoal", s.currentGoal.name)
+                .put("goalPersistTurns", s.goalPersistTurns)
+                .put("warBias", s.warBias)
+                .put("loyaltyToEmperor", s.loyaltyToEmperor)
+                .put("ambition", s.ambition)
+                .put("riskTolerance", s.riskTolerance)
+                .put("fearLevel", s.fearLevel)
+                .put("emperorAttitude", s.emperorAttitude.name)
+                .put("adviceAdoptedCount", s.adviceAdoptedCount)
+                .put("adviceRejectedCount", s.adviceRejectedCount)
+                .put("rewardCount", s.rewardCount)
+                .put("punishCount", s.punishCount)
+                .put("currentPlan", s.currentPlan.name)
+                .put("compressedMemorySummary", s.compressedMemorySummary)
+                .put("lastActiveTurn", s.lastActiveTurn)
+                .put("inactive", s.inactive)
+            )
         }
         return arr
     }
 
-    private fun encodeRelations(list: List<com.xiemingxin.nandu.agent.CharacterRelation>): org.json.JSONArray {
-        val arr = org.json.JSONArray()
-        list.forEach { r ->
-            arr.put(org.json.JSONObject()
-                .put("targetOfficerId", r.targetOfficerId)
-                .put("kind", r.kind.name)
-                .put("intensity", r.intensity)
-                .put("lastInteractionTurn", r.lastInteractionTurn)
-                .put("note", r.note))
-        }
-        return arr
-    }
-
-    private fun decodeAgentStates(
-        obj: org.json.JSONObject?
+    private fun parseAgentStates(
+        arr: org.json.JSONArray?
     ): Map<String, com.xiemingxin.nandu.agent.CharacterAgentState> {
-        if (obj == null) return emptyMap()
+        if (arr == null) return emptyMap()
         val result = mutableMapOf<String, com.xiemingxin.nandu.agent.CharacterAgentState>()
-        obj.keys().forEach { key ->
-            runCatching { decodeAgentState(obj.getJSONObject(key)) }
-                .getOrNull()?.let { result[key] = it }
+        for (i in 0 until arr.length()) {
+            val obj = arr.optJSONObject(i) ?: continue
+            val id = obj.optString("id").ifBlank { "" }
+            if (id.isBlank()) continue
+            fun goal(key: String, default: com.xiemingxin.nandu.agent.AgentGoal) =
+                runCatching { com.xiemingxin.nandu.agent.AgentGoal.valueOf(obj.optString(key)) }.getOrDefault(default)
+            result[id] = com.xiemingxin.nandu.agent.CharacterAgentState(
+                officerId = id,
+                longTermGoal = goal("longTermGoal", com.xiemingxin.nandu.agent.AgentGoal.UNDEFINED),
+                currentGoal = goal("currentGoal", com.xiemingxin.nandu.agent.AgentGoal.UNDEFINED),
+                goalPersistTurns = obj.optInt("goalPersistTurns", 0),
+                warBias = obj.optInt("warBias", 50),
+                loyaltyToEmperor = obj.optInt("loyaltyToEmperor", 70),
+                ambition = obj.optInt("ambition", 40),
+                riskTolerance = obj.optInt("riskTolerance", 50),
+                fearLevel = obj.optInt("fearLevel", 20),
+                emperorAttitude = runCatching { com.xiemingxin.nandu.agent.EmperorAttitude.valueOf(obj.optString("emperorAttitude")) }
+                    .getOrDefault(com.xiemingxin.nandu.agent.EmperorAttitude.NEUTRAL),
+                adviceAdoptedCount = obj.optInt("adviceAdoptedCount", 0),
+                adviceRejectedCount = obj.optInt("adviceRejectedCount", 0),
+                rewardCount = obj.optInt("rewardCount", 0),
+                punishCount = obj.optInt("punishCount", 0),
+                currentPlan = runCatching { com.xiemingxin.nandu.agent.AgentPlanType.valueOf(obj.optString("currentPlan")) }
+                    .getOrDefault(com.xiemingxin.nandu.agent.AgentPlanType.OBSERVE),
+                compressedMemorySummary = obj.optString("compressedMemorySummary", ""),
+                lastActiveTurn = obj.optInt("lastActiveTurn", -1),
+                inactive = obj.optBoolean("inactive", false)
+            )
         }
         return result
-    }
-
-    private fun decodeAgentState(
-        j: org.json.JSONObject
-    ): com.xiemingxin.nandu.agent.CharacterAgentState {
-        val import = com.xiemingxin.nandu.agent
-        return com.xiemingxin.nandu.agent.CharacterAgentState(
-            officerId = j.optString("officerId", ""),
-            longTermGoal = runCatching {
-                com.xiemingxin.nandu.agent.CharacterGoalType.valueOf(j.optString("longTermGoal", "SURVIVAL"))
-            }.getOrDefault(com.xiemingxin.nandu.agent.CharacterGoalType.SURVIVAL),
-            longTermGoalTurnSet = j.optInt("longTermGoalTurnSet", 0),
-            currentPlan = runCatching {
-                com.xiemingxin.nandu.agent.CharacterPlanType.valueOf(j.optString("currentPlan", "NONE"))
-            }.getOrDefault(com.xiemingxin.nandu.agent.CharacterPlanType.NONE),
-            currentPlanTurnSet = j.optInt("currentPlanTurnSet", 0),
-            currentPlanTargetId = j.optString("currentPlanTargetId", ""),
-            loyaltyToEmperor = j.optInt("loyaltyToEmperor", 70),
-            ambitionLevel = j.optInt("ambitionLevel", 30),
-            fearLevel = j.optInt("fearLevel", 20),
-            frustration = j.optInt("frustration", 0),
-            attitudeToEmperor = runCatching {
-                com.xiemingxin.nandu.agent.EmperorAttitude.valueOf(j.optString("attitudeToEmperor", "LOYAL_DEVOTED"))
-            }.getOrDefault(com.xiemingxin.nandu.agent.EmperorAttitude.LOYAL_DEVOTED),
-            edictAcceptedCount = j.optInt("edictAcceptedCount", 0),
-            edictRejectedCount = j.optInt("edictRejectedCount", 0),
-            lastBattleWon = j.optString("lastBattleWon", "null").let { if (it == "null") null else it == "true" },
-            lastBattleTurn = j.optInt("lastBattleTurn", -1),
-            lastRewardedTurn = j.optInt("lastRewardedTurn", -1),
-            lastPunishedTurn = j.optInt("lastPunishedTurn", -1),
-            isActive = j.optBoolean("isActive", true),
-            recentMemories = decodeMemories(j.optJSONArray("recentMemories")),
-            keyMemories = decodeMemories(j.optJSONArray("keyMemories")),
-            relations = decodeRelations(j.optJSONArray("relations"))
-        )
-    }
-
-    private fun decodeMemories(
-        arr: org.json.JSONArray?
-    ): List<com.xiemingxin.nandu.agent.AgentMemoryEntry> {
-        if (arr == null) return emptyList()
-        return (0 until arr.length()).mapNotNull { i ->
-            runCatching {
-                val m = arr.getJSONObject(i)
-                val ids = m.optJSONArray("relatedOfficerIds")
-                com.xiemingxin.nandu.agent.AgentMemoryEntry(
-                    turn = m.optInt("turn", 0),
-                    category = m.optString("category", ""),
-                    summary = m.optString("summary", ""),
-                    emotionalImpact = m.optInt("emotionalImpact", 0),
-                    relatedOfficerIds = if (ids == null) emptyList()
-                        else (0 until ids.length()).map { ids.getString(it) }
-                )
-            }.getOrNull()
-        }
-    }
-
-    private fun decodeRelations(
-        arr: org.json.JSONArray?
-    ): List<com.xiemingxin.nandu.agent.CharacterRelation> {
-        if (arr == null) return emptyList()
-        return (0 until arr.length()).mapNotNull { i ->
-            runCatching {
-                val r = arr.getJSONObject(i)
-                com.xiemingxin.nandu.agent.CharacterRelation(
-                    targetOfficerId = r.optString("targetOfficerId", ""),
-                    kind = runCatching {
-                        com.xiemingxin.nandu.agent.RelationKind.valueOf(r.optString("kind", "NEUTRAL"))
-                    }.getOrDefault(com.xiemingxin.nandu.agent.RelationKind.NEUTRAL),
-                    intensity = r.optInt("intensity", 50),
-                    lastInteractionTurn = r.optInt("lastInteractionTurn", -1),
-                    note = r.optString("note", "")
-                )
-            }.getOrNull()
-        }
     }
 
 }
