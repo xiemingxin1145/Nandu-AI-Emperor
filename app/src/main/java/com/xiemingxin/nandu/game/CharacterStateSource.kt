@@ -48,6 +48,34 @@ object CharacterStateSource {
     fun isAtCourt(officer: Officer): Boolean =
         officer.status == OfficerStatus.IN_COURT && isInCapital(officer) && !isTraveling(officer)
 
+    /**
+     * 人物是否可进入世界 AI 上下文（WorldContextFactory / 战略脑）。
+     *
+     * 单一规则源：禁止在各处散写 `status != HIDDEN`。
+     * 世界 AI 可以知道公开敌军、公开城池、公开战争与公开官员，
+     * 但不能凭空知道尚未进入本局视野或未被发现的人物。
+     *
+     * - NOT_YET_RELEVANT / HIDDEN（无线索）→ 不泄露
+     * - WANDERING / SOLDIER → 仅当 talentLeads 已发现时进入
+     * - CAPTIVE → 可作为世界事实/外交情报（带 CAPTIVE 状态），不是宋廷可调用人物
+     * - IN_COURT / IN_CAPITAL / DEPLOYED / DISMISSED → 正常进入
+     * - DECEASED → 不作为可行动角色进入上下文
+     */
+    fun visibleToWorldAi(state: GameState, officer: Officer): Boolean {
+        return when (officer.status) {
+            OfficerStatus.NOT_YET_RELEVANT -> false
+            OfficerStatus.HIDDEN -> state.talentLeads.contains(officer.id)
+            OfficerStatus.WANDERING, OfficerStatus.SOLDIER ->
+                state.talentLeads.contains(officer.id)
+            OfficerStatus.DECEASED -> false
+            OfficerStatus.CAPTIVE -> true
+            OfficerStatus.IN_COURT,
+            OfficerStatus.IN_CAPITAL,
+            OfficerStatus.DEPLOYED,
+            OfficerStatus.DISMISSED -> true
+        }
+    }
+
     /** 某人当前所统军团（若有）。army<->officer 的唯一真实关联仍是 Army.commanderId，这里只是统一取用入口。 */
     fun armyOf(state: GameState, officerId: String): Army? =
         state.armies.firstOrNull { it.commanderId == officerId }
