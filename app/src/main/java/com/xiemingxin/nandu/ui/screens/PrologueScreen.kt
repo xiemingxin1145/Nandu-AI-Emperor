@@ -1,5 +1,7 @@
 package com.xiemingxin.nandu.ui.screens
 
+import android.net.Uri
+import android.widget.VideoView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.xiemingxin.nandu.audio.GameAudioPlayer
 import com.xiemingxin.nandu.ui.components.AssetImage
 import kotlinx.coroutines.delay
@@ -47,18 +50,16 @@ import kotlinx.coroutines.launch
 
 /**
  * 正式历史序章。
- *
- * 关键规则：
- * 1. 画面时间轴永远独立于音频。旁白文件缺失、解码失败或播放报错，都不能导致秒跳。
- * 2. 新游戏明确告诉玩家：玩家意识穿越进入赵构身份，而不是默认扮演历史原版赵构。
- * 3. 只有玩家主动点击“跳过”才允许提前结束序章。
- * 4. 当前测试版强制使用设备中文 TTS，保证真机一定有可听见的旁白；正式配音文件验收后再切回资产音频。
+ * - 画面时间轴与音频彻底解绑，音频失败不能秒跳。
+ * - 明确玩家意识穿越成为赵构。
+ * - V3 靖康过场视频已真正接入；不支持 HEVC 的设备自动回退静态 CG。
  */
 private enum class PrologueAct { ACT_1, ACT_2, ACT_3, ACT_4, ACT_5, DONE }
 
 private data class ActConfig(
     val cgPath: String,
     val cgFallback: String,
+    val videoPath: String? = null,
     val narratorPath: String?,
     val subtitle: String,
     val actTitle: String,
@@ -87,11 +88,12 @@ private val acts = listOf(
         actTitle = "第二幕 · 靖康之变",
         cgPath = "images/events/event_jingkang_siege_01.webp",
         cgFallback = "images/battles/battle_siege.webp",
+        videoPath = "videos/intro/V03_intro_cinematic.mp4",
         narratorPath = "audio/voice/narrator/narrator_act2_jingkang.wav",
         subtitle = "汴京陷落，二帝北狩。\n百余年东京繁华，一夕倾覆。\n宗室百官，尽被掳北去。",
         bgmPath = "audio/bgm/bgm_event_sad.ogg",
         ambiencePath = "audio/ambience/amb_storm.ogg",
-        durationMs = 18000,
+        durationMs = 20000,
         kenBurnsZoom = 1.18f,
         kenBurnsOffsetY = -0.03f
     ),
@@ -166,27 +168,28 @@ fun PrologueScreen(
         delay(700)
         subtitleAlpha = 1f
 
-        launch {
-            scaleAnim.animateTo(
-                targetValue = config.kenBurnsZoom,
-                animationSpec = tween(durationMillis = config.durationMs.toInt(), easing = LinearEasing)
-            )
-        }
-        launch {
-            offsetXAnim.animateTo(
-                targetValue = config.kenBurnsOffsetX,
-                animationSpec = tween(durationMillis = config.durationMs.toInt(), easing = LinearEasing)
-            )
-        }
-        launch {
-            offsetYAnim.animateTo(
-                targetValue = config.kenBurnsOffsetY,
-                animationSpec = tween(durationMillis = config.durationMs.toInt(), easing = LinearEasing)
-            )
+        if (config.videoPath == null) {
+            launch {
+                scaleAnim.animateTo(
+                    targetValue = config.kenBurnsZoom,
+                    animationSpec = tween(durationMillis = config.durationMs.toInt(), easing = LinearEasing)
+                )
+            }
+            launch {
+                offsetXAnim.animateTo(
+                    targetValue = config.kenBurnsOffsetX,
+                    animationSpec = tween(durationMillis = config.durationMs.toInt(), easing = LinearEasing)
+                )
+            }
+            launch {
+                offsetYAnim.animateTo(
+                    targetValue = config.kenBurnsOffsetY,
+                    animationSpec = tween(durationMillis = config.durationMs.toInt(), easing = LinearEasing)
+                )
+            }
         }
 
-        // 真机反馈现有 WAV 无声，因此本测试分支先强制中文 TTS。
-        // 时间轴仍然独立：TTS 成功/失败都不会影响画面时长。
+        // 当前验收分支强制中文 TTS；正式配音确认真机可播后再切换预生成文件。
         audioPlayer?.speakNarration(config.subtitle.replace("\n", " "))
 
         delay(config.durationMs)
@@ -220,14 +223,24 @@ fun PrologueScreen(
                 )
                 .alpha(actAlpha)
         ) {
-            AssetImage(
-                path = config.cgPath,
-                fallbackPath = config.cgFallback,
-                contentDescription = config.actTitle,
-                contentScale = ContentScale.Crop,
-                placeholderText = config.actTitle.take(2),
-                modifier = Modifier.fillMaxSize()
-            )
+            if (config.videoPath != null) {
+                PrologueAssetVideo(
+                    path = config.videoPath,
+                    fallbackPath = config.cgPath,
+                    secondFallbackPath = config.cgFallback,
+                    contentDescription = config.actTitle,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                AssetImage(
+                    path = config.cgPath,
+                    fallbackPath = config.cgFallback,
+                    contentDescription = config.actTitle,
+                    contentScale = ContentScale.Crop,
+                    placeholderText = config.actTitle.take(2),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         Box(
@@ -341,6 +354,54 @@ fun PrologueScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PrologueAssetVideo(
+    path: String,
+    fallbackPath: String,
+    secondFallbackPath: String,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    var failed by remember(path) { mutableStateOf(false) }
+    var videoView by remember(path) { mutableStateOf<VideoView?>(null) }
+
+    DisposableEffect(path) {
+        onDispose {
+            videoView?.stopPlayback()
+            videoView = null
+        }
+    }
+
+    if (failed) {
+        AssetImage(
+            path = fallbackPath,
+            fallbackPath = secondFallbackPath,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Crop,
+            placeholderText = contentDescription.take(2),
+            modifier = modifier
+        )
+    } else {
+        AndroidView(
+            factory = { context ->
+                VideoView(context).also { view ->
+                    videoView = view
+                    view.setVideoURI(Uri.parse("file:///android_asset/$path"))
+                    view.setOnPreparedListener { player ->
+                        player.isLooping = false
+                        view.start()
+                    }
+                    view.setOnErrorListener { _, _, _ ->
+                        failed = true
+                        true
+                    }
+                }
+            },
+            modifier = modifier.background(Color.Black)
+        )
     }
 }
 
