@@ -38,23 +38,41 @@ Starting a Gradle Daemon (subsequent builds will be faster)
 > Task :app:mergeDebugNativeLibs NO-SOURCE
 > Task :app:processDebugManifestForPackage
 > Task :app:mergeExtDexDebug
-> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:mergeLibDexDebug
+> Task :app:stripDebugDebugSymbols NO-SOURCE
 > Task :app:processDebugResources
 > Task :app:validateSigningDebug
 > Task :app:writeDebugAppMetadata
 > Task :app:writeDebugSigningConfigVersions
 > Task :app:compileDebugKotlin
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/ArmyMovementSystem.kt:264:114 Unresolved reference: label
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:542:21 An argument is already passed for this parameter
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt:543:21 An argument is already passed for this parameter
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/InitialData.kt:91:106 Type mismatch: inferred type is String but ArmyStatus was expected
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/InitialData.kt:92:113 Type mismatch: inferred type is String but ArmyStatus was expected
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/InitialData.kt:93:104 Type mismatch: inferred type is String but ArmyStatus was expected
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/InitialData.kt:94:110 Type mismatch: inferred type is String but ArmyStatus was expected
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/InitialData.kt:95:107 Type mismatch: inferred type is String but ArmyStatus was expected
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/game/InitialData.kt:96:110 Type mismatch: inferred type is String but ArmyStatus was expected
-e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:42:81 Unresolved reference: label
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:340:18 Expecting '->'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:338:17 Incompatible types: Unit? and Int
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:339:82 Overload resolution ambiguity: 
+public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:391:75 Overload resolution ambiguity: 
+public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/MainActivity.kt:403:71 Overload resolution ambiguity: 
+public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:226:13 Cannot find a parameter with this name: attackerTroops
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:227:13 Cannot find a parameter with this name: attackerMorale
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:228:13 Cannot find a parameter with this name: commanderCommand
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:230:13 Cannot find a parameter with this name: season
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 Cannot find a parameter with this name: weather
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'attackerArmy'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'attackerCommander'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'garrisonOfficer'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'state'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:231:13 No value passed for parameter 'seed'
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:280:5 Conflicting overloads: public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel, public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/EmperorViewModel.kt:399:5 Conflicting overloads: public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel, public final fun dismissBattleReport(): Unit defined in com.xiemingxin.nandu.ui.EmperorViewModel
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:92:13 Unresolved reference: StatRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:93:13 Unresolved reference: StatRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:94:13 Unresolved reference: StatRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:99:13 Unresolved reference: StatRow
+e: file:///home/runner/work/Nandu-AI-Emperor/Nandu-AI-Emperor/app/src/main/java/com/xiemingxin/nandu/ui/components/ArmyDetailPanel.kt:101:17 Unresolved reference: StatRow
 
 > Task :app:compileDebugKotlin FAILED
 
@@ -323,5 +341,5 @@ Caused by: org.jetbrains.kotlin.gradle.tasks.CompilationErrorException: Compilat
 	... 2 more
 
 
-BUILD FAILED in 2m 44s
+BUILD FAILED in 2m 42s
 27 actionable tasks: 27 executed

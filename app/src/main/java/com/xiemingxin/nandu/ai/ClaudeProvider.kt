@@ -26,10 +26,9 @@ class ClaudeProvider(private val apiKey: String) : AiProvider {
             "待征辟：${context.pendingRecruitLeads.joinToString("、")}" else ""
         val cityList = context.activeCities.filter { it.owner == "song" }
             .joinToString("、") { "${it.name}(${it.id},兵${it.troops / 1000}k)" }
-        // Stage 4: 军团摘要
         val armyList = if (context.songArmies.isEmpty()) "（目前无野战军团）"
         else context.songArmies.joinToString("\n") { a ->
-            val tgt = if (a.targetCityId.isNotBlank()) "→${a.targetCityId}" else ""
+            val tgt = if (a.targetCityId.isNotBlank()) "→${a.targetCityId}【可进攻】" else ""
             "  ${a.name}(${a.id})：主帅${a.commanderName}，${a.troops / 1000}k兵，${a.statusLabel}${tgt}，粮${a.supplyLevel}%"
         }
         return "你是《南渡无悔》的御前推演官，负责解析皇帝圣旨，并让群臣按性格回应。\n" +
@@ -37,19 +36,20 @@ class ClaudeProvider(private val apiKey: String) : AiProvider {
             "国库：${context.gold}贯  粮草：${context.grain}石\n" +
             "军心：${context.troopMorale}  朝堂稳定：${context.courtStability}  金国威胁：${context.jinThreat}\n" +
             "在朝将吏：$courtOfficers\n$leadList\n宋方城池：$cityList\n" +
-            "\n【我方军团】（AI必须基于此判断，不得重复创建已有军团）\n$armyList\n" +
-            "\n【命令说明】\n" +
-            "form_army: 组建新军团，需officerId(主帅)+fromCityId+troops+role(armyType)\n" +
-            "move_army: 移动/改道军团，需officerId(主帅或军团id)+toCityId；若该帅已有军团则移动，否则尝试组建\n" +
-            "disband_army: 解散军团，需officerId(主帅)\n" +
-            "change_army_commander: 换帅，需fromCityId(旧帅id)+toCityId(新帅id)\n" +
-            "resupply_army: 主动补给，需officerId\n" +
+            "\n【我方军团】（必须基于此判断）\n$armyList\n" +
+            "\n【Stage5 战争命令】\n" +
+            "attack_city: 命令待战军团进攻目标城。需officerId(主帅或军团id)+toCityId(目标城)\n" +
+            "  - 仅限状态为ENGAGEMENT_PENDING的军团，或相邻敌城的军团\n" +
+            "  - AI不得决定胜负数字，所有伤亡由Kotlin本地计算\n" +
+            "retreat_army: 令军团撤退。需officerId(主帅)\n" +
+            "\n【其他命令】\n" +
+            "form_army/move_army/disband_army/change_army_commander/resupply_army: 同Stage4\n" +
             "appoint_governor/appoint_garrison/dismiss_officer/transfer_officer/recruit_officer: 同Stage3\n" +
-            "\n重要：若圣旨提及某将领已有军团，直接move_army，不要再form_army。\n" +
             "\n严格返回JSON，无其他文字：\n" +
             "{\"summary\":\"摘要\",\"commands\":[{\"type\":\"命令类型\",\"officerId\":\"\",\"fromCityId\":\"\",\"toCityId\":\"\",\"cityId\":\"\",\"troops\":0,\"role\":\"\",\"severity\":\"\",\"amount\":0,\"deadlineTurns\":0}],\"npcResponses\":[{\"officerId\":\"\",\"attitude\":\"support/oppose/neutral/concerned\",\"text\":\"文言20-40字\"}],\"riskTags\":[],\"confidence\":0.9,\"clarificationNeeded\":false,\"clarificationHint\":\"\"}\n" +
-            "\n朝堂思维铁律：NPC是南宋朝臣，不用现代词，围绕社稷军心边防。npcResponses半文半白，反对借粮饷边患劝谏。\n" +
-            "武将性格：yue_fei忠烈主战  qin_hui主和阴柔  zhao_ding重财粮  han_shizhong豪勇水战  li_gang刚烈守城\n" +
+            "\n朝堂思维铁律：NPC是南宋朝臣，不用现代词。npcResponses半文半白，反对借粮饷边患劝谏。\n" +
+            "武将性格：yue_fei忠烈主战铿锵  qin_hui主和阴柔暗指风险  zhao_ding重财粮粮道  han_shizhong豪勇水战  li_gang刚烈守城\n" +
+            "战争相关：主战派（岳飞/韩世忠）会积极支持进攻；主和派（秦桧）会以粮耗、边患劝阻。\n" +
             "只选最相关2-4人回应。"
     }
 

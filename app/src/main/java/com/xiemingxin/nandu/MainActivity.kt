@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.game.AudioResourceRegistry
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.screens.*
+import com.xiemingxin.nandu.ui.components.BattleReportPanel
 import com.xiemingxin.nandu.ui.theme.*
 
 private const val AUDIO_PREFS = "nandu_audio_settings"
@@ -328,7 +329,9 @@ fun NanduApp() {
                     MilitaryScreenV4(
                         gameState = uiState.gameState,
                         onBack = {},
-                        onOpenOfficerList = { showOfficerList = true }
+                        onOpenOfficerList = { showOfficerList = true },
+                        onAttackArmy = { armyId, cityId -> viewModel.executeAttackCity(armyId, cityId) },
+                        onRetreatArmy = { armyId -> viewModel.executeRetreatArmy(armyId) }
                     )
                 }
             }
@@ -380,6 +383,10 @@ fun NanduApp() {
             }
         }
 
+        // Stage 5 战报弹窗
+        uiState.lastBattleOutcome?.let { outcome ->
+            BattleReportPanel(outcome = outcome, onDismiss = { viewModel.dismissBattleReport() })
+        }
         uiState.battleReport?.let { report ->
             Dialog(onDismissRequest = { playSfx("close_panel"); viewModel.dismissBattleReport() }) {
                 Card(
