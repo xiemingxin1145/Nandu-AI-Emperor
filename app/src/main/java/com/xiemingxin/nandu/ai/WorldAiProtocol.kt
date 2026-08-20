@@ -176,8 +176,18 @@ object WorldContextFactory {
             }
 
         // 为省 token，不把隐藏人物和死人交给世界模型。
+        // V1.1 历史 Canon：CAPTIVE（身陷敌营，如未归的秦桧）、NOT_YET_RELEVANT（此时尚未进入
+        // 叙事视野的人，如开局的赵鼎/吴玠/刘锜）同样不该出现在世界模型的信息里——
+        // 前者不该被当作宋廷可用信息泄露给AI，后者干脆概念上还不存在。IN_CAPITAL 正常可见。
         val officerContexts = state.officers
-            .filter { it.status != OfficerStatus.HIDDEN && it.status != OfficerStatus.DECEASED }
+            .filter {
+                it.status !in setOf(
+                    OfficerStatus.HIDDEN,
+                    OfficerStatus.DECEASED,
+                    OfficerStatus.CAPTIVE,
+                    OfficerStatus.NOT_YET_RELEVANT
+                )
+            }
             .map { officer ->
                 WorldOfficerContext(
                     id = officer.id,

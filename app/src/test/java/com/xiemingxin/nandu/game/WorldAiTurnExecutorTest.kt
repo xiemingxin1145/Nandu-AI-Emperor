@@ -56,8 +56,13 @@ class WorldAiTurnExecutorTest {
 
         assertTrue(context.armies.any { it.owner == "jin" })
         assertTrue(context.armies.any { it.owner == "song" })
-        assertFalse(context.officers.any { it.id == "yue_fei" })
+        // V1.1 历史 Canon：岳飞现在是 WANDERING（在野已知，非隐藏），韩世忠是 IN_CAPITAL（在京军职），
+        // 两者都不属于"世界模型不该看到"的范围，应该出现在 context 里。
+        assertTrue(context.officers.any { it.id == "yue_fei" })
         assertTrue(context.officers.any { it.id == "han_shizhong" })
+        // 真正该被过滤掉的是：CAPTIVE（秦桧仍羁留敌营）、NOT_YET_RELEVANT（赵鼎此时尚未登场）。
+        assertFalse(context.officers.any { it.id == "qin_hui" })
+        assertFalse(context.officers.any { it.id == "zhao_ding" })
     }
 
     @Test
