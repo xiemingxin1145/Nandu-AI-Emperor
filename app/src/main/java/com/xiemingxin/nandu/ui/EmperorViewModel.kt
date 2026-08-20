@@ -15,6 +15,7 @@ import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.ArmyMovementSystem
 import com.xiemingxin.nandu.game.ArmySupplySystem
 import com.xiemingxin.nandu.game.ArmySystem
+import com.xiemingxin.nandu.game.WarSystem
 import com.xiemingxin.nandu.game.ArmyStatus
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.ai.ArmyContext
@@ -70,7 +71,8 @@ data class UiState(
     val ending: GameEnding = GameEnding.ONGOING,
     val earnedAchievements: Set<String> = emptySet(),
     val newAchievement: String? = null,
-    val lastVisitNarration: String? = null
+    val lastVisitNarration: String? = null,
+    val lastBattleOutcome: com.xiemingxin.nandu.game.BattleOutcome? = null  // Stage 5 战报
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -366,6 +368,38 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         val newCities = state.cities.map { if (it.id == cityId) newCity else it }
         _uiState.value = _uiState.value.copy(gameState = state.copy(cities = newCities))
     }
+
+    // Stage 5 ─────────────────────────────────────────────────────────────────
+    fun executeAttackCity(armyId: String, targetCityId: String) {
+        val state = _uiState.value.gameState
+        val result = WarSystem.executeAttack(state, armyId, targetCityId)
+        when (result) {
+            is WarSystem.WarResult.Success -> {
+                _uiState.value = _uiState.value.copy(
+                    gameState = result.newState,
+                    lastBattleOutcome = result.outcome,
+                    lastOutcomes = listOf(result.message)
+                )
+            }
+            is WarSystem.WarResult.Failure -> {
+                _uiState.value = _uiState.value.copy(lastRejected = listOf(result.reason))
+            }
+        }
+    }
+
+    fun executeRetreatArmy(armyId: String) {
+        val state = _uiState.value.gameState
+        val (newState, msg) = WarSystem.executeRetreat(state, armyId)
+        _uiState.value = _uiState.value.copy(
+            gameState = newState,
+            lastOutcomes = listOf(msg)
+        )
+    }
+
+    fun dismissBattleReport() {
+        _uiState.value = _uiState.value.copy(lastBattleOutcome = null)
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     fun advanceTurn() {
         val state = _uiState.value.gameState

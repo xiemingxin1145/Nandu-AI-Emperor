@@ -278,7 +278,9 @@ private fun OfficerRow(officer: Officer, cityName: String, onClick: () -> Unit =
 fun MilitaryScreenV4(
     gameState: GameState,
     onBack: () -> Unit = {},
-    onOpenOfficerList: () -> Unit = {}
+    onOpenOfficerList: () -> Unit = {},
+    onAttackArmy: (armyId: String, cityId: String) -> Unit = { _, _ -> },
+    onRetreatArmy: (armyId: String) -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedArmyId by remember { mutableStateOf<String?>(null) }
@@ -392,7 +394,13 @@ fun MilitaryScreenV4(
                         ArmyDetailPanel(
                             army = army,
                             gameState = gameState,
-                            onDismiss = { selectedArmyId = null }
+                            onDismiss = { selectedArmyId = null },
+                            onAttack = if (army.statusCode == ArmyStatus.ENGAGEMENT_PENDING && army.targetCityId.isNotBlank()) {
+                                { onAttackArmy(army.id, army.targetCityId); selectedArmyId = null }
+                            } else null,
+                            onRetreat = if (army.statusCode == ArmyStatus.ENGAGEMENT_PENDING) {
+                                { onRetreatArmy(army.id); selectedArmyId = null }
+                            } else null
                         )
                     }
                 }

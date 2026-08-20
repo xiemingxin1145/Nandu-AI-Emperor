@@ -107,7 +107,10 @@ data class Army(
     val routeIndex: Int = 0,                        // 当前已完成到第几个节点
     val supplyLevel: Int = 100,                     // 补给度 0..100
     val lastSuppliedTurn: Int = 0,                  // 上次补给的旬
-    val createdTurn: Int = 0                        // 组建旬
+    val createdTurn: Int = 0,                       // 组建旬
+    // Stage 5 战争字段
+    val lastBattleTurn: Int = -1,                   // 本旬是否已经打过仗（-1=未打）
+    val primaryUnitId: String = ""                  // 主力兵种ID，对应BattleUnitCatalog
 )
 
 enum class Season(val label: String, val effectText: String) {
@@ -318,6 +321,38 @@ object GameRuleEngine {
                     currentState = result.first
                     outcomes.add(result.second)
                 }
+                // Stage 5 战争命令 ────────────────────────────────
+                "attack_city" -> {
+                    val armyId = currentState.armies.find { it.commanderId == command.officerId }?.id
+                        ?: currentState.armies.find { it.id == command.officerId }?.id
+                        ?: currentState.armies.find { it.statusCode == ArmyStatus.ENGAGEMENT_PENDING }?.id
+                    val tgtCity = command.toCityId.ifBlank { command.cityId }.ifBlank {
+                        armyId?.let { id -> currentState.armies.find { it.id == id }?.targetCityId } ?: ""
+                    }
+                    if (armyId == null || tgtCity.isBlank()) {
+                        rejected.add("【进攻失败】找不到待战军团或攻击目标。")
+                    } else {
+                        val warResult = WarSystem.executeAttack(currentState, armyId, tgtCity)
+                        when (warResult) {
+                            is WarSystem.WarResult.Success -> {
+                                currentState = warResult.newState
+                                outcomes.add(warResult.message)
+                            }
+                            is WarSystem.WarResult.Failure -> rejected.add(warResult.reason)
+                        }
+                    }
+                }
+                "retreat_army" -> {
+                    val army = currentState.armies.find { it.commanderId == command.officerId }
+                        ?: currentState.armies.find { it.id == command.officerId }
+                        ?: currentState.armies.firstOrNull { it.statusCode == ArmyStatus.ENGAGEMENT_PENDING }
+                    if (army == null) { rejected.add("【撤退失败】找不到该军团。") }
+                    else {
+                        val (newSt, msg) = WarSystem.executeRetreat(currentState, army.id)
+                        currentState = newSt; outcomes.add(msg)
+                    }
+                }
+                // ─────────────────────────────────────────────────────────────
                 // Stage 4 军团命令 ────────────────────────────────
                 "form_army" -> {
                     val r = ArmySystem.formArmy(

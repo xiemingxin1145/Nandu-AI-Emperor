@@ -41,6 +41,9 @@ data class EdictCommand(
             "suppress_officer",   // 压制大臣
             "reward_officer",     // 赏赐
             "punish_officer",     // 惩处
+            // Stage 5 战争命令
+            "attack_city",        // 进攻目标城池
+            "retreat_army",       // 撤退
             // Stage 4 军团命令
             "form_army",          // 组建军团
             "move_army",          // 移动/改道军团

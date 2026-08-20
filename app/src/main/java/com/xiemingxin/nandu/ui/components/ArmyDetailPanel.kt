@@ -31,7 +31,9 @@ fun ArmyDetailPanel(
     army: Army,
     gameState: GameState,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAttack: (() -> Unit)? = null,      // Stage5: 进攻按钮回调
+    onRetreat: (() -> Unit)? = null      // Stage5: 撤退按钮回调
 ) {
     val commander = gameState.officers.find { it.id == army.commanderId }
     val currentCity = gameState.cities.find { it.id == army.currentCityId }
@@ -98,14 +100,35 @@ fun ArmyDetailPanel(
             commander?.let {
                 StatRow("主帅统率", "${it.command}", if (it.command >= 80) Gold else Cream)
             }
+            // Stage 5: 战争操作按钮
+            if (army.statusCode == ArmyStatus.ENGAGEMENT_PENDING) {
+                Spacer(Modifier.height(12.dp))
+                val targetName = gameState.cities.find { it.id == army.targetCityId }?.name ?: army.targetCityId
+                if (targetName.isNotBlank()) {
+                    Text("目标：$targetName", color = Red.copy(alpha = 0.8f), fontSize = 11.sp)
+                    Spacer(Modifier.height(6.dp))
+                }
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (onAttack != null) {
+                        androidx.compose.material3.Button(
+                            onClick = onAttack,
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Red.copy(alpha = 0.85f)
+                            )
+                        ) { Text("⚔ 进攻", color = Color.White, fontSize = 13.sp) }
+                    }
+                    if (onRetreat != null) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = onRetreat,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("← 撤退", fontSize = 13.sp) }
+                    }
+                }
+            }
         }
-    }
-}
-
-@Composable
-private fun StatRow(label: String, value: String, valueColor: Color) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Sub, fontSize = 12.sp)
-        Text(value, color = valueColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
