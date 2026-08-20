@@ -8,6 +8,9 @@ package com.xiemingxin.nandu.game
  * - 每个宫殿都有可显示的待办和推荐处理入口。
  * - V1.6 接入天下战略：外交、外贸、西夏、大理、海贸等先以派生待办出现。
  * - 后续版本再把 PalaceTask 持久化进 GameState，并加入完成/逾期/连锁后果。
+ *
+ * 历史 Canon v1.1：1127 正式开局位于南京应天府，内部 id 为兼容旧存档仍保留
+ * chuigongdian，但 UI 不再把开局主场景称为后世临安“垂拱殿”。
  */
 data class PalaceTask(
     val id: String,
@@ -42,6 +45,7 @@ enum class TaskSource(val label: String) {
 }
 
 object PalaceIds {
+    // 兼容 id：名称沿用历史旧代码，UI 展示统一由 PalaceRegistry.name 决定。
     const val CHUIGONG = "chuigongdian"
     const val WENDE = "wendedian"
     const val SHUMI = "shumiyuan"
@@ -63,14 +67,14 @@ data class PalaceInfo(
 
 object PalaceRegistry {
     val palaces = listOf(
-        PalaceInfo(PalaceIds.CHUIGONG, "垂拱殿", "AI圣旨 / 群臣奏议", "📜", 1),
-        PalaceInfo(PalaceIds.WENDE, "文德殿", "任官招贤 / 文臣事务", "🎓", 3),
+        PalaceInfo(PalaceIds.CHUIGONG, "应天行在·内殿", "AI圣旨 / 群臣奏议", "📜", 1),
+        PalaceInfo(PalaceIds.WENDE, "文班公署", "任官招贤 / 文臣事务", "🎓", 3),
         PalaceInfo(PalaceIds.SHUMI, "枢密院", "军令战报 / 调兵设防", "⚔", 4),
         PalaceInfo(PalaceIds.ZHENGSHI, "政事堂", "钱粮民心 / 财政民政 / 外贸", "⚖", 3),
-        PalaceInfo(PalaceIds.YUSHU, "御书房", "密折起居 / 外交情报", "🕯", 1),
+        PalaceInfo(PalaceIds.YUSHU, "御前便阁", "密折起居 / 外交情报", "🕯", 1),
         PalaceInfo(PalaceIds.HUANGCHENG, "皇城司", "侦缉暗线 / 情报验证", "🕵", 2),
-        PalaceInfo(PalaceIds.HOUYUAN, "后苑内廷", "宫廷事件 / 内廷建议", "🏮", 1),
-        PalaceInfo(PalaceIds.TAIMIAO, "太庙", "正统国运 / 史评功业", "🐉", 3)
+        PalaceInfo(PalaceIds.HOUYUAN, "行在内廷", "宫廷事件 / 内廷建议", "🏮", 1),
+        PalaceInfo(PalaceIds.TAIMIAO, "礼制事务", "正统国运 / 史评功业", "🐉", 3)
     )
 
     fun byId(id: String): PalaceInfo = palaces.firstOrNull { it.id == id } ?: palaces.first()
@@ -91,22 +95,27 @@ object PalaceTaskSystem {
         }
         val riskyOfficer = state.officers
             .filter { it.ambition >= 70 || it.loyalty <= 45 }
+            .filter { it.status !in setOf(OfficerStatus.CAPTIVE, OfficerStatus.NOT_YET_RELEVANT, OfficerStatus.DECEASED) }
             .maxByOrNull { it.ambition }
+
+        val openingCourtIds = state.officers
+            .filter { CharacterAppearanceSystem.canAppearInPalace(state, it.id, PalaceIds.CHUIGONG) }
+            .map { it.id }
 
         tasks += PalaceTask(
             id = "court_${state.turn}",
             palaceId = PalaceIds.CHUIGONG,
             title = if (state.courtStability < 45) "主战主和争执不下" else "本旬朝议待断",
             description = if (state.courtStability < 45) {
-                "朝局摇动，诸臣各执一词。可在垂拱殿下旨定调，或留中再议。"
+                "朝局摇动，诸臣各执一词。可在行在内殿下旨定调，或留中再议。"
             } else {
-                "群臣列班，待陛下以圣旨定本旬军政轻重。"
+                "应天行在群臣候奏，待官家定本旬军政轻重。"
             },
             severity = if (state.courtStability < 45) TaskSeverity.HIGH else TaskSeverity.MEDIUM,
             source = TaskSource.COURT,
-            relatedOfficerIds = listOf("li_gang", "zhao_ding", "qin_hui"),
+            relatedOfficerIds = openingCourtIds,
             recommendedTab = 1,
-            edictDraft = "传朕旨意：今日朝议先定军政轻重，主战主和各陈利害，赵鼎核钱粮，李纲议边防，秦桧不得以空言误国。"
+            edictDraft = "传朕旨意：今日朝议先定军政轻重。李纲议边防，黄潜善、汪伯彦陈南幸利害，诸司各以实情具奏。"
         )
 
         if (state.jinThreat >= 75 || weakestFront != null) {
@@ -114,14 +123,18 @@ object PalaceTaskSystem {
             tasks += PalaceTask(
                 id = "war_${state.turn}_${city?.id ?: "front"}",
                 palaceId = PalaceIds.SHUMI,
-                title = if (state.jinThreat >= 85) "金军压境，边报火急" else "江淮防线需整备",
+                title = if (state.jinThreat >= 85) "金军压境，边报火急" else "中原防线需整备",
                 description = city?.let { "${it.name}防御${it.defense}、守军${it.troops}，需议调兵、修城或筹粮。" } ?: "金国威胁升高，枢密院请定防线。",
                 severity = if (state.jinThreat >= 85) TaskSeverity.URGENT else TaskSeverity.HIGH,
                 source = TaskSource.WAR_REPORT,
-                relatedOfficerIds = listOf("yue_fei", "han_shizhong"),
+                relatedOfficerIds = state.officers
+                    .filter { it.status in setOf(OfficerStatus.IN_CAPITAL, OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED) }
+                    .filter { it.command >= 75 }
+                    .map { it.id }
+                    .take(4),
                 relatedCityIds = city?.let { listOf(it.id) } ?: emptyList(),
                 recommendedTab = 4,
-                edictDraft = city?.let { "传朕旨意：枢密院即核${it.name}兵粮城防，命可用将领整军待命，粮道未稳不得轻进。" }.orEmpty()
+                edictDraft = city?.let { "传朕旨意：枢密院即核${it.name}兵粮城防，命现有可用将领整军待命，粮道未稳不得轻进。" }.orEmpty()
             )
         }
 
@@ -130,13 +143,13 @@ object PalaceTaskSystem {
                 id = "fiscal_${state.turn}",
                 palaceId = PalaceIds.ZHENGSHI,
                 title = if (state.grain < 120000) "府库粮储吃紧" else "钱粮调度待议",
-                description = "国库${state.gold}贯，粮草${state.grain}石。政事堂请议漕运、屯田、赈济与军粮。",
+                description = "国库${state.gold}贯，粮草${state.grain}石。政事堂请议转运、屯田、赈济与军粮。",
                 severity = if (state.grain < 120000) TaskSeverity.HIGH else TaskSeverity.MEDIUM,
                 source = TaskSource.FISCAL,
-                relatedOfficerIds = listOf("zhao_ding"),
+                relatedOfficerIds = openingCourtIds.take(3),
                 relatedCityIds = lowGrainCity?.let { listOf(it.id) } ?: emptyList(),
                 recommendedTab = 3,
-                edictDraft = "传朕旨意：赵鼎会同转运司核天下钱粮，先保军粮与民食，漕运、屯田、赈济分轻重具奏。"
+                edictDraft = "传朕旨意：有司核天下钱粮，先保军粮与民食，转运、屯田、赈济分轻重具奏。"
             )
         }
 
@@ -169,14 +182,14 @@ object PalaceTaskSystem {
                 id = "talent_${state.turn}_${hiddenTalent?.id ?: state.talentLeads.firstOrNull().orEmpty()}",
                 palaceId = PalaceIds.WENDE,
                 title = if (hiddenTalent != null) "在野人才可访" else "人才线索待召见",
-                description = hiddenTalent?.let { "${it.currentCityId}一带或有${it.origin}出身之才，文德殿可议访求。" }
+                description = hiddenTalent?.let { "${it.currentCityId}一带或有${it.origin}出身之才，可议访求。" }
                     ?: "已有在野人才线索，宜召见、考校、授官。",
                 severity = TaskSeverity.MEDIUM,
                 source = TaskSource.TALENT,
                 relatedOfficerIds = hiddenTalent?.let { listOf(it.id) } ?: state.talentLeads.take(2),
                 recommendedTab = 3,
-                edictDraft = hiddenTalent?.let { "传朕旨意：文德殿遣使访求${it.currentCityId}在野之才，得其人者，先召见考校，再议授官。" }
-                    ?: "传朕旨意：文德殿整理在野人才线索，择其可用者入朝召见。"
+                edictDraft = hiddenTalent?.let { "传朕旨意：遣使访求${it.currentCityId}在野之才，得其人者，先召见考校，再议授官。" }
+                    ?: "传朕旨意：整理在野人才线索，择其可用者召至行在考校。"
             )
         }
 
@@ -185,13 +198,13 @@ object PalaceTaskSystem {
             tasks += PalaceTask(
                 id = "rumor_${state.turn}_${state.rumors.size}",
                 palaceId = PalaceIds.YUSHU,
-                title = "酒楼传闻入密折",
+                title = "坊间传闻入密折",
                 description = rumor.text.take(60),
                 severity = TaskSeverity.MEDIUM,
                 source = TaskSource.RUMOR,
                 relatedCityIds = listOf(rumor.sourceCityId).filter { it.isNotBlank() },
                 recommendedTab = 1,
-                edictDraft = "传朕旨意：御书房将近日传闻整理成密折，分真假缓急，凡涉军粮边防者先奏。"
+                edictDraft = "传朕旨意：御前将近日传闻整理成密折，分真假缓急，凡涉军粮边防者先奏。"
             )
         }
 
@@ -211,15 +224,15 @@ object PalaceTaskSystem {
 
         if (state.prestige < 40 || state.turn % 3 == 0) {
             tasks += PalaceTask(
-                id = "temple_${state.turn}",
+                id = "ritual_${state.turn}",
                 palaceId = PalaceIds.TAIMIAO,
-                title = "太庙礼制待修",
-                description = "名望${state.prestige}，国势未稳。可议祭告祖宗、安抚民心、整肃正统。",
+                title = "礼制正统待议",
+                description = "名望${state.prestige}，国势未稳。可议告慰祖宗、安抚军民、整肃正统。",
                 severity = if (state.prestige < 30) TaskSeverity.HIGH else TaskSeverity.LOW,
                 source = TaskSource.RITUAL,
-                relatedOfficerIds = listOf("li_gang", "zhao_ding"),
+                relatedOfficerIds = openingCourtIds.take(2),
                 recommendedTab = 3,
-                edictDraft = "传朕旨意：礼官择日祭告太庙，以安军民之心；钱粮从简，不得扰民。"
+                edictDraft = "传朕旨意：礼官议定告慰祖宗之礼，以安军民之心；钱粮从简，不得扰民。"
             )
         }
 
@@ -228,7 +241,7 @@ object PalaceTaskSystem {
                 id = "inner_${state.turn}",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "内廷有事待闻",
-                description = "后苑内廷呈上宫中近况，事关皇帝声望与朝臣观感。",
+                description = "行在内廷呈上近况，事关皇帝声望与朝臣观感。",
                 severity = TaskSeverity.LOW,
                 source = TaskSource.PALACE,
                 recommendedTab = 1,
