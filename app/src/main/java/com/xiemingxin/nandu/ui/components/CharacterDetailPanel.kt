@@ -28,46 +28,42 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerIntel
+import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.SkillEffects
+import com.xiemingxin.nandu.game.VisualAssetV3
 import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
-import com.xiemingxin.nandu.game.AppointmentSystem
-import com.xiemingxin.nandu.game.GameState
-import com.xiemingxin.nandu.game.OfficerStatus
 
 private val PanelGold = Color(0xFFC9A227)
 private val PanelCream = Color(0xFFE8DCC0)
 private val PanelDark = Color(0xF21A1208)
 private val PanelSub = Color(0xFF9A8862)
 
-/**
- * V0.8 人物详情面板：点击武将弹出，显示头像、五维、技能、评估。
- * 数据统一走 OfficerProfile 系统（profile()）。
- */
-/**
- * Stage 3 扩展版：传入GameState，可显示职务信息、处理隐藏人物
- */
+/** Stage 3 + Visual Integration V3 officer details. */
 @Composable
 fun CharacterDetailPanelWithState(
-    officer: com.xiemingxin.nandu.game.Officer,
+    officer: Officer,
     gameState: GameState,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name
-        ?: officer.currentCityId
+    val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name ?: officer.currentCityId
     val isLeadPending = officer.id in gameState.talentLeads &&
         officer.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING)
     val isFullyRevealed = officer.status in setOf(
-        OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED, OfficerStatus.DISMISSED, OfficerStatus.DECEASED
-    ) || (isLeadPending)
+        OfficerStatus.IN_COURT,
+        OfficerStatus.DEPLOYED,
+        OfficerStatus.DISMISSED,
+        OfficerStatus.DECEASED
+    ) || isLeadPending
     val currentRole = AppointmentSystem.currentRole(gameState, officer.id)
 
     if (!isFullyRevealed && officer.status == OfficerStatus.HIDDEN) {
-        // 隐藏人物：只显示模糊信息
         HiddenOfficerHintPanel(officer = officer, cityName = cityName, onDismiss = onDismiss, modifier = modifier)
     } else {
         CharacterDetailPanel(
@@ -81,10 +77,9 @@ fun CharacterDetailPanelWithState(
     }
 }
 
-/** 隐藏人物的模糊信息面板 */
 @Composable
 private fun HiddenOfficerHintPanel(
-    officer: com.xiemingxin.nandu.game.Officer,
+    officer: Officer,
     cityName: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -123,8 +118,8 @@ fun CharacterDetailPanel(
     cityName: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    currentRole: String = "",       // Stage 3: 职务说明
-    loyaltyRisk: String? = null     // Stage 3: 忠诚风险提示
+    currentRole: String = "",
+    loyaltyRisk: String? = null
 ) {
     val p = officer.profile()
     Card(
@@ -137,13 +132,18 @@ fun CharacterDetailPanel(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
+                // The halfbody is now the visual anchor instead of a tiny 92dp portrait.
                 AssetImage(
-                    path = ArtResourceRegistry.portraitForOfficer(officer.id),
-                    fallbackPath = ArtResourceRegistry.Fallback.portrait,
+                    path = VisualAssetV3.halfbodyForOfficer(officer.id),
+                    fallbackPath = ArtResourceRegistry.portraitForOfficer(officer.id),
                     contentDescription = officer.name,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     placeholderText = officer.name.take(1),
-                    modifier = Modifier.size(92.dp).clip(RoundedCornerShape(10.dp))
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(210.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF160F08))
                 )
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -158,15 +158,27 @@ fun CharacterDetailPanel(
                         }
                     }
                     Text(p.rank + " · " + p.origin, color = PanelCream, fontSize = 13.sp)
-                    Text("现驻 " + cityName, color = PanelSub, fontSize = 11.sp)
+                    Text("现驻 $cityName", color = PanelSub, fontSize = 11.sp)
                     if (currentRole.isNotBlank()) {
                         Text("职务：$currentRole", color = Color(0xFF8FB573), fontSize = 11.sp)
                     }
-                    Spacer(Modifier.height(3.dp))
+                    Spacer(Modifier.height(5.dp))
                     Text(
-                        "忠：" + OfficerIntel.loyaltyLabel(officer.loyalty) + " · 志：" + OfficerIntel.ambitionLabel(p.ambition),
-                        color = PanelSub, fontSize = 11.sp
+                        "忠：${OfficerIntel.loyaltyLabel(officer.loyalty)}",
+                        color = PanelSub,
+                        fontSize = 11.sp
                     )
+                    Text(
+                        "志：${OfficerIntel.ambitionLabel(p.ambition)}",
+                        color = PanelSub,
+                        fontSize = 11.sp
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    MiniStat("名望", OfficerIntel.fameLabel(p.fame))
+                    Spacer(Modifier.height(5.dp))
+                    MiniStat("资历", OfficerIntel.experienceLabel(p.experience))
+                    Spacer(Modifier.height(5.dp))
+                    MiniStat("可统兵", (officer.commandLimit() / 1000).toString() + "k")
                 }
             }
 
@@ -176,16 +188,6 @@ fun CharacterDetailPanel(
             StatBar("谋", officer.strategy)
             StatBar("政", officer.politics)
             StatBar("魅", p.charm)
-
-            Spacer(Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                MiniStat("名望", OfficerIntel.fameLabel(p.fame))
-                MiniStat("资历", OfficerIntel.experienceLabel(p.experience))
-                MiniStat("可统兵", (officer.commandLimit() / 1000).toString() + "k")
-            }
 
             if (p.skills.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
@@ -201,13 +203,13 @@ fun CharacterDetailPanel(
             Spacer(Modifier.height(4.dp))
             Text(
                 OfficerIntel.trustBrief(officer.loyalty, p.ambition),
-                color = Color(0xFF8FB573), fontSize = 12.sp
+                color = Color(0xFF8FB573),
+                fontSize = 12.sp
             )
             if (loyaltyRisk != null) {
                 Spacer(Modifier.height(6.dp))
                 Text(loyaltyRisk, color = Color(0xFFE57373), fontSize = 11.sp)
             }
-            // bio简介
             if (officer.bio.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Text("简介", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -242,13 +244,19 @@ private fun StatBar(label: String, value: Int) {
             )
         }
         Spacer(Modifier.width(8.dp))
-        Text(value.toString(), color = PanelCream, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp))
+        Text(
+            value.toString(),
+            color = PanelCream,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(28.dp)
+        )
     }
 }
 
 @Composable
 private fun MiniStat(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(horizontalAlignment = Alignment.Start) {
         Text(value, color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(label, color = PanelSub, fontSize = 9.sp)
     }

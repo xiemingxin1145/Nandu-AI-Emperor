@@ -14,15 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.*
+import com.xiemingxin.nandu.ui.components.AssetImage
 import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
 
-// ──────────────────────────────────────────────
-//  颜色
-// ──────────────────────────────────────────────
 private val BgDark    = Color(0xFF0E0A05)
 private val CardDark  = Color(0xFF1A1208)
 private val Gold      = Color(0xFFC9A227)
@@ -32,10 +31,8 @@ private val GreenSoft = Color(0xFF8FB573)
 private val RedSoft   = Color(0xFFE57373)
 
 /**
- * Stage 3 人才总览页面
- * 分标签：
- *  朝廷（IN_COURT）/ 已任（DEPLOYED）/ 待征辟（talentLeads中的HIDDEN/SOLDIER/WANDERING）
- *  / 在野（WANDERING - 未被发现）/ 隐藏（HIDDEN - 不显示真实姓名）
+ * Stage 3 人才总览页面。
+ * Visual Integration V3：可识别人物在列表内直接显示头像；隐藏人物仍只显示剪影，避免信息泄露。
  */
 @Composable
 fun OfficerListScreen(
@@ -48,11 +45,11 @@ fun OfficerListScreen(
 
     val leadIds = gameState.talentLeads
 
-    val courtOfficers   = gameState.officers.filter { it.status == OfficerStatus.IN_COURT }
+    val courtOfficers = gameState.officers.filter { it.status == OfficerStatus.IN_COURT }
     val deployedOfficers = gameState.officers.filter { it.status == OfficerStatus.DEPLOYED }
-    val leadOfficers    = gameState.officers.filter {
+    val leadOfficers = gameState.officers.filter {
         it.id in leadIds &&
-        it.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING)
+            it.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING)
     }
     val wanderingOfficers = gameState.officers.filter {
         it.status == OfficerStatus.WANDERING && it.id !in leadIds
@@ -66,28 +63,31 @@ fun OfficerListScreen(
             .fillMaxSize()
             .background(BgDark)
     ) {
-        // 顶栏
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("←", color = Gold, fontSize = 20.sp,
-                modifier = Modifier.clickable { onBack() }.padding(end = 12.dp))
+            Text(
+                "←",
+                color = Gold,
+                fontSize = 20.sp,
+                modifier = Modifier.clickable { onBack() }.padding(end = 12.dp)
+            )
             Text("人才总览", color = Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             Text(
                 "共 ${gameState.officers.filter {
                     it.status in setOf(OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED)
                 }.size} 人在朝",
-                color = Sub, fontSize = 12.sp
+                color = Sub,
+                fontSize = 12.sp
             )
         }
 
         HorizontalDivider(color = Gold.copy(alpha = 0.3f), thickness = 1.dp)
 
-        // 标签栏
         LazyRow(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -123,7 +123,6 @@ fun OfficerListScreen(
 
         HorizontalDivider(color = Gold.copy(alpha = 0.2f), thickness = 0.5.dp)
 
-        // 人物列表
         val listToShow: List<Officer> = when (selectedTab) {
             0 -> courtOfficers
             1 -> deployedOfficers
@@ -144,7 +143,8 @@ fun OfficerListScreen(
                         4 -> "暂无隐藏线索记录"
                         else -> "无"
                     },
-                    color = Sub, fontSize = 14.sp
+                    color = Sub,
+                    fontSize = 14.sp
                 )
             }
         } else {
@@ -189,7 +189,6 @@ private fun OfficerRowCard(
 ) {
     val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name ?: officer.currentCityId
     val role = AppointmentSystem.currentRole(gameState, officer.id)
-    val p = officer.profile()
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
@@ -198,17 +197,33 @@ private fun OfficerRowCard(
         border = BorderStroke(0.5.dp, if (isLead) Gold.copy(alpha = 0.6f) else Sub.copy(alpha = 0.2f))
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 左：姓名和状态
+            AssetImage(
+                path = if (isHidden) ArtResourceRegistry.Fallback.portrait
+                    else VisualAssetV3.portraitForOfficer(officer.id),
+                fallbackPath = ArtResourceRegistry.Fallback.portrait,
+                contentDescription = if (isHidden) "未发现人才" else officer.name,
+                contentScale = ContentScale.Crop,
+                placeholderText = if (isHidden) "?" else officer.name.take(1),
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(9.dp))
+            )
+            Spacer(Modifier.width(12.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 if (isHidden) {
                     Text("？？？", color = Sub, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     Text("$cityName 附近 · 未发现", color = Sub.copy(alpha = 0.6f), fontSize = 11.sp)
                 } else {
-                    Text(officer.name, color = if (isLead) Gold else Cream,
-                        fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        officer.name,
+                        color = if (isLead) Gold else Cream,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(cityName, color = Sub, fontSize = 11.sp)
                         if (role.isNotBlank() && role != "无职" && role != "御前待命") {
@@ -218,7 +233,6 @@ private fun OfficerRowCard(
                 }
             }
 
-            // 右：核心数值（隐藏人物只显示问号）
             if (isHidden) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text("统?  武?  谋?", color = Sub.copy(alpha = 0.5f), fontSize = 11.sp)
@@ -239,7 +253,8 @@ private fun OfficerRowCard(
                     }
                     Text(
                         "忠 ${OfficerIntel.loyaltyLabel(officer.loyalty)}",
-                        color = loyaltyColor, fontSize = 10.sp
+                        color = loyaltyColor,
+                        fontSize = 10.sp
                     )
                     if (isLead) {
                         Text("待征辟", color = Gold, fontSize = 9.sp)
