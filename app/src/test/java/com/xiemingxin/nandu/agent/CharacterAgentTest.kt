@@ -26,7 +26,7 @@ class CharacterAgentTest {
         calendar = GameCalendar("建炎元年", 1127, 1, 1)
     )
 
-    // ── T1：提案不能声称能修改 GameState ─────────────────────────────────────
+    // ── T1：提案不能声称能修改 GameState [Stage8-v1.1] ────────────────────────────
     @Test
     fun `proposals cannot modify GameState`() {
         val yf = officer("yue_fei", cmd = 96)
