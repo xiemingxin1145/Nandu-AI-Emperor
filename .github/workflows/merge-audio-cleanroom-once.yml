@@ -1,0 +1,38 @@
+name: One-shot Merge Audio Cleanroom
+
+on:
+  push:
+    branches:
+      - integration/npc-art-alpha-v1
+
+permissions:
+  contents: write
+
+jobs:
+  cherry-pick-audio-cleanroom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: integration/npc-art-alpha-v1
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch source commits
+        run: |
+          git fetch origin integration/audio-cleanroom-v1
+
+      - name: Cherry-pick cleanroom code only
+        run: |
+          set -euxo pipefail
+          git cherry-pick 50e3cb23fd8d7f55db3bb425056ec846c98aa090
+          git cherry-pick a504af39988f32310a1d7aa8720e08ff5f941c49
+          git cherry-pick cb1f46c8632c1b354f16164531450e06fa6f04ad
+
+      - name: Push merged branch
+        run: git push origin HEAD:integration/npc-art-alpha-v1
