@@ -237,7 +237,7 @@ private object OpenAiCompatibleEngine {
         }
     }
 
-    internal fun normalizeChatUrl(baseUrl: String): String {
+    private fun normalizeChatUrl(baseUrl: String): String {
         val clean = baseUrl.trim().trimEnd('/')
         return if (clean.endsWith("/chat/completions")) clean else "$clean/chat/completions"
     }
@@ -299,8 +299,7 @@ private object OpenAiCompatibleEngine {
         val armies = context.armies.joinToString("；") {
             val cmd = if (it.commanderName.isBlank()) "无主帅" else "${it.commanderName}/${it.commanderId}"
             val target = if (it.targetCityId.isBlank()) "-" else it.targetCityId
-            "${it.id}[${it.owner}]@$${it.currentCityId},兵${it.troops},士${it.morale},补${it.supply},${it.status},目标$target,帅$cmd"
-                .replace("@$", "@")
+            "${it.id}[${it.owner}]@${it.currentCityId},兵${it.troops},士${it.morale},补${it.supply},${it.status},目标$target,帅$cmd"
         }
         val officers = context.officers.joinToString("；") {
             val skills = if (it.skills.isEmpty()) "-" else it.skills.joinToString(",")
