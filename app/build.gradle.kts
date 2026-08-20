@@ -18,6 +18,15 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    // V3 generated art library lives at repository-root /assets.
+    // Treat it as an additional Android asset source instead of leaving it as dead repository files.
+    // This packages assets/videos/*, assets/characters/*, assets/cg/* and assets/ui_textures/* into the APK.
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs("src/main/assets", "../assets")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
