@@ -19,8 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.ai.NpcResponse
+import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.CharacterAppearanceSystem
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
+import com.xiemingxin.nandu.game.PalaceIds
 import com.xiemingxin.nandu.game.controlledCityCount
 import com.xiemingxin.nandu.game.garrisonTroopsOf
 import com.xiemingxin.nandu.game.playerFaction
@@ -389,12 +392,23 @@ private fun CourtStageHeader(state: GameState, title: String, subtitle: String) 
     }
 }
 
+/**
+ * V1.0 活朝堂：垂拱殿列班不再是硬编码的"李赵秦"文字圆圈固定五人。
+ * 谁能出现在这里，统一由 CharacterAppearanceSystem.canAppearInPalace 决定——
+ * 外任、领军、罢黜、赶路途中的人物一律不在此列，避免"一边征辟一边上朝"的穿帮。
+ * 若当前无人物理在场，显示当值官员占位，而不是把预写名臣硬塞回来。
+ */
 @Composable
 private fun CourtOfficerRow(state: GameState) {
-    val ids = listOf("li_gang", "zhao_ding", "qin_hui", "yue_fei", "han_shizhong")
-    val officers = ids.mapNotNull { id -> state.officers.firstOrNull { it.id == id } }
+    val present = state.officers.filter {
+        CharacterAppearanceSystem.canAppearInPalace(state, it.id, PalaceIds.CHUIGONG)
+    }
+    if (present.isEmpty()) {
+        DutyOfficialMiniCard()
+        return
+    }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(officers) { officer ->
+        items(present) { officer ->
             OfficerMiniCard(officer = officer)
         }
     }
@@ -410,10 +424,14 @@ private fun OfficerMiniCard(officer: Officer) {
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(9.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(factionColor(officer.faction).copy(alpha = 0.26f)),
-                    contentAlignment = Alignment.Center
-                ) { Text(officer.name.take(1), color = CourtGold, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+                AssetImage(
+                    path = ArtResourceRegistry.portraitForOfficer(officer.id),
+                    contentDescription = officer.name,
+                    contentScale = ContentScale.Crop,
+                    placeholderText = officer.name.take(1),
+                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp))
+                        .background(factionColor(officer.faction).copy(alpha = 0.26f))
+                )
                 Spacer(Modifier.width(7.dp))
                 Column {
                     Text(officer.name, color = CourtCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -422,6 +440,22 @@ private fun OfficerMiniCard(officer: Officer) {
             }
             Text("忠 ${officer.loyalty} · 野 ${officer.ambition} · 官 ${officer.rankLevel}", color = CourtGold, fontSize = 9.sp)
             Text(officer.skills.take(2).joinToString(" / "), color = CourtSub, fontSize = 9.sp, maxLines = 1)
+        }
+    }
+}
+
+/** 无重点人物在场时的占位卡：殿中并非空无一人，只是不强行召唤不在京的名臣。 */
+@Composable
+private fun DutyOfficialMiniCard() {
+    Card(
+        modifier = Modifier.width(220.dp).height(72.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xD51E1508)),
+        border = BorderStroke(1.dp, CourtSub.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.Center) {
+            Text("中书舍人 当值", color = CourtGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("重臣多在外任/领军，殿中暂由当值官员承接奏对。", color = CourtSub, fontSize = 9.sp, lineHeight = 12.sp)
         }
     }
 }

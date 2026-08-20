@@ -352,7 +352,8 @@ fun NanduApp() {
                 4 -> if (showOfficerList) {
                     OfficerListScreen(
                         gameState = uiState.gameState,
-                        onBack = { showOfficerList = false }
+                        onBack = { showOfficerList = false },
+                        onRecallOfficer = { id -> playSfx("confirm"); viewModel.recallOfficer(id) }
                     )
                 } else {
                     MilitaryScreenV4(

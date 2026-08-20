@@ -23,7 +23,12 @@ data class Officer(
     val merit: Int = 0,                   // 军功值
     val origin: String = "",              // 出身：寒门/军户/士族/豪强/义军/归正人
     val skills: List<String> = emptyList(), // 技能标签
-    val bio: String = ""                  // 简介
+    val bio: String = "",                 // 简介
+    // V1.0 人物真实移动（活朝堂）：奉诏回京等场景不能瞬移，需先记录在途状态。
+    // 两个字段同时非空 = 正在赶路；抵达前 status 维持原值（如 DEPLOYED），
+    // 不允许在此期间被判定为"在朝"。见 CharacterStateSource / CharacterTravelSystem。
+    val travelDestinationCityId: String? = null, // 目的地城市id（null=未在赶路）
+    val travelArrivalTurn: Int? = null            // 预计抵达的旬数（state.turn 达到此值即抵达）
 )
 
 enum class OfficerStatus { HIDDEN, SOLDIER, WANDERING, IN_COURT, DEPLOYED, DISMISSED, DECEASED }

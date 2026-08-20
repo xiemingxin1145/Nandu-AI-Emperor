@@ -125,14 +125,20 @@ object GameSaveCodec {
         )
     }
 
-    private fun Officer.toJson() = JSONObject()
-        .put("id", id).put("name", name).put("faction", faction)
-        .put("command", command).put("force", force).put("strategy", strategy)
-        .put("politics", politics).put("loyalty", loyalty)
-        .put("currentCityId", currentCityId).put("status", status.name)
-        .put("charm", charm).put("ambition", ambition).put("rankLevel", rankLevel)
-        .put("merit", merit).put("origin", origin)
-        .put("skills", JSONArray(skills)).put("bio", bio)
+    private fun Officer.toJson(): JSONObject {
+        val obj = JSONObject()
+            .put("id", id).put("name", name).put("faction", faction)
+            .put("command", command).put("force", force).put("strategy", strategy)
+            .put("politics", politics).put("loyalty", loyalty)
+            .put("currentCityId", currentCityId).put("status", status.name)
+            .put("charm", charm).put("ambition", ambition).put("rankLevel", rankLevel)
+            .put("merit", merit).put("origin", origin)
+            .put("skills", JSONArray(skills)).put("bio", bio)
+        // V1.0 活朝堂：赶路状态是可选字段，人不在途中时不写入，读取端按"没有=未在赶路"处理。
+        travelDestinationCityId?.let { obj.put("travelDestinationCityId", it) }
+        travelArrivalTurn?.let { obj.put("travelArrivalTurn", it) }
+        return obj
+    }
 
     private fun JSONObject.toOfficer(): Officer {
         val id = optString("id")
@@ -154,7 +160,9 @@ object GameSaveCodec {
             merit = optInt("merit", fallback?.merit ?: 0),
             origin = optString("origin", fallback?.origin ?: ""),
             skills = optJSONArray("skills")?.toStringList() ?: fallback?.skills ?: emptyList(),
-            bio = optString("bio", fallback?.bio ?: "")
+            bio = optString("bio", fallback?.bio ?: ""),
+            travelDestinationCityId = if (has("travelDestinationCityId")) optString("travelDestinationCityId") else null,
+            travelArrivalTurn = if (has("travelArrivalTurn")) optInt("travelArrivalTurn") else null
         )
     }
 

@@ -38,7 +38,8 @@ private val RedSoft   = Color(0xFFE57373)
 @Composable
 fun OfficerListScreen(
     gameState: GameState,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRecallOfficer: (String) -> Unit = {}
 ) {
     val tabs = listOf("朝廷", "已任职", "待征辟", "在野", "隐藏线索")
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -169,12 +170,22 @@ fun OfficerListScreen(
                             OfficerLivePortrait(officer = officer, cityName = cityName, role = role)
                         }
 
+                        if (selectedTab == 1) {
+                            RecallOfficerButton(
+                                officer = officer,
+                                traveling = officer.travelArrivalTurn != null,
+                                onRecall = { onRecallOfficer(officer.id) }
+                            )
+                        }
+
                         CharacterDetailPanel(
                             officer = officer,
                             cityName = cityName,
                             onDismiss = { selectedOfficer = null },
                             currentRole = role,
-                            loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer)
+                            loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
+                            statusHint = CharacterStateSource.statusHint(gameState, officer),
+                            armyName = CharacterStateSource.armyOf(gameState, officer.id)?.name
                         )
                     }
                 }
@@ -234,6 +245,44 @@ private fun OfficerLivePortrait(officer: Officer, cityName: String, role: String
                     fontSize = 9.sp,
                     lineHeight = 14.sp
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecallOfficerButton(officer: Officer, traveling: Boolean, onRecall: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
+        border = BorderStroke(1.dp, Gold.copy(alpha = 0.4f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (traveling) "已遣使召回，途中" else "召回入朝",
+                    color = if (traveling) Sub else Gold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (traveling) "尚未抵达临安，暂不能列班奏对。" else "奉诏还朝需要赶路时间，不会立即出现在朝会。",
+                    color = Sub,
+                    fontSize = 10.sp
+                )
+            }
+            if (!traveling) {
+                Button(
+                    onClick = onRecall,
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold)
+                ) {
+                    Text("发诏召回", color = BgDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

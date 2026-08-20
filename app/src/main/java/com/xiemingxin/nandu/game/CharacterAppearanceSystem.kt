@@ -90,10 +90,12 @@ object CharacterAppearanceSystem {
 
         val officer = state.officers.firstOrNull { it.id == characterId } ?: return false
 
-        // 统一人物状态源：只有 IN_COURT 才能参加实体宫廷奏对。
+        // 统一人物状态源（CharacterStateSource.isAtCourt）：
+        // 必须 status==IN_COURT，人在京城，且不在"奉诏回京途中"，才算真的肉身在朝。
         // DEPLOYED 可在军报/奏折中出现，但不能瞬移进垂拱殿；
-        // SOLDIER/WANDERING/HIDDEN 仍属待发现/待征辟，更不能一边征辟一边上朝。
-        if (officer.status != OfficerStatus.IN_COURT) return false
+        // SOLDIER/WANDERING/HIDDEN 仍属待发现/待征辟，更不能一边征辟一边上朝；
+        // 正在赶路的人也不行——诏令已发不等于人已经到了。
+        if (!CharacterStateSource.isAtCourt(officer)) return false
 
         val allowed = allowedPalacesFor(characterId, visibilityFor(state, characterId))
         return palaceId in allowed

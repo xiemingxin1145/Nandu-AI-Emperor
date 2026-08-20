@@ -1,5 +1,8 @@
 package com.xiemingxin.nandu.game
 
+import kotlin.math.ceil
+import kotlin.math.sqrt
+
 /**
  * Stage 3 城池任职体系
  *
@@ -175,6 +178,62 @@ object AppointmentSystem {
                 officers = newOfficers
             )
         )
+    }
+
+    /**
+     * V1.0 召回入朝：外任/领军人物奉诏还朝。
+     *
+     * 与旧的 transferOfficer（瞬间换防）不同，这里不会立刻把人物摆进垂拱殿。
+     * 若人已经在京城，直接转 IN_COURT；否则只记录"正在赶路"（travelDestinationCityId /
+     * travelArrivalTurn），status 暂时维持不变（通常仍是 DEPLOYED），
+     * 途中不允许出现在朝会——由 CharacterAppearanceSystem.canAppearInPalace 统一把关。
+     * 真正抵达那一旬，由 CharacterTravelSystem.tickArrivals 在推进回合时才把状态切成 IN_COURT。
+     */
+    fun recallToCourt(state: GameState, officerId: String): AppointResult {
+        val officer = state.officers.find { it.id == officerId }
+            ?: return AppointResult.Failure("【召回失败】找不到此人。")
+        if (officer.status != OfficerStatus.DEPLOYED)
+            return AppointResult.Failure("【召回失败】${officer.name}当前并非外任/领军状态，无需召回。")
+
+        if (officer.currentCityId == CharacterStateSource.CAPITAL_CITY_ID) {
+            // 人本来就在临安（如驻京军团主官），无需赶路，直接入朝。
+            val newOfficers = state.officers.map {
+                if (it.id == officerId) it.copy(
+                    status = OfficerStatus.IN_COURT,
+                    travelDestinationCityId = null,
+                    travelArrivalTurn = null
+                ) else it
+            }
+            return AppointResult.Success(
+                "【召回】${officer.name}本在临安任所，即日入朝待命。",
+                state.copy(officers = newOfficers)
+            )
+        }
+
+        val travelTurns = travelTurnsBetween(state, officer.currentCityId, CharacterStateSource.CAPITAL_CITY_ID)
+        val arrivalTurn = state.turn + travelTurns
+        val newOfficers = state.officers.map {
+            if (it.id == officerId) it.copy(
+                travelDestinationCityId = CharacterStateSource.CAPITAL_CITY_ID,
+                travelArrivalTurn = arrivalTurn
+            ) else it
+        }
+        return AppointResult.Success(
+            "【诏令】遣使赴任所召${officer.name}还朝，路程约${travelTurns}旬。" +
+                "途中仍留任原地防务，未抵临安前不能列班奏对，只可由军报、奏折陈情。",
+            state.copy(officers = newOfficers)
+        )
+    }
+
+    /** 两城之间大致赶路旬数：按坐标直线距离粗算，1~4旬封顶，避免无限拖长。 */
+    private fun travelTurnsBetween(state: GameState, fromCityId: String, toCityId: String): Int {
+        val from = state.cities.find { it.id == fromCityId }
+        val to = state.cities.find { it.id == toCityId }
+        if (from == null || to == null) return 2
+        val dx = (from.x - to.x).toDouble()
+        val dy = (from.y - to.y).toDouble()
+        val dist = sqrt(dx * dx + dy * dy)
+        return ceil(dist / 900.0).toInt().coerceIn(1, 4)
     }
 
     /** 获取某城的主官人物（如有） */
