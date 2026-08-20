@@ -174,14 +174,14 @@ class GameAudioPlayer(private val context: Context) {
     // 人声/旁白通道（V1.0）
     // 播放时自动降低 BGM 音量（ducking），播放结束恢复
     // ═══════════════════════════════════════════════════════
-    fun playVoice(path: String, volume: Float? = null, onComplete: (() -> Unit)? = null) {
+    fun playVoice(path: String, voiceVolume: Float? = null, onComplete: (() -> Unit)? = null) {
         if (!masterEnabled || !voiceEnabled) {
             onComplete?.invoke()
             return
         }
         stopVoice()
         val file = materializeAsset(path) ?: run { onComplete?.invoke(); return }
-        val vol = (volume ?: volume.voice).coerceIn(0f, 1f) * volume.master
+        val vol = (voiceVolume ?: this@GameAudioPlayer.volume.voice).coerceIn(0f, 1f) * this@GameAudioPlayer.volume.master
         isVoicePlaying = true
         applyBgmDucking(true)
         voicePlayer = MediaPlayer().apply {
