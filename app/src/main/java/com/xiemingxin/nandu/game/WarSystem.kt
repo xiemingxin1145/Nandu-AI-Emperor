@@ -259,8 +259,8 @@ object WarSystem {
                 else city.copy(
                     owner = outcome.attackerFactionId,
                     troops = 0,   // R3 Fix2: 旧守军不转化
-                    defense = (city.defense * 0.7).toInt().coerceIn(10, city.defense),
-                    popularSupport = (city.popularSupport * 0.75).toInt().coerceIn(10, city.popularSupport),
+                    defense = (city.defense * 0.7).toInt().coerceIn(0, city.defense.coerceAtLeast(0)),
+                    popularSupport = (city.popularSupport * 0.75).toInt().coerceIn(0, city.popularSupport.coerceAtLeast(0)),
                     controlState = "FRONTLINE"
                 )
             }
