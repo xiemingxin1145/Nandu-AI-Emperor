@@ -17,6 +17,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -25,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.CgResourceRegistry
+import com.xiemingxin.nandu.game.VisualAssetV3
 import com.xiemingxin.nandu.story.StoryEvent
 
 private val EventGold = Color(0xFFC9A227)
@@ -35,10 +41,9 @@ private val EventSub = Color(0xFF9A8862)
 private val EventRed = Color(0xFF7D1D16)
 
 /**
- * V2.5 剧情/数据事件卡片。
- *
- * 事件 CG 不再只依赖 eventId 精确命中，也会根据事件类型、标题、描述、artHint
- * 选择最贴近的事件图，避免动态事件全部落到默认图。
+ * Visual Integration V3 event card.
+ * Static CG is selected from the restored art batch first; matching military events can
+ * also open a real bundled short CG video. Video playback is always one-shot, never BGM.
  */
 @Composable
 fun StoryEventCard(
@@ -46,6 +51,15 @@ fun StoryEventCard(
     modifier: Modifier = Modifier,
     onChoice: (String) -> Unit
 ) {
+    val video = CgResourceRegistry.videoFor(
+        eventId = event.eventId,
+        type = event.type,
+        title = event.title,
+        description = event.description,
+        artHint = event.artHint
+    )
+    var showVideo by remember(event.eventId) { mutableStateOf(false) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -63,7 +77,7 @@ fun StoryEventCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(170.dp)
                     .clip(RoundedCornerShape(12.dp)),
                 placeholderText = "事件"
             )
@@ -71,7 +85,7 @@ fun StoryEventCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TagText(text = if (event.chapter == "数据事件包") "JSON事件" else event.chapter.ifBlank { "朝堂事件" })
                 TagText(text = eventTypeName(event.type))
-                TagText(text = "CG")
+                TagText(text = if (video == null) "CG" else "CG · 视频")
             }
 
             Text(
@@ -103,6 +117,17 @@ fun StoryEventCard(
                     fontSize = 10.sp,
                     lineHeight = 15.sp
                 )
+            }
+
+            if (video != null) {
+                OutlinedButton(
+                    onClick = { showVideo = true },
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    border = BorderStroke(1.dp, EventGold.copy(alpha = 0.65f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = EventGold)
+                ) {
+                    Text("▶ 播放过场 CG", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -150,9 +175,21 @@ fun StoryEventCard(
             }
         }
     }
+
+    if (showVideo && video != null) {
+        CgVideoDialog(video = video, onDismiss = { showVideo = false })
+    }
 }
 
 private fun eventCgPath(event: StoryEvent): String {
+    VisualAssetV3.eventImageFor(
+        eventId = event.eventId,
+        type = event.type,
+        title = event.title,
+        description = event.description,
+        artHint = event.artHint
+    )?.let { return it }
+
     val direct = ArtResourceRegistry.eventImage(event.eventId)
     if (direct != ArtResourceRegistry.Fallback.event) return direct
 
