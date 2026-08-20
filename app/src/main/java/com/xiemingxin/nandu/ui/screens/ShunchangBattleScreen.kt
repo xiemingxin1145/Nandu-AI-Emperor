@@ -493,13 +493,15 @@ private fun BattleReportCard(
                         label = "守军",
                         value = "18,000",
                         sub = "八字军 + 殿前司",
-                        color = SceneCream
+                        color = SceneCream,
+                        modifier = Modifier.weight(1f)
                     )
                     ReportStat(
                         label = "粮草",
                         value = "${currentGrain / 1000},${String.format("%03d", currentGrain % 1000)}",
                         sub = "可支 ${currentGrain / 3000} 月",
-                        color = if (currentGrain < 10000) SceneRed else SceneJade
+                        color = if (currentGrain < 10000) SceneRed else SceneJade,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -513,7 +515,8 @@ private fun BattleReportCard(
                         label = "城防",
                         value = "坚",
                         sub = "城墙完好 · 瓮城齐备",
-                        color = SceneJade
+                        color = SceneJade,
+                        modifier = Modifier.weight(1f)
                     )
                     ReportStat(
                         label = "士气",
@@ -523,7 +526,8 @@ private fun BattleReportCard(
                             currentMorale >= 70 -> SceneJade
                             currentMorale >= 50 -> SceneGold
                             else -> SceneRed
-                        }
+                        },
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -537,13 +541,15 @@ private fun BattleReportCard(
                         label = "敌军",
                         value = "约 100,000",
                         sub = "完颜宗弼 · 铁浮图",
-                        color = SceneRed
+                        color = SceneRed,
+                        modifier = Modifier.weight(1f)
                     )
                     ReportStat(
                         label = "危局",
                         value = "极危",
                         sub = "众寡悬殊 · 孤城无援",
-                        color = SceneRed
+                        color = SceneRed,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -573,10 +579,11 @@ private fun ReportStat(
     label: String,
     value: String,
     sub: String,
-    color: Color
+    color: Color,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.weight(1f),
+        modifier = modifier,
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = ScenePaper.copy(alpha = 0.55f)),
         border = BorderStroke(0.5.dp, SceneGold.copy(alpha = 0.2f))
