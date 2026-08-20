@@ -46,7 +46,7 @@ class WarSystemTest {
         turn = turn, troopMorale = 70, courtStability = 60, jinThreat = 40,
         gold = 50000, grain = 100000, prestige = 50,
         season = Season.SPRING, weather = WeatherType.CLEAR,
-        calendar = SongCalendar(1127, 1, 0),
+        calendar = GameCalendar(eraName = "建炎元年", year = 1127, month = 1, tenDay = 1),
         cityGovernors = cityGovernors, cityGarrisons = cityGarrisons
     )
 
