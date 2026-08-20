@@ -404,7 +404,7 @@ private fun CourtOfficerRow(state: GameState) {
         CharacterAppearanceSystem.canAppearInPalace(state, it.id, PalaceIds.CHUIGONG)
     }
     if (present.isEmpty()) {
-        DutyOfficialMiniCard()
+        DutyOfficialMiniCard(state)
         return
     }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -444,18 +444,36 @@ private fun OfficerMiniCard(officer: Officer) {
     }
 }
 
-/** 无重点人物在场时的占位卡：殿中并非空无一人，只是不强行召唤不在京的名臣。 */
+/**
+ * 无重点人物在场时的占位卡：殿中并非空无一人，只是不强行召唤不在京的名臣。
+ * V1.1：换上 Nandu_Court_NPC_Art_V1 真实头像，按当前旬数稳定选一名"当值"官员——
+ * 旬数变了人也跟着轮换，正好呼应"当值"本身就是轮班的意思。
+ */
 @Composable
-private fun DutyOfficialMiniCard() {
+private fun DutyOfficialMiniCard(state: GameState) {
+    val (label, portrait) = remember(state.turn) {
+        ArtResourceRegistry.CourtNpc.officialBySeed(state.turn.toString())
+    }
     Card(
-        modifier = Modifier.width(220.dp).height(72.dp),
+        modifier = Modifier.width(220.dp).height(84.dp),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xD51E1508)),
         border = BorderStroke(1.dp, CourtSub.copy(alpha = 0.5f))
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.Center) {
-            Text("中书舍人 当值", color = CourtGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("重臣多在外任/领军，殿中暂由当值官员承接奏对。", color = CourtSub, fontSize = 9.sp, lineHeight = 12.sp)
+        Row(modifier = Modifier.fillMaxSize().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            AssetImage(
+                path = portrait,
+                contentDescription = label,
+                contentScale = ContentScale.Crop,
+                placeholderText = label.take(1),
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
+                    .background(CourtSub.copy(alpha = 0.2f))
+            )
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text("$label 当值", color = CourtGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("重臣多在外任/领军，殿中暂由当值官员承接奏对。", color = CourtSub, fontSize = 9.sp, lineHeight = 12.sp)
+            }
         }
     }
 }
