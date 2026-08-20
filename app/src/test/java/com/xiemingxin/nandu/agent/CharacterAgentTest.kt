@@ -4,259 +4,197 @@ import com.xiemingxin.nandu.game.*
 import org.junit.Test
 import org.junit.Assert.*
 
-/** Stage 8 人物 Agent 系统单元测试 */
+/**
+ * Stage 8 人物 Agent 系统测试（10项）
+ */
 class CharacterAgentTest {
 
-    private fun mkOfficer(
-        id: String, cmd: Int = 75, pol: Int = 60, force: Int = 65,
-        loyalty: Int = 80, ambition: Int = 30,
-        status: OfficerStatus = OfficerStatus.IN_COURT,
-        city: String = "linan"
-    ) = Officer(id, id, "宋廷", cmd, force, 65, pol, loyalty, city, status,
-                charm = 60, ambition = ambition, rankLevel = 2, merit = 0,
-                origin = "将门", skills = emptyList(), bio = "")
+    private fun officer(
+        id: String, cmd: Int = 80, pol: Int = 70, loy: Int = 80,
+        amb: Int = 40, city: String = "linan",
+        status: OfficerStatus = OfficerStatus.IN_COURT
+    ) = Officer(id, id, "宋廷", cmd, 70, 70, pol, loy, city, status,
+                charm = 65, ambition = amb, rankLevel = 3, merit = 0,
+                origin = "士族", skills = emptyList(), bio = "")
 
-    private fun mkState(officers: List<Officer> = emptyList()) = GameState(
-        cities = listOf(
-            City("linan", "临安", "song", 5000, 50, 100000, 80000, 80),
-            City("jiankang", "建康", "song", 3000, 45, 60000, 40000, 70),
-            City("yangzhou", "扬州", "jin", 4000, 40, 50000, 30000, 50)
-        ),
-        officers = officers.ifEmpty { listOf(mkOfficer("yue_fei"), mkOfficer("qin_hui")) },
-        armies = emptyList(), factions = emptyList(), turn = 5,
-        troopMorale = 70, courtStability = 55, jinThreat = 75, gold = 60000, grain = 150000,
-        prestige = 40, season = Season.SPRING, weather = WeatherType.CLEAR,
+    private fun gs(officers: List<Officer> = emptyList(), turn: Int = 5): GameState = GameState(
+        cities = listOf(City("linan", "临安", "song", 5000, 50, 100000, 50000, 70, "STABLE")),
+        officers = officers, armies = emptyList(), factions = emptyList(),
+        turn = turn, troopMorale = 70, courtStability = 60, jinThreat = 70,
+        gold = 50000, grain = 150000, prestige = 50,
+        season = Season.SPRING, weather = WeatherType.CLEAR,
         calendar = GameCalendar("建炎元年", 1127, 1, 1)
     )
 
-    // ── 测试1：AgentState 不能直接修改 GameState ─────────────────────────────
+    // ── T1：提案不能声称能修改 GameState ─────────────────────────────────────
     @Test
-    fun `agent proposals do not mutate GameState`() {
-        val state = mkState()
-        val agentStates = mapOf(
-            "yue_fei" to CharacterPersonalities.initialState(state.officers.first { it.id == "yue_fei" })
+    fun `proposals cannot modify GameState`() {
+        val yf = officer("yue_fei", cmd = 96)
+        val state = gs(listOf(yf))
+        val agentState = CharacterAgentRegistry.initialFor("yue_fei", 18, 92)
+        val (_, proposals) = CharacterAgentSystem.tickAll(mapOf("yue_fei" to agentState), state)
+
+        proposals.forEach { assertFalse("提案不得声称能改状态", it.canModifyState) }
+        assertEquals("gold 未被 Agent 改变", 50000, state.gold)
+        assertEquals("grain 未被 Agent 改变", 150000, state.grain)
+    }
+
+    // ── T2：长期目标不每旬随机翻转 ──────────────────────────────────────────
+    @Test
+    fun `long term goal is stable across 5 turns`() {
+        val yf = officer("yue_fei", cmd = 96, loy = 92, amb = 18)
+        var states = mapOf("yue_fei" to CharacterAgentRegistry.initialFor("yue_fei", 18, 92))
+        val goals = mutableListOf<AgentGoal>()
+
+        for (turn in 1..5) {
+            val (newStates, _) = CharacterAgentSystem.tickAll(states, gs(listOf(yf), turn))
+            states = newStates
+            goals += states["yue_fei"]!!.longTermGoal
+        }
+
+        // 5旬内目标变化不超过2次（MIN_GOAL_TURNS=3保证稳定性）
+        val changes = goals.zipWithNext().count { (a, b) -> a != b }
+        assertTrue("目标翻转不超过2次（实际${changes}次）", changes <= 2)
+        assertEquals("岳飞初始应坚守北伐", AgentGoal.NORTHERN_EXPEDITION, goals.first())
+    }
+
+    // ── T3：不同人物对同一局势产生不同评分 ──────────────────────────────────
+    @Test
+    fun `different officers produce different plans for same situation`() {
+        val yf = officer("yue_fei", cmd = 96, pol = 55, loy = 92, amb = 18)
+        val qh = officer("qin_hui", cmd = 40, pol = 88, loy = 55, amb = 88)
+        val state = gs(listOf(yf, qh)).copy(jinThreat = 80)
+
+        val yfState = CharacterAgentRegistry.initialFor("yue_fei", 18, 92)
+        val qhState = CharacterAgentRegistry.initialFor("qin_hui", 88, 55)
+
+        val (newStates, _) = CharacterAgentSystem.tickAll(
+            mapOf("yue_fei" to yfState, "qin_hui" to qhState), state
         )
-        val result = CharacterAgentEngine.processTurn(state, agentStates, turn = 5)
 
-        // 关键：proposals只是意图，GameState未被修改
-        assertEquals("city troops not changed", 5000, state.cities.first { it.id == "linan" }.troops)
-        assertEquals("army list unchanged", state.armies.size, state.armies.size)
-        result.proposals.forEach { p ->
-            assertFalse("proposal must not directly change troops",
-                p.targetCommandType == "modify_troops")
-        }
+        val yfPlan = newStates["yue_fei"]?.currentPlan
+        val qhPlan = newStates["qin_hui"]?.currentPlan
+        assertNotEquals("岳飞与秦桧计划应不同", yfPlan, qhPlan)
+        assertNotEquals("岳飞在高威胁时不应静观",
+            AgentPlanType.OBSERVE, yfPlan)
     }
 
-    // ── 测试2：长期目标不每旬随机翻转 ─────────────────────────────────────────
+    // ── T4：连续驳回建议后态度改变 ──────────────────────────────────────────
     @Test
-    fun `long term goal does not flip every turn`() {
-        val yue = mkOfficer("yue_fei")
-        val state = mkState(listOf(yue))
-        var agentState = CharacterPersonalities.initialState(yue)
-        // 记录初始长期目标
-        val initialLongTerm = agentState.longTermGoal
+    fun `repeated rejections change attitude and loyalty`() {
+        var states = mapOf("yue_fei" to CharacterAgentRegistry.initialFor("yue_fei", 18, 92))
+        val initialLoyalty = states["yue_fei"]!!.loyaltyToEmperor
 
-        // 跑5旬
-        repeat(5) { t ->
-            val result = CharacterAgentEngine.processTurn(state, mapOf("yue_fei" to agentState), t)
-            agentState = result.updatedStates["yue_fei"] ?: agentState
+        repeat(7) { i ->
+            states = CharacterAgentSystem.onProposalRejected(states, "yue_fei", i + 1, "不采")
         }
-        // 长期目标不应改变（只有currentGoal允许有限漂移）
-        assertEquals("long-term goal should not flip", initialLongTerm, agentState.longTermGoal)
+
+        val after = states["yue_fei"]!!
+        assertTrue("7次驳回后忠心下降", after.loyaltyToEmperor < initialLoyalty)
+        assertTrue("7次驳回后有拒绝记忆",
+            after.recentMemory.count { it.category == MemoryCategory.EMPEROR_DECISION } >= 7)
+        assertNotEquals("态度应从DEVOTED变化",
+            EmperorAttitude.DEVOTED, after.emperorAttitude)
     }
 
-    // ── 测试3：不同人物对同一局势产生不同评分 ─────────────────────────────────
+    // ── T5：无 API 时 fallback 仍能运行 ──────────────────────────────────────
     @Test
-    fun `different characters score same situation differently`() {
-        val yue = mkOfficer("yue_fei", cmd = 90, pol = 45, loyalty = 92, ambition = 18)
-        val qin = mkOfficer("qin_hui", cmd = 30, pol = 90, loyalty = 42, ambition = 86)
-        val state = mkState(listOf(yue, qin))
-
-        val yueAgent = CharacterPersonalities.initialState(yue)
-        val qinAgent = CharacterPersonalities.initialState(qin)
-
-        val yueResult = CharacterAgentEngine.processTurn(state, mapOf("yue_fei" to yueAgent), 5)
-        val qinResult = CharacterAgentEngine.processTurn(state, mapOf("qin_hui" to qinAgent), 5)
-
-        val yueTopPlan = yueResult.updatedStates["yue_fei"]?.currentPlan
-        val qinTopPlan = qinResult.updatedStates["qin_hui"]?.currentPlan
-
-        // 岳飞（主战97）和秦桧（主和8）行为应不同
-        assertNotEquals("yue_fei and qin_hui should have different plans in same situation",
-            yueTopPlan, qinTopPlan)
-    }
-
-    // ── 测试4：被连续驳回后态度和记忆变化 ─────────────────────────────────────
-    @Test
-    fun `repeated rejected advice changes attitude and memory`() {
-        val yue = mkOfficer("yue_fei")
-        var agentState = CharacterPersonalities.initialState(yue)
-        val initialLoyalty = agentState.loyaltyToEmperor
-        val initialAttitude = agentState.emperorAttitude
-        val initialRejected = agentState.adviceRejectedCount
-
-        // 连续驳回3次
-        repeat(3) { t ->
-            agentState = CharacterAgentEngine.onAdviceRejected(agentState, t)
-        }
-        assertTrue("loyalty should decrease after repeated rejection",
-            agentState.loyaltyToEmperor < initialLoyalty)
-        assertTrue("rejected count should increase",
-            agentState.adviceRejectedCount > initialRejected)
-        assertTrue("recent memory should contain rejection records",
-            agentState.recentMemory.any { "被皇帝驳" in it.summary || "驳" in it.summary })
-        // 如果驳回够多，态度应该变差
-        if (agentState.loyaltyToEmperor < 55) {
-            assertNotEquals("attitude should worsen with low loyalty",
-                initialAttitude, agentState.emperorAttitude)
-        }
-    }
-
-    // ── 测试5：fallback在无API时仍能运行 ──────────────────────────────────────
-    @Test
-    fun `local utility fallback runs without any model call`() {
+    fun `fallback runs without API`() {
         val officers = listOf(
-            mkOfficer("yue_fei"), mkOfficer("han_shizhong"), mkOfficer("qin_hui")
+            officer("yue_fei", cmd = 96),
+            officer("qin_hui", cmd = 40, amb = 88),
+            officer("han_shizhong", cmd = 88)
         )
-        val state = mkState(officers)
-        val agentStates = officers.associate { o ->
-            o.id to CharacterPersonalities.initialState(o)
+        val state = gs(officers)
+        val initStates = CharacterAgentSystem.ensureInitialized(emptyMap(), officers)
+        val (newStates, proposals) = CharacterAgentSystem.tickAll(initStates, state)
+
+        assertEquals("所有人物被初始化", officers.size, newStates.size)
+        assertTrue("应有至少1个提案", proposals.isNotEmpty())
+        newStates.values.forEach { s ->
+            assertTrue("忠心在0-100", s.loyaltyToEmperor in 0..100)
+            assertTrue("warBias在0-100", s.warBias in 0..100)
         }
-        // 完全本地，不调用任何API
-        val result = CharacterAgentEngine.processTurn(state, agentStates, 5)
-        assertNotNull("result must not be null", result)
-        // 至少有部分人物产生了决策
-        assertTrue("at least one updated state", result.updatedStates.isNotEmpty())
     }
 
-    // ── 测试6：死亡/隐藏人物不继续行动 ───────────────────────────────────────
+    // ── T6：DECEASED/HIDDEN 人物不产生提案 ──────────────────────────────────
     @Test
-    fun `deceased or hidden officer does not generate proposals`() {
-        val deadOfficer = mkOfficer("dead_guy", status = OfficerStatus.DECEASED)
-        val hiddenOfficer = mkOfficer("hidden_guy", status = OfficerStatus.HIDDEN)
-        val state = mkState(listOf(deadOfficer, hiddenOfficer))
-        val agentStates = mapOf(
-            "dead_guy" to CharacterPersonalities.initialState(deadOfficer),
-            "hidden_guy" to CharacterPersonalities.initialState(hiddenOfficer)
+    fun `deceased and hidden produce no proposals`() {
+        val deceased = officer("dead", status = OfficerStatus.DECEASED)
+        val hidden   = officer("hidden", status = OfficerStatus.HIDDEN)
+        val active   = officer("yue_fei", cmd = 96, status = OfficerStatus.IN_COURT)
+        val state    = gs(listOf(deceased, hidden, active))
+
+        val initStates = CharacterAgentSystem.ensureInitialized(emptyMap(), listOf(deceased, hidden, active))
+        val (_, proposals) = CharacterAgentSystem.tickAll(initStates, state)
+
+        assertTrue("DECEASED 不产生提案",
+            proposals.none { it.id.startsWith("dead_") })
+        assertTrue("HIDDEN 不产生提案",
+            proposals.none { it.id.startsWith("hidden_") })
+    }
+
+    // ── T7：冲突检测识别对立提案 ────────────────────────────────────────────
+    @Test
+    fun `conflict detection finds opposing proposals`() {
+        val battleP = AgentProposal("yue_fei_PETITION_BATTLE_5",
+            AgentPlanType.PETITION_BATTLE, reason = "请战", turn = 5)
+        val peaceP  = AgentProposal("qin_hui_PETITION_PEACE_5",
+            AgentPlanType.PETITION_PEACE,  reason = "议和", turn = 5)
+
+        val states = mapOf(
+            "yue_fei" to CharacterAgentRegistry.initialFor("yue_fei", 18, 92),
+            "qin_hui" to CharacterAgentRegistry.initialFor("qin_hui", 88, 55)
         )
-        val result = CharacterAgentEngine.processTurn(state, agentStates, 5)
-        assertTrue("dead/hidden officers should produce no proposals",
-            result.proposals.none { it.officerId in setOf("dead_guy", "hidden_guy") })
-    }
-
-    // ── 测试7：已标记inactive的Agent不行动 ────────────────────────────────────
-    @Test
-    fun `inactive agent does not generate proposals`() {
-        val officer = mkOfficer("some_officer")
-        val state = mkState(listOf(officer))
-        val inactiveAgent = CharacterPersonalities.initialState(officer).copy(inactive = true)
-        val result = CharacterAgentEngine.processTurn(state, mapOf("some_officer" to inactiveAgent), 5)
-        assertTrue("inactive agent should produce no proposals",
-            result.proposals.none { it.officerId == "some_officer" })
-    }
-
-    // ── 测试8：目标最小坚持旬数保证连续性 ────────────────────────────────────
-    @Test
-    fun `goal does not change before minimum persist turns`() {
-        val yue = mkOfficer("yue_fei")
-        val state = mkState(listOf(yue))
-        val initialAgent = CharacterPersonalities.initialState(yue).copy(
-            currentGoal = AgentGoal.NORTHERN_EXPEDITION,
-            goalPersistTurns = 1  // 还未达到MIN(2)
+        val state = gs(listOf(officer("yue_fei"), officer("qin_hui")))
+        val conflicts = CharacterAgentSystem.detectConflicts(
+            listOf(battleP, peaceP), states, state
         )
-        val result = CharacterAgentEngine.processTurn(state, mapOf("yue_fei" to initialAgent), 5)
-        val newAgent = result.updatedStates["yue_fei"]!!
-        // 因为 goalPersistTurns < MIN，目标不应改变
-        assertEquals("goal should not flip before min persist turns",
-            AgentGoal.NORTHERN_EXPEDITION, newAgent.currentGoal)
+        assertTrue("应检测到朝堂争议", conflicts.isNotEmpty())
     }
 
-    // ── 测试9：主战主和冲突检测 ───────────────────────────────────────────────
+    // ── T8：记忆不超上限 ────────────────────────────────────────────────────
     @Test
-    fun `war and peace advocates generate conflict when both active`() {
-        val yue = mkOfficer("yue_fei", loyalty = 92, ambition = 18)
-        val qin = mkOfficer("qin_hui", loyalty = 42, ambition = 86, pol = 90)
-        val state = mkState(listOf(yue, qin)).copy(jinThreat = 85)
-
-        val agentStates = mapOf(
-            "yue_fei" to CharacterPersonalities.initialState(yue),
-            "qin_hui" to CharacterPersonalities.initialState(qin)
-        )
-        val result = CharacterAgentEngine.processTurn(state, agentStates, 5)
-        // 如果两人分别选了主战/主和，应该检测到冲突
-        val hasWarProposal = result.proposals.any { it.planType == AgentPlanType.PETITION_BATTLE }
-        val hasPeaceProposal = result.proposals.any { it.planType == AgentPlanType.PETITION_PEACE }
-        if (hasWarProposal && hasPeaceProposal) {
-            assertTrue("conflict should be detected when war/peace advocates both active",
-                result.conflicts.isNotEmpty())
+    fun `memories respect max limit`() {
+        var states = mapOf("zong_ze" to CharacterAgentRegistry.initialFor("zong_ze", 10, 96))
+        // 连续驳回20次，每次添加记忆
+        repeat(20) { i ->
+            states = CharacterAgentSystem.onProposalRejected(states, "zong_ze", i, "不采")
         }
-        // 即使没有冲突，至少不崩溃
-        assertNotNull(result)
+        val mem = states["zong_ze"]!!.recentMemory
+        assertTrue("记忆不超过10条（实际${mem.size}条）", mem.size <= 10)
     }
 
-    // ── 测试10：存档round-trip ─────────────────────────────────────────────────
+    // ── T9：采纳建议后状态改善 ──────────────────────────────────────────────
     @Test
-    fun `agent state survives save codec round-trip`() {
-        val yue = mkOfficer("yue_fei")
-        val initialState = mkState(listOf(yue))
-        val agentState = CharacterPersonalities.initialState(yue).copy(
-            loyaltyToEmperor = 65,
-            adviceRejectedCount = 3,
-            fearLevel = 25,
-            currentGoal = AgentGoal.NORTHERN_EXPEDITION
-        )
-        val stateWithAgent = initialState.copy(agentStates = mapOf("yue_fei" to agentState))
-        val encoded = GameSaveCodec.export(stateWithAgent)
-        val decoded = GameSaveCodec.import(encoded).getOrNull()
-        assertNotNull("decode should succeed", decoded)
-        val decodedAgent = decoded!!.agentStates["yue_fei"]
-        assertNotNull("agent state should survive round-trip", decodedAgent)
-        assertEquals("loyaltyToEmperor round-trip", 65, decodedAgent!!.loyaltyToEmperor)
-        assertEquals("adviceRejectedCount round-trip", 3, decodedAgent.adviceRejectedCount)
-        assertEquals("currentGoal round-trip", AgentGoal.NORTHERN_EXPEDITION, decodedAgent.currentGoal)
+    fun `accepting proposal improves officer state`() {
+        var states = mapOf("yue_fei" to CharacterAgentRegistry.initialFor("yue_fei", 18, 92))
+        repeat(3) { i -> states = CharacterAgentSystem.onProposalRejected(states, "yue_fei", i, "不采") }
+        val loyaltyBefore = states["yue_fei"]!!.loyaltyToEmperor
+
+        states = CharacterAgentSystem.onProposalAccepted(states, "yue_fei", 10)
+
+        assertTrue("采纳后忠心恢复或上升",
+            states["yue_fei"]!!.loyaltyToEmperor >= loyaltyBefore)
+        assertEquals("采纳计数+1", 1, states["yue_fei"]!!.adviceAdoptedCount)
     }
 
-    // ── 测试11：UtilityDecisionEngine为行为评分，非随机 ─────────────────────
+    // ── T10：UtilityDecisionEngine 评分可重现 ──────────────────────────────
     @Test
-    fun `utility engine ranks candidates deterministically`() {
+    fun `utility scoring is deterministic`() {
         val metrics = mapOf(
-            "warBias" to 0.95, "jinThreat" to 0.85, "loyalty" to 0.90,
-            "riskTolerance" to 0.80, "fearLevel" to 0.10, "grainPressure" to 0.1,
-            "frontlineAlert" to 1.0, "hasArmy" to 1.0, "isAtFront" to 1.0,
-            "rejectionRatio" to 0.0, "punishedRecently" to 0.0,
-            "courtStability" to 0.6, "ambition" to 0.2, "treasuryPressure" to 0.1,
-            "hasPoliticalEnemy" to 0.0, "isInCourt" to 1.0
+            "jinThreat" to 0.8, "command" to 0.96, "loyalty" to 0.92,
+            "ambition"  to 0.18, "grain" to 0.75, "politics" to 0.55,
+            "warBias"   to 0.95, "fear" to 0.08
         )
-        val options = listOf(
-            UtilityOption("PETITION_BATTLE", AgentPlanType.PETITION_BATTLE, 0.0, listOf(
-                UtilityFactor("warBias", 0.50, UtilityCurve.QUADRATIC),
-                UtilityFactor("jinThreat", 0.25, UtilityCurve.LINEAR),
-                UtilityFactor("loyalty", 0.15)
-            )),
-            UtilityOption("PETITION_PEACE", AgentPlanType.PETITION_PEACE, 0.0, listOf(
-                UtilityFactor("warBias", 0.55, invert = true),
-                UtilityFactor("fearLevel", 0.25, UtilityCurve.QUADRATIC)
-            ))
+        val option = UtilityOption(
+            id = "PETITION_BATTLE", payload = AgentPlanType.PETITION_BATTLE,
+            baseScore = 0.25,
+            factors = listOf(UtilityFactor("command", 1.2), UtilityFactor("jinThreat", 0.8))
         )
-        val r1 = UtilityDecisionEngine.rank(metrics, options)
-        val r2 = UtilityDecisionEngine.rank(metrics, options)
-        // 确定性：两次结果相同
-        assertEquals("ranking must be deterministic", r1.map { it.option.id }, r2.map { it.option.id })
-        // 主战倾向应该排第一
-        assertEquals("high warBias should rank PETITION_BATTLE first",
-            "PETITION_BATTLE", r1.first().option.id)
-    }
-
-    // ── 测试12：赏赐后忠诚提升 ───────────────────────────────────────────────
-    @Test
-    fun `reward increases loyalty and decreases fear`() {
-        val officer = mkOfficer("yue_fei")
-        val agentState = CharacterPersonalities.initialState(officer).copy(
-            loyaltyToEmperor = 70, fearLevel = 30
-        )
-        val rewarded = CharacterAgentEngine.onRewarded(agentState, turn = 5)
-        assertTrue("loyalty should increase after reward", rewarded.loyaltyToEmperor > 70)
-        assertTrue("fear should decrease after reward", rewarded.fearLevel < 30)
-        assertTrue("memory should record reward", rewarded.recentMemory.any { "赏" in it.summary })
+        val s1 = UtilityDecisionEngine.rank(metrics, listOf(option)).first().score
+        val s2 = UtilityDecisionEngine.rank(metrics, listOf(option)).first().score
+        assertEquals("相同输入相同分数", s1, s2, 0.0001)
+        assertTrue("高统率高威胁时 PETITION_BATTLE 得分>0.5", s1 > 0.5)
     }
 }

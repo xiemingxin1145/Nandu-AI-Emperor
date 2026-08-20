@@ -218,3 +218,26 @@ enum class AgentPlanType(val label: String, val edict: String) {
     MILITARY_REQUEST("军务请求", "臣请求补充粮草辎重。"),
     PRIVATE_ALLIANCE("私下结交", "") // 仅记录关系变化，不触发公开行为
 }
+
+// ── Stage 8 人物行为提案（只表达意图，不能直接修改 GameState）──────────────────
+
+/**
+ * 人物向皇帝提出的行为意图。
+ *
+ * 不变量：canModifyState 永远 false。
+ * 所有实际状态修改必须经过 GameRuleEngine 确定性规则校验后才能生效。
+ */
+data class AgentProposal(
+    val id: String,
+    val kind: AgentPlanType,
+    val targetOfficerId: String = "",
+    val targetCityId: String = "",
+    val edictSuggestion: String = "",
+    val reason: String,
+    val urgency: Int = 50,
+    val score: Double = 0.0,
+    val turn: Int = 0
+) {
+    /** 永远 false：AgentProposal 只是意图，不能自行修改状态 */
+    val canModifyState: Boolean get() = false
+}

@@ -12,6 +12,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.agent.CharacterAgentState
+import com.xiemingxin.nandu.agent.AgentPlanType
+import com.xiemingxin.nandu.agent.RelationTag
+import com.xiemingxin.nandu.agent.EmperorAttitude
 import com.xiemingxin.nandu.agent.AgentProposal
 import com.xiemingxin.nandu.game.GameState
 
@@ -44,8 +47,8 @@ fun AgentStatusPanel(
         // 志向 + 计划
         AgentRow("长期志向", agentState.longTermGoal.label, Gold)
         AgentRow("当前计划", agentState.currentPlan.label,
-            if (agentState.currentPlan.label != "无特定计划") Cream else Sub)
-        AgentRow("对陛下态度", agentState.attitudeToEmperor.label,
+            if (agentState.currentPlan != AgentPlanType.OBSERVE && agentState.currentPlan != AgentPlanType.PRIVATE_ALLIANCE) Cream else Sub)
+        AgentRow("对陛下态度", agentState.emperorAttitude.label,
             when {
                 agentState.loyaltyToEmperor >= 70 -> Green
                 agentState.loyaltyToEmperor >= 40 -> Color(0xFFFFD54F)
@@ -78,33 +81,33 @@ fun AgentStatusPanel(
             HorizontalDivider(color = Gold.copy(alpha = 0.2f), thickness = 0.5.dp)
             Spacer(Modifier.height(6.dp))
             Text("人际关系", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            agentState.relations.take(3).forEach { rel ->
+            agentState.relations.values.take(3).forEach { rel ->
                 val name = gameState.officers.find { it.id == rel.targetOfficerId }?.name ?: rel.targetOfficerId
-                val color = when (rel.kind.label) {
-                    "政治盟友" -> Green
-                    "政治对手", "嫌隙颇深" -> Red
+                val color = when (rel.tag) {
+                    RelationTag.ALLY, RelationTag.SUPPORTER, RelationTag.FACTION_BROTHER -> Green
+                    RelationTag.RIVAL, RelationTag.ENEMY -> Red
                     else -> Sub
                 }
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(name, color = Cream, fontSize = 11.sp)
-                    Text(rel.kind.label, color = color, fontSize = 10.sp)
+                    Text(rel.tag.label, color = color, fontSize = 10.sp)
                 }
-                if (rel.note.isNotBlank())
-                    Text("  ${rel.note}", color = Sub, fontSize = 9.sp)
+                if (rel.lastEventSummary.isNotBlank())
+                    Text("  ${rel.lastEventSummary}", color = Sub, fontSize = 9.sp)
             }
         }
 
         // 最近记忆（最多3条）
-        if (agentState.recentMemories.isNotEmpty()) {
+        if (agentState.recentMemory.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(color = Gold.copy(alpha = 0.2f), thickness = 0.5.dp)
             Spacer(Modifier.height(6.dp))
             Text("近期记忆", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            agentState.recentMemories.takeLast(3).reversed().forEach { mem ->
+            agentState.recentMemory.takeLast(3).reversed().forEach { mem ->
                 val impactColor = when {
-                    mem.emotionalImpact > 0 -> Green
-                    mem.emotionalImpact < 0 -> Red
+                    mem.significance > 0 -> Green
+                    mem.significance < 0 -> Red
                     else -> Sub
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -112,8 +115,8 @@ fun AgentStatusPanel(
                         modifier = Modifier.width(36.dp))
                     Text(mem.summary, color = Cream, fontSize = 10.sp,
                         modifier = Modifier.weight(1f))
-                    if (mem.emotionalImpact != 0)
-                        Text(if (mem.emotionalImpact > 0) "▲" else "▼",
+                    if (mem.significance != 0)
+                        Text(if (mem.significance > 0) "▲" else "▼",
                             color = impactColor, fontSize = 10.sp)
                 }
                 Spacer(Modifier.height(2.dp))
@@ -121,15 +124,15 @@ fun AgentStatusPanel(
         }
 
         // 当前活跃提案
-        if (agentState.activeProposals.isNotEmpty()) {
+        if (agentState.currentPlan.edict.let { listOf(agentState) }.filter { it.currentPlan != AgentPlanType.OBSERVE }.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(color = Gold.copy(alpha = 0.2f), thickness = 0.5.dp)
             Spacer(Modifier.height(6.dp))
             Text("拟上奏请", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            agentState.activeProposals.take(2).forEach { p ->
-                Text("· ${p.reason}", color = Cream, fontSize = 10.sp)
-                if (p.edictSuggestion.isNotBlank())
-                    Text("  建议圣旨：${p.edictSuggestion}", color = Sub, fontSize = 9.sp)
+            agentState.currentPlan.edict.let { listOf(agentState) }.filter { it.currentPlan != AgentPlanType.OBSERVE }.take(2).forEach { p ->
+                Text("· ${p.currentPlan.label}", color = Cream, fontSize = 10.sp)
+                if (p.currentPlan.edict.isNotBlank())
+                    Text("  建议：${p.currentPlan.edict}", color = Sub, fontSize = 9.sp)
                 Spacer(Modifier.height(2.dp))
             }
         }
