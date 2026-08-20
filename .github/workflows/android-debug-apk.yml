@@ -2,9 +2,14 @@ name: Build Nandu Debug APK
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - test/art-asset-integration
+      - fix/prologue-audio-timeline-20260820
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - test/art-asset-integration
   workflow_dispatch:
 
 jobs:
@@ -48,7 +53,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: nandu-V1.2-debug-apk
+          name: nandu-video-repair-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30

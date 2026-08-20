@@ -26,14 +26,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.xiemingxin.nandu.audio.GameAudioPlayer
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.game.AchievementSystem
 import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.game.AudioResourceRegistry
 import com.xiemingxin.nandu.ui.EmperorViewModel
-import com.xiemingxin.nandu.ui.screens.*
 import com.xiemingxin.nandu.ui.components.BattleReportPanel
+import com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer
+import com.xiemingxin.nandu.ui.screens.*
 import com.xiemingxin.nandu.ui.theme.*
 
 private const val AUDIO_PREFS = "nandu_audio_settings"
@@ -47,7 +49,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = InkBlack) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
+                    color = InkBlack
+                ) {
                     NanduApp()
                 }
             }
@@ -57,44 +65,56 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun GameAudioController(
+    player: GameAudioPlayer,
     showIntro: Boolean,
     ending: GameEnding,
     currentTab: Int,
     inCity: Boolean,
-    inPalaceTask: Boolean,
+    activePalaceId: String?,
     battleSignal: String?,
     sfxSignal: String?,
     audioEnabled: Boolean,
     bgmVolume: Float,
     sfxVolume: Float
 ) {
-    val player = com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer()
     val safeBgmVolume = if (audioEnabled) bgmVolume.coerceIn(0f, 1f) else 0f
     val safeSfxVolume = if (audioEnabled) sfxVolume.coerceIn(0f, 1f) else 0f
-    val scene = when {
-        ending != GameEnding.ONGOING && ending.rank == "亡" -> "defeat"
-        ending != GameEnding.ONGOING -> "victory"
-        showIntro -> "main_menu"
-        inCity -> "city"
-        inPalaceTask -> "council"
-        else -> when (currentTab) {
-            0 -> "palace"
-            1 -> "court"
-            2 -> "map"
-            3 -> "court"
-            4 -> "military"
-            else -> "court"
+
+    val (sceneKey, bgmPath) = when {
+        ending != GameEnding.ONGOING && ending.rank == "亡" ->
+            "defeat" to AudioResourceRegistry.bgmForScene("defeat")
+        ending != GameEnding.ONGOING ->
+            "victory" to AudioResourceRegistry.bgmForScene("victory")
+        showIntro ->
+            "main_menu" to AudioResourceRegistry.bgmForScene("main_menu")
+        inCity ->
+            "city" to AudioResourceRegistry.bgmForScene("city")
+        activePalaceId != null ->
+            "palace:$activePalaceId" to AudioResourceRegistry.bgmForPalace(activePalaceId)
+        else -> {
+            val scene = when (currentTab) {
+                0 -> "palace"
+                1 -> "court"
+                2 -> "map"
+                3 -> "study"
+                4 -> "military"
+                else -> "court"
+            }
+            scene to AudioResourceRegistry.bgmForScene(scene)
         }
     }
+
     com.xiemingxin.nandu.ui.components.PlayBgmEffect(
-        path = AudioResourceRegistry.bgmForScene(scene),
-        sceneKey = scene,
+        path = bgmPath,
+        sceneKey = sceneKey,
+        enabled = audioEnabled,
         volume = safeBgmVolume,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.Sfx.drumWar,
         triggerKey = battleSignal,
+        enabled = audioEnabled,
         volume = safeSfxVolume * 0.85f,
         variant = true,
         player = player
@@ -102,12 +122,14 @@ private fun GameAudioController(
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.Sfx.battleStart,
         triggerKey = battleSignal,
+        enabled = audioEnabled,
         volume = safeSfxVolume * 0.7f,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.sfxForGameEvent(sfxSignal?.substringBefore(":").orEmpty()),
         triggerKey = sfxSignal,
+        enabled = audioEnabled,
         volume = safeSfxVolume,
         variant = true,
         player = player
@@ -120,6 +142,7 @@ fun NanduApp() {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val audioPrefs = remember(context) { context.getSharedPreferences(AUDIO_PREFS, Context.MODE_PRIVATE) }
+    val appAudioPlayer = rememberGameAudioPlayer()
 
     var showIntro by remember { mutableStateOf(true) }
     var showPrologue by remember { mutableStateOf(false) }
@@ -128,6 +151,7 @@ fun NanduApp() {
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var showOfficerList by remember { mutableStateOf(false) }
+    var showShunchangBattle by remember { mutableStateOf(false) }
     var edictText by remember { mutableStateOf("") }
     var sfxSignal by remember { mutableStateOf<String?>(null) }
     var audioEnabled by remember { mutableStateOf(audioPrefs.getBoolean(AUDIO_ENABLED_KEY, true)) }
@@ -146,18 +170,22 @@ fun NanduApp() {
         sfxSignal = "$event:${System.nanoTime()}"
     }
 
-    GameAudioController(
-        showIntro = showIntro,
-        ending = uiState.ending,
-        currentTab = currentTab,
-        inCity = interiorCityId != null,
-        inPalaceTask = activePalaceId != null,
-        battleSignal = uiState.battleReport,
-        sfxSignal = sfxSignal,
-        audioEnabled = audioEnabled,
-        bgmVolume = bgmVolume,
-        sfxVolume = sfxVolume
-    )
+    // 序章拥有独占音频控制权，避免主菜单 BGM 和序章 BGM/旁白同时抢播放器。
+    if (!showPrologue) {
+        GameAudioController(
+            player = appAudioPlayer,
+            showIntro = showIntro,
+            ending = uiState.ending,
+            currentTab = currentTab,
+            inCity = interiorCityId != null,
+            activePalaceId = activePalaceId,
+            battleSignal = uiState.battleReport,
+            sfxSignal = sfxSignal,
+            audioEnabled = audioEnabled,
+            bgmVolume = bgmVolume,
+            sfxVolume = sfxVolume
+        )
+    }
 
     if (uiState.ending != GameEnding.ONGOING) {
         val songCities = uiState.gameState.cities.count { it.owner == "song" }
@@ -180,21 +208,28 @@ fun NanduApp() {
     // ── 主菜单 ──────────────────────────────────────────
     if (showIntro && !showPrologue) {
         MainMenuScreen(
-            onNewGame  = { playSfx("confirm"); showPrologue = true },
+            onNewGame = {
+                playSfx("confirm")
+                // 测试/正式新游戏都必须给玩家看完整身份序章；只有“继续游戏”可以直接进入。
+                showPrologue = true
+            },
             onContinue = { playSfx("confirm"); showIntro = false },
             onSettings = { playSfx("open_panel"); showSettings = true },
-            onExit     = { (context as? android.app.Activity)?.finish() }
+            onExit = { (context as? android.app.Activity)?.finish() }
         )
         return
     }
 
-    // ── 序章（开辟新局后播放）───────────────────────────
+    // ── 序章（新游戏必播，可手动跳过）───────────────────
     if (showPrologue) {
-        IntroScreen(onStart = {
-            playSfx("confirm")
-            showPrologue = false
-            showIntro = false
-        })
+        PrologueScreen(
+            audioPlayer = appAudioPlayer,
+            onPrologueComplete = {
+                showPrologue = false
+                showIntro = false
+                audioPrefs.edit().putBoolean("prologue_watched", true).apply()
+            }
+        )
         return
     }
 
@@ -233,7 +268,7 @@ fun NanduApp() {
         }
         if (action.startsWith("recruit:")) {
             playSfx("city_recruit")
-            viewModel.recruitInCity(cityId, action.removePrefix("recruit:"))
+            viewModel.recruitInCity(cid = cityId, unitId = action.removePrefix("recruit:"))
             return
         }
         if (action == "enter") {
@@ -295,6 +330,13 @@ fun NanduApp() {
         return
     }
 
+    if (showShunchangBattle) {
+        ShunchangBattleScreen(
+            onBack = { playSfx("close_panel"); showShunchangBattle = false }
+        )
+        return
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(InkBlack)) {
         Box(modifier = Modifier.weight(1f)) {
             when (currentTab) {
@@ -304,7 +346,8 @@ fun NanduApp() {
                     isRealAiEnabled = uiState.isRealAiEnabled,
                     onOpenSettings = { playSfx("open_panel"); showSettings = true },
                     onOpenPalace = { palaceId -> playSfx("council_open"); activePalaceId = palaceId },
-                    onNavigate = { tab -> playSfx("switch_tab"); currentTab = tab + 1 }
+                    onNavigate = { tab -> playSfx("switch_tab"); currentTab = tab + 1 },
+                    onOpenShunchang = { playSfx("military_start"); showShunchangBattle = true }
                 )
                 1 -> EmperorMainScreen(
                     uiState = uiState,
@@ -383,7 +426,6 @@ fun NanduApp() {
             }
         }
 
-        // Stage 5 战报弹窗
         uiState.lastBattleOutcome?.let { outcome ->
             BattleReportPanel(outcome = outcome, onDismiss = { viewModel.dismissBattleReport() })
         }

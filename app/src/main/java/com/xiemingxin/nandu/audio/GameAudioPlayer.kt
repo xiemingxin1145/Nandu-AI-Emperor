@@ -4,29 +4,55 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.SoundPool
+import android.speech.tts.TextToSpeech
 import java.io.File
+import java.util.Locale
 import kotlin.random.Random
 
 /**
- * V0.6.6 安全音频播放器骨架。
- * 只从 assets/audio/ 读音频；资源缺失时静默失败，不影响游戏运行。
+ * 游戏音频播放器。
+ * 只从 assets/audio/ 读取打包音频；缺资源时静默失败，不影响主流程。
+ *
+ * 序章额外提供 Android 中文 TTS 兜底，保证“有画面却完全没旁白”的情况不再发生。
+ * 正式真人/AI配音到位后，仍可继续使用 playVoice() 播放预生成音频文件。
  */
 class GameAudioPlayer(private val context: Context) {
     private val soundPool: SoundPool
     private val soundIds = mutableMapOf<String, Int>()
     private var bgmPlayer: MediaPlayer? = null
     private var ambiencePlayer: MediaPlayer? = null
+    private var voicePlayer: MediaPlayer? = null
     private var currentAmbiencePath: String? = null
+    private var currentBgmVolume: Float = 0.75f
+    private var isVoicePlaying: Boolean = false
+
+    private var tts: TextToSpeech? = null
+    private var ttsReady: Boolean = false
+    private var pendingTtsText: String? = null
+
+    data class VolumeSettings(
+        var master: Float = 1f,
+        var bgm: Float = 0.75f,
+        var ambience: Float = 0.5f,
+        var ui: Float = 0.8f,
+        var sfx: Float = 0.85f,
+        var voice: Float = 1f,
+        var narrator: Float = 1f,
+        var battle: Float = 0.9f,
+        var video: Float = 0.8f
+    )
+
+    var volume = VolumeSettings()
     var masterEnabled: Boolean = true
     var bgmEnabled: Boolean = true
     var sfxEnabled: Boolean = true
+    var voiceEnabled: Boolean = true
+
+    /** 人声播放时 BGM 自动降低到的比例。 */
+    private val voiceDuckFactor: Float = 0.30f
 
     companion object {
-        /**
-         * Demo 期曾把几十 KB 的占位/提示语音误放进 BGM 槽位。真正 60–120 秒的
-         * OGG 配乐不应小到这个程度。低于阈值的 BGM 直接静默跳过，避免把提示词
-         * 当背景音乐无限循环。替换为真实配乐后无需改代码，会自动恢复播放。
-         */
+        /** 过滤 Demo 期误塞进 BGM 槽位的极短占位音。 */
         private const val MIN_BGM_BYTES = 128 * 1024L
     }
 
@@ -52,16 +78,12 @@ class GameAudioPlayer(private val context: Context) {
     fun playSfx(path: String, volume: Float = 1f) {
         if (!masterEnabled || !sfxEnabled) return
         val soundId = soundIds[path] ?: loadSfx(path)?.also { soundIds[path] = it } ?: return
-        soundPool.play(soundId, volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f), 1, 0, 1f)
+        val safeVolume = volume.coerceIn(0f, 1f)
+        soundPool.play(soundId, safeVolume, safeVolume, 1, 0, 1f)
     }
 
     private val variantCache = mutableMapOf<String, List<String>>()
 
-    /**
-     * 同类音效随机播放：给定基础路径（如 audio/sfx/sfx_drum_war.ogg），
-     * 自动收集同目录下 sfx_drum_war.ogg / sfx_drum_war_2.ogg / _3.ogg ... 随机挑一个播。
-     * 只需丢入带 _2/_3 后缀的同名文件即可扩充随机池，无需改代码。缺文件则回退基础路径。
-     */
     fun playSfxVariant(basePath: String, volume: Float = 1f) {
         if (!masterEnabled || !sfxEnabled) return
         val variants = variantCache.getOrPut(basePath) { resolveVariants(basePath) }
@@ -91,12 +113,12 @@ class GameAudioPlayer(private val context: Context) {
         if (!masterEnabled || !bgmEnabled) return
         stopBgm()
         val file = materializeAsset(path) ?: return
-        // 防止把短占位音/生成器提示语误当 BGM 无限循环。
         if (file.length() < MIN_BGM_BYTES) return
+        currentBgmVolume = volume.coerceIn(0f, 1f) * this.volume.master
         bgmPlayer = MediaPlayer().apply {
             setDataSource(file.absolutePath)
             isLooping = loop
-            setVolume(volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f))
+            setVolume(currentBgmVolume, currentBgmVolume)
             setOnPreparedListener { it.start() }
             setOnCompletionListener { if (!loop) stopBgm() }
             setOnErrorListener { mp, _, _ ->
@@ -116,21 +138,24 @@ class GameAudioPlayer(private val context: Context) {
         bgmPlayer = null
     }
 
-    /** 循环环境音通道，与 BGM 并行（如酒楼人声、市集喧闹、雨雪风）。相同路径不重启。 */
     fun playAmbience(path: String, volume: Float = 0.5f) {
         if (!masterEnabled || !bgmEnabled) return
         if (path == currentAmbiencePath && ambiencePlayer != null) return
         stopAmbience()
         val file = materializeAsset(path) ?: return
         currentAmbiencePath = path
+        val safeVolume = volume.coerceIn(0f, 1f) * this.volume.master
         ambiencePlayer = MediaPlayer().apply {
             setDataSource(file.absolutePath)
             isLooping = true
-            setVolume(volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f))
+            setVolume(safeVolume, safeVolume)
             setOnPreparedListener { it.start() }
             setOnErrorListener { mp, _, _ ->
                 mp.release()
-                if (ambiencePlayer === mp) { ambiencePlayer = null; currentAmbiencePath = null }
+                if (ambiencePlayer === mp) {
+                    ambiencePlayer = null
+                    currentAmbiencePath = null
+                }
                 true
             }
             prepareAsync()
@@ -146,9 +171,131 @@ class GameAudioPlayer(private val context: Context) {
         currentAmbiencePath = null
     }
 
+    /**
+     * 播放正式人声文件。保留给角色配音和后续正式旁白使用。
+     */
+    fun playVoice(path: String, voiceVolume: Float? = null, onComplete: (() -> Unit)? = null) {
+        if (!masterEnabled || !voiceEnabled) {
+            onComplete?.invoke()
+            return
+        }
+        stopVoice()
+        val file = materializeAsset(path) ?: run {
+            onComplete?.invoke()
+            return
+        }
+        val vol = (voiceVolume ?: this.volume.voice).coerceIn(0f, 1f) * this.volume.master
+        isVoicePlaying = true
+        applyBgmDucking(true)
+        voicePlayer = MediaPlayer().apply {
+            setDataSource(file.absolutePath)
+            setVolume(vol, vol)
+            setOnPreparedListener { it.start() }
+            setOnCompletionListener {
+                isVoicePlaying = false
+                applyBgmDucking(false)
+                release()
+                if (voicePlayer === this@apply) voicePlayer = null
+                onComplete?.invoke()
+            }
+            setOnErrorListener { mp, _, _ ->
+                isVoicePlaying = false
+                applyBgmDucking(false)
+                mp.release()
+                if (voicePlayer === mp) voicePlayer = null
+                onComplete?.invoke()
+                true
+            }
+            prepareAsync()
+        }
+    }
+
+    /**
+     * 测试/兜底旁白：直接调用设备中文 TTS。
+     *
+     * 当前仓库虽然已有四个 WAV，但真机反馈为“无声”。在正式可验证的配音文件替换前，
+     * 序章先用这个通道确保玩家一定听得到文字内容。正式音频到位后可切回 playVoice()。
+     */
+    fun speakNarration(text: String) {
+        if (!masterEnabled || !voiceEnabled || text.isBlank()) return
+        stopVoice()
+        pendingTtsText = text
+        isVoicePlaying = true
+        applyBgmDucking(true)
+
+        val existing = tts
+        if (existing != null && ttsReady) {
+            speakNow(existing, text)
+            pendingTtsText = null
+            return
+        }
+
+        if (existing == null) {
+            tts = TextToSpeech(context) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    ttsReady = true
+                    tts?.let { engine ->
+                        val langResult = engine.setLanguage(Locale.SIMPLIFIED_CHINESE)
+                        if (langResult != TextToSpeech.LANG_MISSING_DATA &&
+                            langResult != TextToSpeech.LANG_NOT_SUPPORTED
+                        ) {
+                            engine.setSpeechRate(0.88f)
+                            engine.setPitch(0.94f)
+                            pendingTtsText?.let { pending ->
+                                speakNow(engine, pending)
+                                pendingTtsText = null
+                            }
+                        } else {
+                            isVoicePlaying = false
+                            applyBgmDucking(false)
+                        }
+                    }
+                } else {
+                    ttsReady = false
+                    isVoicePlaying = false
+                    applyBgmDucking(false)
+                }
+            }
+        }
+    }
+
+    private fun speakNow(engine: TextToSpeech, text: String) {
+        engine.speak(
+            text,
+            TextToSpeech.QUEUE_FLUSH,
+            null,
+            "nandu_narration_${System.nanoTime()}"
+        )
+    }
+
+    fun stopVoice() {
+        voicePlayer?.runCatching {
+            stop()
+            release()
+        }
+        voicePlayer = null
+        tts?.runCatching { stop() }
+        pendingTtsText = null
+        if (isVoicePlaying) {
+            isVoicePlaying = false
+            applyBgmDucking(false)
+        }
+    }
+
+    private fun applyBgmDucking(duck: Boolean) {
+        bgmPlayer?.let { player ->
+            val target = if (duck) currentBgmVolume * voiceDuckFactor else currentBgmVolume
+            player.setVolume(target, target)
+        }
+    }
+
     fun release() {
         stopBgm()
         stopAmbience()
+        stopVoice()
+        tts?.runCatching { shutdown() }
+        tts = null
+        ttsReady = false
         soundPool.release()
         soundIds.clear()
     }
