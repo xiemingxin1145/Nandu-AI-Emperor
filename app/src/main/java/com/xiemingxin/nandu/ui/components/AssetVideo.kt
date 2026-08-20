@@ -19,14 +19,17 @@ import kotlin.math.max
 /**
  * Plays an MP4 bundled in Android assets using MediaPlayer + TextureView.
  *
+ * Generated/asset video is VISUAL ONLY. Its embedded audio track is never allowed into the game mix.
+ * BGM, ambience, SFX and voice must always be routed through GameAudioPlayer independently.
+ *
  * Why this exists instead of VideoView:
  * - TextureView can be center-cropped, which is important for portrait phones.
  * - generated V3 videos live under repository-root assets/videos and are packaged as Android assets.
  * - failure is non-fatal: when decoding/opening fails this composable removes itself so the caller's
  *   static image underneath remains visible.
  *
- * Generated V3 clips are currently H.265/AAC. Android 8+ devices usually support HEVC in hardware,
- * but support is not guaranteed on every device. Therefore every call site must keep a static fallback.
+ * Some legacy callers may still pass muted=false. That flag is intentionally ignored: asset videos
+ * remain silent by policy so generated AAC noise/voice can never leak into gameplay again.
  */
 @Composable
 fun AssetVideoSurface(
@@ -41,6 +44,10 @@ fun AssetVideoSurface(
     val context = LocalContext.current
     var failed by remember(path) { mutableStateOf(false) }
     var player by remember(path) { mutableStateOf<MediaPlayer?>(null) }
+
+    // Keep the parameter for source compatibility with older named-argument call sites.
+    @Suppress("UNUSED_VARIABLE")
+    val legacyMutedFlag = muted
 
     DisposableEffect(path) {
         onDispose {
@@ -67,13 +74,17 @@ fun AssetVideoSurface(
                             afd.close()
                             mediaPlayer.setSurface(Surface(surfaceTexture))
                             mediaPlayer.isLooping = loop
-                            if (muted) mediaPlayer.setVolume(0f, 0f)
+
+                            // Hard rule: every generated/asset video is visual-only.
+                            mediaPlayer.setVolume(0f, 0f)
 
                             mediaPlayer.setOnVideoSizeChangedListener { _, videoWidth, videoHeight ->
                                 applyCenterCrop(this@apply, videoWidth, videoHeight)
                             }
                             mediaPlayer.setOnPreparedListener { mp ->
                                 applyCenterCrop(this@apply, mp.videoWidth, mp.videoHeight)
+                                // Re-assert mute after prepare in case the platform reset the volume.
+                                mp.setVolume(0f, 0f)
                                 onPrepared?.invoke()
                                 mp.start()
                             }
