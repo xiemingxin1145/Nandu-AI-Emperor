@@ -162,7 +162,7 @@ object AppointmentSystem {
                 ) else it
             }
             return AppointResult.Success(
-                "【召回】${officer.name}本在$capitalName任所，即日入朝待命。",
+                "【召回】${officer.name}本在${capitalName}任所，即日入朝待命。",
                 state.copy(officers = newOfficers)
             )
         }
@@ -177,7 +177,7 @@ object AppointmentSystem {
         }
         return AppointResult.Success(
             "【诏令】遣使赴任所召${officer.name}还朝，路程约${travelTurns}旬。" +
-                "未抵$capitalName前不能列班奏对，只可由军报、奏折陈情。",
+                "未抵${capitalName}前不能列班奏对，只可由军报、奏折陈情。",
             state.copy(officers = newOfficers)
         )
     }
