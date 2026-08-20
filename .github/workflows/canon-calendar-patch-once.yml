@@ -1,0 +1,69 @@
+name: One-shot Canon Calendar Patch
+
+on:
+  push:
+    branches:
+      - integration/living-world-canon-recovery-v1
+    paths:
+      - .github/workflows/canon-calendar-patch-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integration/living-world-canon-recovery-v1
+          fetch-depth: 0
+
+      - name: Patch opening calendar defaults exactly once
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          rule = Path('app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt')
+          s = rule.read_text(encoding='utf-8')
+
+          old_calendar = '''data class GameCalendar(\n    val eraName: String = "建炎元年",\n    val year: Int = 1,\n    val month: Int = 1,\n    val tenDay: Int = 1\n)'''
+          new_calendar = '''data class GameCalendar(\n    val eraName: String = "建炎元年",\n    val year: Int = 1,\n    val month: Int = 6,\n    val tenDay: Int = 1\n)'''
+          if old_calendar in s:
+              s = s.replace(old_calendar, new_calendar, 1)
+          elif new_calendar not in s:
+              raise SystemExit('GameCalendar opening block not found; refusing broad replacement')
+
+          old_state = '''data class GameState(\n    val turn: Int = 1,\n    val era: String = "建炎元年",\n    val calendar: GameCalendar = GameCalendar(),\n    val season: Season = Season.SPRING,'''
+          new_state = '''data class GameState(\n    val turn: Int = 1,\n    val era: String = "建炎元年",\n    val calendar: GameCalendar = GameCalendar(),\n    val season: Season = Season.SUMMER,'''
+          if old_state in s:
+              s = s.replace(old_state, new_state, 1)
+          elif new_state not in s:
+              raise SystemExit('GameState opening block not found; refusing broad replacement')
+
+          rule.write_text(s, encoding='utf-8')
+
+          codec = Path('app/src/main/java/com/xiemingxin/nandu/game/GameSaveCodec.kt')
+          c = codec.read_text(encoding='utf-8')
+          c = c.replace('season = enumValueOf(root.optString("season", Season.SPRING.name)),',
+                        'season = enumValueOf(root.optString("season", Season.SUMMER.name)),', 1)
+          c = c.replace('month = optInt("month", 1),', 'month = optInt("month", 6),', 1)
+          codec.write_text(c, encoding='utf-8')
+          PY
+
+          git diff --check
+          git diff -- app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt app/src/main/java/com/xiemingxin/nandu/game/GameSaveCodec.kt
+
+      - name: Commit canonical opening defaults
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Opening calendar already patched."
+            exit 0
+          fi
+          git config user.name "nandu-ci-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/src/main/java/com/xiemingxin/nandu/game/GameRuleEngine.kt app/src/main/java/com/xiemingxin/nandu/game/GameSaveCodec.kt
+          git commit -m "fix(canon): start new games in Jianyan first year sixth month"
+          git push origin HEAD:integration/living-world-canon-recovery-v1
