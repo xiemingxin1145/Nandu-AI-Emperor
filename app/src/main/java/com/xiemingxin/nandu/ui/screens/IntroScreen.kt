@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.ui.components.AssetImage
 import kotlinx.coroutines.delay
 
@@ -121,7 +122,7 @@ fun IntroScreen(onStart: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 AssetImage(
-                    path = "images/characters/halfbody_zhao_gou.webp",
+                    path = ArtResourceRegistry.halfbodyForOfficer("zhao_gou"),
                     contentDescription = "康王赵构",
                     contentScale = ContentScale.Crop,
                     placeholderText = "构",

@@ -35,17 +35,17 @@ object ArtResourceRegistry {
 
     val historicalCharacters: Map<String, CharacterArt> = listOf(
         // 有专属 portrait_ + halfbody_ 文件的核心人物
-        character("zhao_gou",     "赵构",       "song",      "portrait_zhao_gou.webp",      "halfbody_zhao_gou.webp"),
+        character("zhao_gou",     "赵构",       "song",      "batch2/portrait_zhao_gou_batch2.webp",      "batch2/halfbody_zhao_gou_batch2.webp"),
         character("yue_fei",      "岳飞",       "song",      "batch1/portrait_yue_fei_batch1.webp",      "batch1/halfbody_yue_fei_batch1.webp"),
         character("han_shizhong", "韩世忠",     "song",      "batch1/portrait_han_shizhong_batch1.webp", "batch1/halfbody_han_shizhong_batch1.webp"),
-        character("wu_jie",       "吴玠",       "song",      "wu_jie.webp",                 "halfbody_wu_jie.webp"),
-        character("liu_qi",       "刘锜",       "song",      "portrait_liu_qi.webp",        "halfbody_liu_qi.webp"),
+        character("wu_jie",       "吴玠",       "song",      "batch2/portrait_wu_jie_batch2.webp",       "batch2/halfbody_wu_jie_batch2.webp"),
+        character("liu_qi",       "刘锜",       "song",      "batch2/portrait_liu_qi_batch2.webp",       "batch2/halfbody_liu_qi_batch2.webp"),
         character("li_gang",      "李纲",       "song",      "portrait_li_gang.webp",       "halfbody_li_gang.webp"),
-        character("zhao_ding",    "赵鼎",       "song",      "portrait_zhao_ding.webp",     "halfbody_zhao_ding.webp"),
-        character("qin_hui",      "秦桧",       "song",      "batch1/portrait_qin_hui_batch1.webp",      "batch1/halfbody_qin_hui_batch1.webp"),
+        character("zhao_ding",    "赵鼎",       "song",      "batch2/portrait_zhao_ding_batch2.webp",    "batch2/halfbody_zhao_ding_batch2.webp"),
+        character("qin_hui",      "秦桧",       "song",      "batch2/portrait_qin_hui_batch2.webp",      "batch2/halfbody_qin_hui_batch2.webp"),
         character("zhang_jun",    "张浚",       "song",      "portrait_zhang_jun.webp",     "halfbody_zhang_jun.webp"),
         character("zong_ze",      "宗泽",       "song",      "portrait_zong_ze.webp",       "halfbody_zong_ze.webp"),
-        character("wanyan_zongbi","完颜宗弼",   "jin",       "portrait_wanyan_zongbi.webp", "halfbody_wanyan_zongbi.webp"),
+        character("wanyan_zongbi","完颜宗弼",   "jin",       "batch2/portrait_wanyan_zongbi_batch2.webp", "batch2/halfbody_wanyan_zongbi_batch2.webp"),
         // 有简单 *.webp 无 halfbody 的人物
         character("wu_lin",        "吴璘",       "song",      "wu_lin.webp"),
         character("zhang_jun2",    "张俊",       "song",      "zhang_jun_general.webp"),
@@ -88,7 +88,8 @@ object ArtResourceRegistry {
         "mingdao_hall_night" to location("mingdao_hall_night", "明道宫偏殿（夜）", "bg_mingdao_hall_night.webp"),
         "yingtian_court_day" to location("yingtian_court_day", "应天府朝堂（日）", "bg_yingtian_court_day.webp"),
         "yingtian_corridor"  to location("yingtian_corridor",  "应天府走廊",        "bg_yingtian_corridor.webp"),
-        "kaifeng_war_report" to location("kaifeng_war_report", "开封战局配图",      "bg_kaifeng_war_report.webp")
+        "kaifeng_war_report" to location("kaifeng_war_report", "开封战局配图",      "bg_kaifeng_war_report.webp"),
+        "shunchang_wall"     to location("shunchang_wall",     "顺昌城头",          "batch2/bg_shunchang_wall_batch2.webp")
     )
 
     val cityBackgrounds: Map<String, NamedArt> = mapOf(
@@ -133,6 +134,7 @@ object ArtResourceRegistry {
         "imperial_edict_batch1" to event("imperial_edict_batch1", "下诏出兵", "batch1/event_imperial_edict_batch1.webp"),
         "army_departure_batch1" to event("army_departure_batch1", "城门出征", "batch1/event_army_departure_batch1.webp"),
         "jin_approach_batch1" to event("jin_approach_batch1", "金军压境", "batch1/event_jin_approach_batch1.webp"),
+        "yancheng_victory_batch2" to event("yancheng_victory_batch2", "郾城大捷", "batch2/event_yancheng_victory_batch2.webp"),
         "yuefei_petition" to event("yuefei_petition", "岳飞请战", "event_yuefei_petition.webp"),
         "fengboting_crisis" to event("fengboting_crisis", "风波亭危机", "event_fengboting_crisis.webp"),
         "empress_secret" to event("empress_secret", "皇后密陈", "event_empress_secret.webp"),

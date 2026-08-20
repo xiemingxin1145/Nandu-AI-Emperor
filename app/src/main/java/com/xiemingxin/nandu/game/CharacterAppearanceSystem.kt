@@ -37,9 +37,9 @@ object CharacterAppearanceSystem {
         val name = officer?.name ?: fallbackName
         val allowed = allowedPalacesFor(characterId, visibility)
         val portrait = if (visibility.ordinal >= CharacterVisibility.SEEN.ordinal) {
-            "images/characters/${characterId}.webp"
+            ArtResourceRegistry.portraitForOfficer(characterId)
         } else {
-            "images/characters/silhouette_${characterId}.webp"
+            ArtResourceRegistry.Fallback.portrait
         }
         return CharacterAppearanceInfo(
             characterId = characterId,

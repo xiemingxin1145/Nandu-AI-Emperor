@@ -189,6 +189,7 @@ private fun eventCgPath(event: StoryEvent): String {
 
     val text = listOf(event.title, event.description, event.artHint, event.type, event.chapter).joinToString(" ")
     val key = when {
+        text.contains("郾城") || text.contains("大捷") || text.contains("凯旋") -> "yancheng_victory_batch2"
         text.contains("顺昌") -> "shunchang_prewar_batch1"
         text.contains("出征") || text.contains("调兵") || text.contains("迎战") -> "army_departure_batch1"
         text.contains("金军") || text.contains("金兵") || text.contains("压境") || text.contains("渡淮") -> "jin_approach_batch1"
