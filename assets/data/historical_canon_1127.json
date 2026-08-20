@@ -1,12 +1,13 @@
 {
-  "canonVersion": 1,
+  "canonVersion": "1.1",
   "project": "南渡无悔",
   "branch": "research/historical-canon-1127-v1",
   "createdAt": "2026-08-20",
+  "reviewedAt": "2026-08-20",
   "openingBookmark": {
     "recommended": true,
     "era": "建炎元年",
-    "lunar": "六月己未朔（六月初一）前后",
+    "lunar": "六月己未朔（六月初一）",
     "gregorianApprox": "1127-07-11",
     "emperorLocation": {
       "name": "南京应天府",
@@ -14,26 +15,28 @@
       "not": ["临安", "杭州", "建康", "扬州"]
     },
     "courtSetting": {
-      "primaryHall": "应天府治正厅（权充殿宇）",
+      "primaryHall": "应天行在·内殿",
+      "displayLabel": "应天行在",
+      "historicalNamingConfidence": "high_for_内殿_as_safe_source_term; exact architectural hall name uncertain",
       "forbiddenHallNames": ["垂拱殿"],
-      "reason": "建炎元年应天无垂拱殿；临安垂拱殿为绍兴中后期行宫建置"
+      "reason": "《建炎以来系年要录》在六月己未朔记李纲‘入见于内殿’；1127年应天开局不应套用后来临安宫城的垂拱殿名。临安垂拱殿属绍兴十二年前后宫城建置。"
     },
-    "rationale": "李纲已至、朝政可玩、和战对立形成、名将未刷脸、秦桧未归"
+    "rationale": "六月己未朔李纲抵达行在并入见，新政权的和战、用人、巡幸争论已具备高密度可玩性；秦桧尚未归宋，后世名臣不应提前刷脸。"
   },
   "namingRules": {
-    "linanAllowedFrom": "建炎三年（1129）升杭州为临安府；稳定行在语境更晚",
+    "linanAllowedFrom": "建炎三年（1129）升杭州为临安府；作为稳定行在/都城语境应更谨慎使用",
     "linanAsCapitalIn1127": false,
     "chuigongDianIn1127Yingtian": false
   },
   "characters": [
     {"id": "zhao_gou", "name": "赵构", "alive": true, "visibility": "AT_COURT", "location": "应天府", "office": "皇帝", "atCourt": true},
-    {"id": "li_gang", "name": "李纲", "alive": true, "visibility": "AT_COURT", "location": "应天府", "office": "尚书右仆射兼中书侍郎", "atCourt": true, "notes": "约八月罢相，可蝴蝶"},
-    {"id": "zong_ze", "name": "宗泽", "alive": true, "visibility": "DEPLOYED", "location": "东京开封", "office": "东京留守、知开封府", "atCourt": false},
-    {"id": "yue_fei", "name": "岳飞", "alive": true, "age": 25, "visibility": "WANDERING", "location": "军中/非行在朝堂", "office": "低阶武官（或已罢）", "atCourt": false, "recruitable": true, "hardRule": "不可普通朝会列班"},
-    {"id": "han_shizhong", "name": "韩世忠", "alive": true, "visibility": "IN_CAPITAL", "location": "应天府周边", "office": "光州观察使、带御器械、御营将领", "atCourt": "limited_military"},
-    {"id": "qin_hui", "name": "秦桧", "alive": true, "visibility": "CAPTIVE", "location": "金国（挞懒系统）", "office": null, "atCourt": false, "hardRule": "建炎四年前不可入宋朝"},
+    {"id": "li_gang", "name": "李纲", "alive": true, "visibility": "AT_COURT", "location": "应天府", "office": "尚书右仆射兼中书侍郎", "atCourt": true, "openingDayEvent": "六月己未朔抵达行在并入见", "notes": "历史上约八月罢相；游戏中属可蝴蝶改变节点"},
+    {"id": "zong_ze", "name": "宗泽", "alive": true, "visibility": "AT_COURT", "location": "应天府", "office": "龙图阁学士、新知襄阳府", "atCourt": true, "temporaryAtOpening": true, "openingDayEvent": "六月己未朔自卫南分兵屯河上，以数百骑赴南都，是日入对", "transitionAfterOpening": "随后外任；六月后期改知开封府、东京留守，不得长期常驻行在朝堂", "hardRule": "开局当天可入对，但后续一旦外任即只通过奏疏/军报出现"},
+    {"id": "yue_fei", "name": "岳飞", "alive": true, "age": 25, "visibility": "WANDERING", "location": "非行在朝班；建炎元年五月上书后被夺官，八月再投张所", "office": null, "atCourt": false, "recruitable": true, "statusConfidence": "medium_on_exact_day_but_safe_for_gameplay", "hardRule": "不可普通朝会列班；不得因后世名气提前进入皇帝核心圈"},
+    {"id": "han_shizhong", "name": "韩世忠", "alive": true, "visibility": "IN_CAPITAL", "location": "应天府/行在军事体系", "office": "光州观察使、带御器械等武职", "atCourt": "limited_military", "hardRule": "可在军务召见出现，不作为常朝文班固定成员"},
+    {"id": "qin_hui", "name": "秦桧", "alive": true, "visibility": "CAPTIVE", "location": "金国（挞懒系统）", "office": null, "atCourt": false, "recruitable": false, "hardRule": "建炎四年十月南归前不可进入宋廷朝堂"},
     {"id": "zhao_ding", "name": "赵鼎", "alive": true, "visibility": "NOT_YET_RELEVANT", "atCourt": false},
-    {"id": "zhang_jun", "name": "张浚", "alive": true, "visibility": "IN_CAPITAL", "location": "应天府", "atCourt": true, "notes": "尚未后期相业"},
+    {"id": "zhang_jun", "name": "张浚", "alive": true, "visibility": "IN_CAPITAL", "location": "应天府", "atCourt": true, "notes": "尚未形成后期宣抚、宰辅时期的政治地位"},
     {"id": "wu_jie", "name": "吴玠", "alive": true, "visibility": "NOT_YET_RELEVANT", "atCourt": false},
     {"id": "liu_qi", "name": "刘锜", "alive": true, "visibility": "NOT_YET_RELEVANT", "atCourt": false},
     {"id": "wanyan_zongbi", "name": "完颜宗弼", "visibility": "ENEMY", "faction": "金"},
@@ -43,23 +46,24 @@
     {"id": "wang_boyan", "name": "汪伯彦", "visibility": "AT_COURT", "location": "应天府", "atCourt": true}
   ],
   "anachronisms": [
-    {"id": "A1", "severity": "开局都城写作临安", "severity": "应天府", "severity": "critical"},
-    {"id": "A2", "severity": "开局主殿垂拱殿", "severity": "府治正厅/行在便殿", "severity": "critical"},
-    {"id": "A3", "severity": "岳飞开局上朝", "severity": "WANDERING/非朝会", "severity": "critical"},
-    {"id": "A4", "severity": "秦桧开局在朝", "severity": "CAPTIVE至1130", "severity": "critical"},
-    {"id": "A5", "severity": "宗泽日常侍侧", "severity": "DEPLOYED东京", "severity": "major"}
+    {"id": "A1", "problem": "1127开局把临安当都城/行在", "replacement": "南京应天府", "severity": "critical"},
+    {"id": "A2", "problem": "1127应天开局主殿称垂拱殿", "replacement": "应天行在·内殿（安全称呼）", "severity": "critical"},
+    {"id": "A3", "problem": "岳飞作为普通朝班重臣出现", "replacement": "WANDERING/非朝会；后续通过军中事件进入视野", "severity": "critical"},
+    {"id": "A4", "problem": "秦桧建炎元年已在南宋朝廷", "replacement": "CAPTIVE，建炎四年十月南归前锁定在宋廷外", "severity": "critical"},
+    {"id": "A5", "problem": "宗泽从开局起长期日常侍侧", "replacement": "六月己未朔开局当天可入对；随后外任并转东京留守，只通过奏疏/军报常态出现", "severity": "major"}
   ],
   "timelineWindow": {
     "beforeDays": 30,
     "afterDays": 60,
-    "fixedPast": ["靖康之变", "二帝北迁", "赵构即位改元", "召李纲", "岳飞越职上书罢职"],
-    "butterfly": ["李纲罢相", "南幸扬州", "两河招抚成败", "岳飞投张所路径"]
+    "fixedPast": ["靖康之变", "二帝北迁", "赵构即位改元", "召李纲", "岳飞越职上书并被夺官"],
+    "historicalPressure": ["宗泽外任并转东京留守", "李纲与黄潜善/汪伯彦和战路线冲突"],
+    "butterfly": ["李纲是否按历史在八月罢相", "是否南幸扬州", "两河招抚成败", "岳飞后续投张所/王彦/宗泽的路径"]
   },
   "sources": [
-    "建炎以来系年要录",
-    "宋史·高宗本纪及诸列传",
-    "三朝北盟会编",
-    "续资治通鉴",
-    "岳飞官职系年研究（王曾瑜等）"
+    {"title": "建炎以来系年要录·卷六", "note": "六月己未朔李纲至行在；宗泽同日赴南都入对"},
+    {"title": "宋史·高宗本纪及诸列传", "note": "建炎初人物任免与行在"},
+    {"title": "咸淳临安志·宫阙一", "note": "临安行宫与绍兴十二年垂拱殿建置"},
+    {"title": "三朝北盟会编", "note": "靖康—建炎之际政局"},
+    {"title": "金佗稡编", "note": "岳飞建炎元年上书、夺官、八月投张所"}
   ]
 }
