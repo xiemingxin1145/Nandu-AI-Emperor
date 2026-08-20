@@ -1,14 +1,14 @@
 package com.xiemingxin.nandu.game
 
 /**
- * Stage 5 战争系统（修复版）
+ * Stage 5 战争系统（第三轮修复版）
  *
- * 修复内容（PR审查）：
- *  1. 野战失败方残军 → 退往己方相邻节点或溃散，不留在目标城
- *  2. 攻克后 City.troops = 0，旧守军不转换为攻方城防
- *  3. 敌方守将/太守 → 退往己方城池或WANDERING，不变IN_COURT
- *  4. 多Army伤亡精确分配（sum == defenderLosses，无舍入误差）
- *  5. handleDefeat 无退路 → 军团溃散，不在敌方节点GARRISONED
+ * 修复内容：
+ *  Round2-Fix1/2: applyFieldOutcome 按 attackerWins 分支处理守方残军
+ *               + 删除重复 retreatDefenderArmy 调用
+ *  Round2-Fix3: disperseCommander / retreatOfficerToFaction 显式传入
+ *               ownerFactionId / defenderFactionId，不再依赖 officer.faction
+ *  Round2-Fix4: 攻击方全灭时主帅同步处理
  */
 object WarSystem {
 
@@ -22,7 +22,6 @@ object WarSystem {
         attackerArmyId: String,
         targetCityId: String
     ): WarResult {
-        // ── 合法性验证 ─────────────────────────────────────────────────────────
         val attackerArmy = state.armies.find { it.id == attackerArmyId }
             ?: return WarResult.Failure("【进攻失败】找不到该军团。")
         if (attackerArmy.troops <= 0)
@@ -76,10 +75,14 @@ object WarSystem {
             )
             battleLog.add(fieldOutcome.report)
 
-            // 写回野战伤亡 + 失败方残军退却（Fix #1 #4）
-            workingState = applyFieldOutcome(workingState, attackerArmy.id, defenderArmies, fieldOutcome, state.turn, targetCityId)
+            // Round2-Fix1: 按胜负分支处理守方
+            workingState = applyFieldOutcome(
+                workingState, attackerArmy.id, defenderArmies,
+                fieldOutcome, state.turn, targetCityId
+            )
 
             if (!fieldOutcome.attackerWins) {
+                // 攻方失败 → 退却
                 workingState = handleDefeat(workingState, attackerArmy.id)
                 return WarResult.Success(battleLog.joinToString("\n\n"), workingState, fieldOutcome)
             }
@@ -100,7 +103,10 @@ object WarSystem {
         )
         battleLog.add(siegeOutcome.report)
 
-        workingState = applySiegeOutcome(workingState, currentAtk.id, currentCity.id, siegeOutcome, state.turn)
+        workingState = applySiegeOutcome(
+            workingState, currentAtk.id, currentCity.id,
+            siegeOutcome, state.turn, targetCity.owner
+        )
 
         val finalOutcome = if (fieldOutcome != null) {
             siegeOutcome.copy(
@@ -113,21 +119,15 @@ object WarSystem {
         return WarResult.Success(finalOutcome.report, workingState, finalOutcome)
     }
 
-    // ─── 精确分配伤亡（Fix #4：sum == defenderLosses，无舍入误差）─────────────
-    /**
-     * 按兵力比例分配 totalLoss 到多支 Army，保证 sum 精确等于 totalLoss。
-     * 使用 floor + remainder 逐一补足，确定性（不依赖随机）。
-     */
+    // ─── 精确伤亡分配 ──────────────────────────────────────────────────────────
     internal fun distributeExactLoss(armies: List<Army>, totalLoss: Int): Map<String, Int> {
         if (armies.isEmpty() || totalLoss <= 0) return emptyMap()
         val totalTroops = armies.sumOf { it.troops }.coerceAtLeast(1)
-        // floor 分配
         val floors = armies.associate { a ->
             a.id to (totalLoss.toLong() * a.troops / totalTroops).toInt().coerceIn(0, a.troops)
         }
         var remainder = totalLoss - floors.values.sum()
         val result = floors.toMutableMap()
-        // 把余数按顺序补给仍有可扣空间的 Army
         for (a in armies) {
             if (remainder <= 0) break
             val canTake = a.troops - result.getValue(a.id)
@@ -138,7 +138,7 @@ object WarSystem {
         return result
     }
 
-    // ─── 写回野战伤亡（Fix #1 #4）────────────────────────────────────────────
+    // ─── 写回野战伤亡（Round2-Fix1 + Round2-Fix2）────────────────────────────
     private fun applyFieldOutcome(
         state: GameState,
         attackerArmyId: String,
@@ -147,64 +147,64 @@ object WarSystem {
         currentTurn: Int,
         targetCityId: String
     ): GameState {
-        // 精确分配伤亡
         val lossMap = distributeExactLoss(defenderArmies, outcome.defenderLosses)
-
         var officers = state.officers
+
         val newArmies = state.armies.mapNotNull { army ->
             when {
                 army.id == attackerArmyId -> {
+                    val remaining = outcome.attackerRemaining.coerceAtLeast(0)
                     val after = army.copy(
-                        troops = outcome.attackerRemaining.coerceAtLeast(0),
+                        troops = remaining,
                         morale = outcome.attackerMoraleAfter,
                         lastBattleTurn = currentTurn
                     )
-                    if (after.troops <= 0) null else after
+                    if (after.troops <= 0) {
+                        // Round2-Fix4: 攻击方全灭，主帅同步处理
+                        officers = disperseCommander(officers, army.commanderId, army.ownerFactionId, state)
+                        null
+                    } else after
                 }
+
                 defenderArmies.any { it.id == army.id } -> {
                     val loss = lossMap.getValue(army.id)
                     val remaining = army.troops - loss
                     if (remaining <= 0) {
-                        // 溃散：主帅回散状态
-                        officers = disperseCommander(officers, army.commanderId, state)
+                        // 守方全灭 → 溃散（Round2-Fix3：传 ownerFactionId）
+                        officers = disperseCommander(officers, army.commanderId, army.ownerFactionId, state)
                         null
-                    } else {
-                        // Fix #1：失败方残军必须撤往己方节点，不得留在目标城
+                    } else if (outcome.attackerWins) {
+                        // Round2-Fix1: 攻方赢了 → 守方残军撤退（Fix2: 只调用一次）
                         val afterBase = army.copy(troops = remaining, morale = outcome.defenderMoraleAfter)
-                        retreatDefenderArmy(afterBase, state, targetCityId)
-                        // retreatDefenderArmy 返回 null 表示溃散
                         val retreated = retreatDefenderArmy(afterBase, state, targetCityId)
                         if (retreated == null) {
-                            officers = disperseCommander(officers, army.commanderId, state)
+                            officers = disperseCommander(officers, army.commanderId, army.ownerFactionId, state)
                         }
-                        retreated
+                        retreated  // null → 溃散移除
+                    } else {
+                        // Round2-Fix1: 攻方输了 → 守方残军原地留守，不撤退不溃散
+                        army.copy(troops = remaining, morale = outcome.defenderMoraleAfter)
                     }
                 }
+
                 else -> army
             }
         }
         return state.copy(armies = newArmies, officers = officers)
     }
 
-    /**
-     * 野战失败方残军退却：找相邻己方城市或溃散（Fix #1）
-     * 返回 null = 溃散
-     */
+    /** 野战胜利后守方残军退却（仅在 attackerWins==true 时调用） */
     private fun retreatDefenderArmy(army: Army, state: GameState, fightCityId: String): Army? {
-        // 找相邻己方节点（排除战场本身）
         val safeNode = MapData.neighborsOf(fightCityId)
             .firstOrNull { nbId ->
                 nbId != fightCityId &&
                 state.cities.find { it.id == nbId }?.owner == army.ownerFactionId
             }
-            ?: run {
-                // 也试试army.currentCityId的邻居（ENGAGEMENT_PENDING时可能不在fightCity）
-                MapData.neighborsOf(army.currentCityId)
-                    .firstOrNull { nbId ->
-                        nbId != fightCityId &&
-                        state.cities.find { it.id == nbId }?.owner == army.ownerFactionId
-                    }
-            }
+            ?: MapData.neighborsOf(army.currentCityId)
+                .firstOrNull { nbId ->
+                    nbId != fightCityId &&
+                    state.cities.find { it.id == nbId }?.owner == army.ownerFactionId
+                }
             ?: return null   // 无退路 → 溃散
 
         return army.copy(
@@ -218,13 +218,14 @@ object WarSystem {
         )
     }
 
-    // ─── 写回攻城伤亡（Fix #2 #3）────────────────────────────────────────────
+    // ─── 写回攻城伤亡 ─────────────────────────────────────────────────────────
     private fun applySiegeOutcome(
         state: GameState,
         attackerArmyId: String,
         targetCityId: String,
         outcome: BattleOutcome,
-        currentTurn: Int
+        currentTurn: Int,
+        defenderFactionId: String   // Round2-Fix3: 显式传入，不依赖officer.faction
     ): GameState {
         var cities = state.cities
         var armies = state.armies
@@ -244,47 +245,56 @@ object WarSystem {
                 currentCityId = if (outcome.cityCaptured) targetCityId else army.currentCityId,
                 targetCityId = if (outcome.cityCaptured) "" else army.targetCityId
             )
-            if (after.troops <= 0) null else after
+            if (after.troops <= 0) {
+                // Round2-Fix4: 攻击方攻城中全灭，主帅处理
+                officers = disperseCommander(officers, army.commanderId, army.ownerFactionId, state)
+                null
+            } else after
         }
 
         if (outcome.cityCaptured) {
-            // Fix #2：占领后 City.troops = 0，旧守军不转换为攻方士兵
+            // City.troops = 0（旧守军不转化为攻方）
             cities = cities.map { city ->
                 if (city.id != targetCityId) city
                 else city.copy(
                     owner = outcome.attackerFactionId,
-                    troops = 0,                                            // ← Fix #2
+                    troops = 0,
                     defense = (city.defense * 0.7).toInt().coerceIn(10, city.defense),
                     popularSupport = (city.popularSupport * 0.75).toInt().coerceIn(10, city.popularSupport),
                     controlState = "FRONTLINE"
                 )
             }
 
-            // Fix #3：敌方守将/太守 → 退往己方城市或WANDERING，不变IN_COURT
+            // Round2-Fix3: 守将/太守用 defenderFactionId 退往己方城市
             val garId = state.cityGarrisons[targetCityId]
             val govId = state.cityGovernors[targetCityId]
 
             garId?.let { id ->
                 val garOfficer = officers.find { it.id == id }
                 if (garOfficer != null) {
-                    officers = retreatOfficerToFaction(officers, garOfficer, state, targetCityId)
+                    officers = retreatOfficerToFaction(
+                        officers, garOfficer, state, targetCityId, defenderFactionId
+                    )
                 }
                 newCityGarrisons = newCityGarrisons - targetCityId
             }
             govId?.let { id ->
-                val govOfficer = officers.find { it.id == id }
-                if (govOfficer != null && id != garId) {  // 避免重复处理
-                    officers = retreatOfficerToFaction(officers, govOfficer, state, targetCityId)
+                if (id != garId) {
+                    val govOfficer = officers.find { it.id == id }
+                    if (govOfficer != null) {
+                        officers = retreatOfficerToFaction(
+                            officers, govOfficer, state, targetCityId, defenderFactionId
+                        )
+                    }
                 }
                 newCityGovernors = newCityGovernors - targetCityId
             }
 
-            // 移除目标城内所有残余守方 Army（野战后应已撤退，但防御性清理）
+            // 清除目标城内残余守方 Army
             armies = armies.filter { a ->
-                !(a.ownerFactionId == outcome.defenderFactionId && a.currentCityId == targetCityId)
+                !(a.ownerFactionId == defenderFactionId && a.currentCityId == targetCityId)
             }
         } else {
-            // 攻城失败：只更新城池剩余守军
             cities = cities.map { city ->
                 if (city.id != targetCityId) city
                 else city.copy(troops = outcome.defenderRemaining.coerceAtLeast(0))
@@ -292,74 +302,67 @@ object WarSystem {
         }
 
         return state.copy(
-            armies = armies,
-            cities = cities,
-            officers = officers,
-            cityGarrisons = newCityGarrisons,
-            cityGovernors = newCityGovernors
+            armies = armies, cities = cities, officers = officers,
+            cityGarrisons = newCityGarrisons, cityGovernors = newCityGovernors
         )
     }
 
-    /**
-     * Fix #3：敌方人物退往己方控制的相邻城市，找不到则变WANDERING
-     */
+    // ─── Round2-Fix3: 退往己方城市，用显式 factionId ─────────────────────────
     private fun retreatOfficerToFaction(
         officers: List<Officer>,
         officer: Officer,
         state: GameState,
-        lostCityId: String
+        lostCityId: String,
+        factionId: String             // 显式传入，不用 officer.faction
     ): List<Officer> {
-        val factionCities = state.cities.filter { it.owner == officer.faction }
-        // 尝试退往原驻城相邻己方节点
+        val factionCities = state.cities.filter { it.owner == factionId }
         val safeCity = MapData.neighborsOf(lostCityId)
             .mapNotNull { nbId -> factionCities.find { it.id == nbId } }
             .firstOrNull()
-            ?: factionCities.firstOrNull()  // 退到任意己方城市
+            ?: factionCities.firstOrNull()
 
         val newStatus = if (safeCity != null) OfficerStatus.DEPLOYED else OfficerStatus.WANDERING
         val newCity = safeCity?.id ?: officer.currentCityId
-
         return officers.map {
             if (it.id == officer.id) it.copy(status = newStatus, currentCityId = newCity) else it
         }
     }
 
-    /**
-     * 溃散时武将处置：退往己方城市待命（不死不俘，Stage5阶段）
-     */
-    private fun disperseCommander(officers: List<Officer>, commanderId: String, state: GameState): List<Officer> {
-        val officer = officers.find { it.id == commanderId } ?: return officers
-        val safeCity = state.cities.filter { it.owner == officer.faction }.firstOrNull()
+    // ─── Round2-Fix3+Fix4: 溃散主帅，用显式 ownerFactionId ──────────────────
+    private fun disperseCommander(
+        officers: List<Officer>,
+        commanderId: String,
+        ownerFactionId: String,        // 显式传入，不用 officer.faction
+        state: GameState
+    ): List<Officer> {
+        val safeCity = state.cities.filter { it.owner == ownerFactionId }.firstOrNull()
         return officers.map {
-            if (it.id == commanderId) it.copy(
+            if (it.id != commanderId) it
+            else it.copy(
                 status = if (safeCity != null) OfficerStatus.IN_COURT else OfficerStatus.WANDERING,
                 currentCityId = safeCity?.id ?: it.currentCityId
-            ) else it
+            )
         }
     }
 
-    // ─── 败军退却（Fix #5）────────────────────────────────────────────────────
-    /**
-     * Fix #5：无退路则溃散（不在敌方节点GARRISONED）
-     */
+    // ─── 败军退却（Round2-Fix3: 用 army.ownerFactionId）──────────────────────
     internal fun handleDefeat(state: GameState, armyId: String): GameState {
         val army = state.armies.find { it.id == armyId } ?: return state
         val currentCity = state.cities.find { it.id == army.currentCityId }
 
         val safeNode: String? = when {
             currentCity != null && currentCity.owner == army.ownerFactionId ->
-                army.currentCityId  // 已在友方节点，原地
+                army.currentCityId
             else ->
                 MapData.neighborsOf(army.currentCityId)
                     .firstOrNull { nbId ->
                         state.cities.find { it.id == nbId }?.owner == army.ownerFactionId
                     }
-            // null = 无退路
         }
 
         if (safeNode == null) {
-            // 无退路 → 溃散，移除军团，武将散去
-            val newOfficers = disperseCommander(state.officers, army.commanderId, state)
+            // 无退路 → 溃散（Round2-Fix3: ownerFactionId）
+            val newOfficers = disperseCommander(state.officers, army.commanderId, army.ownerFactionId, state)
             return state.copy(
                 armies = state.armies.filter { it.id != armyId },
                 officers = newOfficers
@@ -368,7 +371,10 @@ object WarSystem {
 
         val newArmies = state.armies.mapNotNull { a ->
             if (a.id != armyId) return@mapNotNull a
-            if (a.troops <= 0) return@mapNotNull null
+            if (a.troops <= 0) {
+                disperseCommander(state.officers, a.commanderId, a.ownerFactionId, state)
+                return@mapNotNull null
+            }
             a.copy(
                 currentCityId = safeNode,
                 statusCode = ArmyStatus.GARRISONED,
