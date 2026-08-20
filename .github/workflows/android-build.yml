@@ -30,18 +30,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run unit tests
-        run: |
-          ./gradlew :app:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/build.log
-          EXIT=${PIPESTATUS[0]}
-          if [ $EXIT -ne 0 ]; then
-            cp /tmp/build.log build-error-latest.txt
-            git config user.email "ci@bot.dev"
-            git config user.name "CI Bot"
-            git add build-error-latest.txt
-            git diff --cached --quiet || git commit -m "ci: build error [skip ci]"
-            git push --force-with-lease || git push
-          fi
-          exit $EXIT
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
