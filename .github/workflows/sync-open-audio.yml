@@ -11,6 +11,9 @@ on:
       - 'docs/THIRD_PARTY_AUDIO.md'
       - 'app/src/main/java/com/xiemingxin/nandu/agent/UtilityDecisionEngine.kt'
       - 'app/src/test/java/com/xiemingxin/nandu/agent/UtilityDecisionEngineTest.kt'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -22,9 +25,10 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Checkout source branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -65,8 +69,10 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
-      - name: Commit vetted generated assets to branch
+      - name: Commit vetted generated assets to source branch
         shell: bash
+        env:
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
         run: |
           set -e
           git config user.name 'github-actions[bot]'
@@ -76,7 +82,7 @@ jobs:
             echo 'No audio asset changes to commit.'
           else
             git commit -m 'chore(audio): replace generated prompt clips with vetted CC0 assets [skip ci]'
-            git push origin HEAD:opensource-audio-framework-pass
+            git push origin "HEAD:${TARGET_BRANCH}"
           fi
 
       - name: Upload tested APK
