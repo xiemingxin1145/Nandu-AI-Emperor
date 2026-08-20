@@ -148,7 +148,7 @@ enum class WeatherType(val label: String, val effectText: String) {
 data class GameCalendar(
     val eraName: String = "建炎元年",
     val year: Int = 1,
-    val month: Int = 1,
+    val month: Int = 6,
     val tenDay: Int = 1
 ) {
     fun monthName(): String = listOf(
@@ -224,7 +224,7 @@ data class GameState(
     val turn: Int = 1,
     val era: String = "建炎元年",
     val calendar: GameCalendar = GameCalendar(),
-    val season: Season = Season.SPRING,
+    val season: Season = Season.SUMMER,
     val weather: WeatherType = WeatherType.RAIN,
     val gold: Int = 50000,
     val grain: Int = 200000,

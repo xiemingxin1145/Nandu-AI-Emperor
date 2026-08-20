@@ -54,7 +54,7 @@ object GameSaveCodec {
             turn = root.optInt("turn", 1),
             era = root.optString("era", "建炎元年"),
             calendar = root.optJSONObject("calendar")?.toCalendar() ?: GameCalendar(),
-            season = enumValueOf(root.optString("season", Season.SPRING.name)),
+            season = enumValueOf(root.optString("season", Season.SUMMER.name)),
             weather = enumValueOf(root.optString("weather", WeatherType.RAIN.name)),
             gold = root.optInt("gold", 50000),
             grain = root.optInt("grain", 200000),
@@ -91,7 +91,7 @@ object GameSaveCodec {
     private fun JSONObject.toCalendar() = GameCalendar(
         eraName = optString("eraName", "建炎元年"),
         year = optInt("year", 1),
-        month = optInt("month", 1),
+        month = optInt("month", 6),
         tenDay = optInt("tenDay", 1)
     )
 
