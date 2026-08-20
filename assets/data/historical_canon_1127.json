@@ -1,0 +1,65 @@
+{
+  "canonVersion": 1,
+  "project": "南渡无悔",
+  "branch": "research/historical-canon-1127-v1",
+  "createdAt": "2026-08-20",
+  "openingBookmark": {
+    "recommended": true,
+    "era": "建炎元年",
+    "lunar": "六月己未朔（六月初一）前后",
+    "gregorianApprox": "1127-07-11",
+    "emperorLocation": {
+      "name": "南京应天府",
+      "modern": "河南商丘",
+      "not": ["临安", "杭州", "建康", "扬州"]
+    },
+    "courtSetting": {
+      "primaryHall": "应天府治正厅（权充殿宇）",
+      "forbiddenHallNames": ["垂拱殿"],
+      "reason": "建炎元年应天无垂拱殿；临安垂拱殿为绍兴中后期行宫建置"
+    },
+    "rationale": "李纲已至、朝政可玩、和战对立形成、名将未刷脸、秦桧未归"
+  },
+  "namingRules": {
+    "linanAllowedFrom": "建炎三年（1129）升杭州为临安府；稳定行在语境更晚",
+    "linanAsCapitalIn1127": false,
+    "chuigongDianIn1127Yingtian": false
+  },
+  "characters": [
+    {"id": "zhao_gou", "name": "赵构", "alive": true, "visibility": "AT_COURT", "location": "应天府", "office": "皇帝", "atCourt": true},
+    {"id": "li_gang", "name": "李纲", "alive": true, "visibility": "AT_COURT", "location": "应天府", "office": "尚书右仆射兼中书侍郎", "atCourt": true, "notes": "约八月罢相，可蝴蝶"},
+    {"id": "zong_ze", "name": "宗泽", "alive": true, "visibility": "DEPLOYED", "location": "东京开封", "office": "东京留守、知开封府", "atCourt": false},
+    {"id": "yue_fei", "name": "岳飞", "alive": true, "age": 25, "visibility": "WANDERING", "location": "军中/非行在朝堂", "office": "低阶武官（或已罢）", "atCourt": false, "recruitable": true, "hardRule": "不可普通朝会列班"},
+    {"id": "han_shizhong", "name": "韩世忠", "alive": true, "visibility": "IN_CAPITAL", "location": "应天府周边", "office": "光州观察使、带御器械、御营将领", "atCourt": "limited_military"},
+    {"id": "qin_hui", "name": "秦桧", "alive": true, "visibility": "CAPTIVE", "location": "金国（挞懒系统）", "office": null, "atCourt": false, "hardRule": "建炎四年前不可入宋朝"},
+    {"id": "zhao_ding", "name": "赵鼎", "alive": true, "visibility": "NOT_YET_RELEVANT", "atCourt": false},
+    {"id": "zhang_jun", "name": "张浚", "alive": true, "visibility": "IN_CAPITAL", "location": "应天府", "atCourt": true, "notes": "尚未后期相业"},
+    {"id": "wu_jie", "name": "吴玠", "alive": true, "visibility": "NOT_YET_RELEVANT", "atCourt": false},
+    {"id": "liu_qi", "name": "刘锜", "alive": true, "visibility": "NOT_YET_RELEVANT", "atCourt": false},
+    {"id": "wanyan_zongbi", "name": "完颜宗弼", "visibility": "ENEMY", "faction": "金"},
+    {"id": "wanyan_zongwang", "name": "完颜宗望", "visibility": "ENEMY", "faction": "金"},
+    {"id": "wanyan_zonghan", "name": "完颜宗翰", "visibility": "ENEMY", "faction": "金"},
+    {"id": "huang_qianshan", "name": "黄潜善", "visibility": "AT_COURT", "location": "应天府", "atCourt": true},
+    {"id": "wang_boyan", "name": "汪伯彦", "visibility": "AT_COURT", "location": "应天府", "atCourt": true}
+  ],
+  "anachronisms": [
+    {"id": "A1", "severity": "开局都城写作临安", "severity": "应天府", "severity": "critical"},
+    {"id": "A2", "severity": "开局主殿垂拱殿", "severity": "府治正厅/行在便殿", "severity": "critical"},
+    {"id": "A3", "severity": "岳飞开局上朝", "severity": "WANDERING/非朝会", "severity": "critical"},
+    {"id": "A4", "severity": "秦桧开局在朝", "severity": "CAPTIVE至1130", "severity": "critical"},
+    {"id": "A5", "severity": "宗泽日常侍侧", "severity": "DEPLOYED东京", "severity": "major"}
+  ],
+  "timelineWindow": {
+    "beforeDays": 30,
+    "afterDays": 60,
+    "fixedPast": ["靖康之变", "二帝北迁", "赵构即位改元", "召李纲", "岳飞越职上书罢职"],
+    "butterfly": ["李纲罢相", "南幸扬州", "两河招抚成败", "岳飞投张所路径"]
+  },
+  "sources": [
+    "建炎以来系年要录",
+    "宋史·高宗本纪及诸列传",
+    "三朝北盟会编",
+    "续资治通鉴",
+    "岳飞官职系年研究（王曾瑜等）"
+  ]
+}
