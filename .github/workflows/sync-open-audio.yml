@@ -1,5 +1,9 @@
-name: Sync vetted CC0 audio
+name: Sync vetted CC0 fallback audio
 
+# IMPORTANT:
+# This workflow is only a recovery/fallback tool for the old vetted CC0 pack.
+# Do NOT run it automatically on normal pull requests: custom/original music
+# branches must be allowed to replace audio/bgm without being overwritten.
 on:
   push:
     branches:
@@ -11,9 +15,6 @@ on:
       - 'docs/THIRD_PARTY_AUDIO.md'
       - 'app/src/main/java/com/xiemingxin/nandu/agent/UtilityDecisionEngine.kt'
       - 'app/src/test/java/com/xiemingxin/nandu/agent/UtilityDecisionEngineTest.kt'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -28,7 +29,7 @@ jobs:
       - name: Checkout source branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -72,7 +73,7 @@ jobs:
       - name: Commit vetted generated assets to source branch
         shell: bash
         env:
-          TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           set -e
           git config user.name 'github-actions[bot]'
@@ -81,7 +82,7 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No audio asset changes to commit.'
           else
-            git commit -m 'chore(audio): replace generated prompt clips with vetted CC0 assets [skip ci]'
+            git commit -m 'chore(audio): restore vetted CC0 fallback assets [skip ci]'
             git push origin "HEAD:${TARGET_BRANCH}"
           fi
 
