@@ -209,9 +209,25 @@ object WorldContextFactory {
             }
             .toList()
 
+        // 兼容 Stage 6 的 OpenAI-compatible 提示模板：候选战略压缩进 era 简报，
+        // 不额外增加一次模型调用。模型仍输出原 WorldAction JSON，但会优先照着候选动作选择。
+        val candidateBrief = strategyCandidates.joinToString("；") { c ->
+            val actions = c.actions.joinToString("+") { a ->
+                "${a.type}(${a.armyId}${if (a.targetCityId.isNotBlank()) "->${a.targetCityId}" else ""})"
+            }
+            "${c.id}[${c.intent},分${c.score}]:${c.summary}=>$actions"
+        }
+        val eraWithStrategy = buildString {
+            append("${state.calendar.displayText()} / ${state.season.label} / ${state.weather.label}")
+            if (candidateBrief.isNotBlank()) {
+                append("\nStage7本地军议候选（优先从中择策，不要另造不合理行动）：")
+                append(candidateBrief)
+            }
+        }
+
         return WorldTurnContext(
             turn = state.turn,
-            era = "${state.calendar.displayText()} / ${state.season.label} / ${state.weather.label}",
+            era = eraWithStrategy,
             playerFactionId = playerFactionId,
             factions = factionContexts,
             cities = cityContexts,
