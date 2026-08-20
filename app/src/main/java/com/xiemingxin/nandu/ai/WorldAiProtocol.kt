@@ -1,23 +1,22 @@
 package com.xiemingxin.nandu.ai
 
 import com.xiemingxin.nandu.game.ArmyStatus
+import com.xiemingxin.nandu.game.FactionStrategyPlanner
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
 import com.xiemingxin.nandu.game.OfficerStatus
 import kotlinx.serialization.Serializable
 
 /**
- * Stage 6 AI World Engine 协议。
+ * AI World Engine 协议。
  *
- * 设计目标：
- *  1. 一个便宜模型每旬只调用一次，统一决定非玩家势力行动 + 重要人物主动上奏；
- *  2. AI 只能“提出动作”，不能直接修改兵力/城池/钱粮；
- *  3. 所有动作交给本地规则引擎二次校验并执行，避免模型幻觉改世界状态；
- *  4. 协议尽量小，适合 mini / flash / deepseek-chat / qwen 等低成本模型。
+ * Stage 7 在 Stage 6 的“AI 只能提出动作”基础上再收紧一层：
+ * 本地规则先生成少量经过地图、补给、兵力校验的战略候选，便宜模型主要负责挑选候选与生成角色奏言。
  */
 @Serializable
 data class WorldTurnPlan(
     val strategySummary: String = "",
+    val selectedStrategyIds: List<String> = emptyList(),
     val actions: List<WorldAction> = emptyList(),
     val npcInitiatives: List<NpcInitiative> = emptyList()
 )
@@ -61,7 +60,17 @@ data class WorldTurnContext(
     val factions: List<WorldFactionContext>,
     val cities: List<WorldCityContext>,
     val armies: List<WorldArmyContext>,
-    val officers: List<WorldOfficerContext>
+    val officers: List<WorldOfficerContext>,
+    val strategyCandidates: List<WorldStrategyCandidateContext> = emptyList()
+)
+
+data class WorldStrategyCandidateContext(
+    val id: String,
+    val factionId: String,
+    val intent: String,
+    val score: Int,
+    val summary: String,
+    val actions: List<WorldAction>
 )
 
 data class WorldFactionContext(
@@ -184,6 +193,22 @@ object WorldContextFactory {
                 )
             }
 
+        val strategyCandidates = state.factions
+            .asSequence()
+            .filter { it.id != playerFactionId && !it.isDestroyed }
+            .flatMap { FactionStrategyPlanner.candidates(state, it.id).asSequence() }
+            .map { candidate ->
+                WorldStrategyCandidateContext(
+                    id = candidate.id,
+                    factionId = candidate.factionId,
+                    intent = candidate.intent.name,
+                    score = candidate.score,
+                    summary = candidate.summary,
+                    actions = candidate.actions
+                )
+            }
+            .toList()
+
         return WorldTurnContext(
             turn = state.turn,
             era = "${state.calendar.displayText()} / ${state.season.label} / ${state.weather.label}",
@@ -191,7 +216,8 @@ object WorldContextFactory {
             factions = factionContexts,
             cities = cityContexts,
             armies = armyContexts,
-            officers = officerContexts
+            officers = officerContexts,
+            strategyCandidates = strategyCandidates
         )
     }
 }
