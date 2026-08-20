@@ -70,7 +70,7 @@ private fun GameAudioController(
     ending: GameEnding,
     currentTab: Int,
     inCity: Boolean,
-    inPalaceTask: Boolean,
+    activePalaceId: String?,
     battleSignal: String?,
     sfxSignal: String?,
     audioEnabled: Boolean,
@@ -79,30 +79,42 @@ private fun GameAudioController(
 ) {
     val safeBgmVolume = if (audioEnabled) bgmVolume.coerceIn(0f, 1f) else 0f
     val safeSfxVolume = if (audioEnabled) sfxVolume.coerceIn(0f, 1f) else 0f
-    val scene = when {
-        ending != GameEnding.ONGOING && ending.rank == "亡" -> "defeat"
-        ending != GameEnding.ONGOING -> "victory"
-        showIntro -> "main_menu"
-        inCity -> "city"
-        inPalaceTask -> "council"
-        else -> when (currentTab) {
-            0 -> "palace"
-            1 -> "court"
-            2 -> "map"
-            3 -> "court"
-            4 -> "military"
-            else -> "court"
+
+    val (sceneKey, bgmPath) = when {
+        ending != GameEnding.ONGOING && ending.rank == "亡" ->
+            "defeat" to AudioResourceRegistry.bgmForScene("defeat")
+        ending != GameEnding.ONGOING ->
+            "victory" to AudioResourceRegistry.bgmForScene("victory")
+        showIntro ->
+            "main_menu" to AudioResourceRegistry.bgmForScene("main_menu")
+        inCity ->
+            "city" to AudioResourceRegistry.bgmForScene("city")
+        activePalaceId != null ->
+            "palace:$activePalaceId" to AudioResourceRegistry.bgmForPalace(activePalaceId)
+        else -> {
+            val scene = when (currentTab) {
+                0 -> "palace"
+                1 -> "court"
+                2 -> "map"
+                3 -> "study"
+                4 -> "military"
+                else -> "court"
+            }
+            scene to AudioResourceRegistry.bgmForScene(scene)
         }
     }
+
     com.xiemingxin.nandu.ui.components.PlayBgmEffect(
-        path = AudioResourceRegistry.bgmForScene(scene),
-        sceneKey = scene,
+        path = bgmPath,
+        sceneKey = sceneKey,
+        enabled = audioEnabled,
         volume = safeBgmVolume,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.Sfx.drumWar,
         triggerKey = battleSignal,
+        enabled = audioEnabled,
         volume = safeSfxVolume * 0.85f,
         variant = true,
         player = player
@@ -110,12 +122,14 @@ private fun GameAudioController(
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.Sfx.battleStart,
         triggerKey = battleSignal,
+        enabled = audioEnabled,
         volume = safeSfxVolume * 0.7f,
         player = player
     )
     com.xiemingxin.nandu.ui.components.PlaySfxEffect(
         path = AudioResourceRegistry.sfxForGameEvent(sfxSignal?.substringBefore(":").orEmpty()),
         triggerKey = sfxSignal,
+        enabled = audioEnabled,
         volume = safeSfxVolume,
         variant = true,
         player = player
@@ -164,7 +178,7 @@ fun NanduApp() {
             ending = uiState.ending,
             currentTab = currentTab,
             inCity = interiorCityId != null,
-            inPalaceTask = activePalaceId != null,
+            activePalaceId = activePalaceId,
             battleSignal = uiState.battleReport,
             sfxSignal = sfxSignal,
             audioEnabled = audioEnabled,
