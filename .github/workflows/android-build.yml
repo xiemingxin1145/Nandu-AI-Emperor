@@ -30,7 +30,32 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --stacktrace 2>&1 | tee /tmp/gradle_test_output.txt
+
+      - name: Report failure details via commit comment (sandbox log-access workaround)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          find app/build/test-results -name "*.xml" -exec grep -l "<failure" {} \; 2>/dev/null | \
+            xargs -I{} sh -c 'echo "== {} =="; grep -B2 -A15 "<failure" "{}"' 2>/dev/null > /tmp/report.txt
+          if [ ! -s /tmp/report.txt ]; then
+            echo "(no JUnit <failure> found -- likely a compile error; tail of gradle output below)" > /tmp/report.txt
+            tail -c 50000 /tmp/gradle_test_output.txt >> /tmp/report.txt 2>/dev/null
+          fi
+          head -c 55000 /tmp/report.txt > /tmp/report_trunc.txt
+          jq -n --rawfile report /tmp/report_trunc.txt --arg branch "${{ github.ref_name }}" \
+            '{body: ("CI unit test failure summary (branch: " + $branch + ")\n\n" + "```" + "\n" + $report + "\n" + "```")}' \
+            > /tmp/payload.json
+          curl -s -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
+            --data @/tmp/payload.json
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
