@@ -128,6 +128,7 @@ fun NanduApp() {
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
     var showOfficerList by remember { mutableStateOf(false) }
+    var showShunchangBattle by remember { mutableStateOf(false) }
     var edictText by remember { mutableStateOf("") }
     var sfxSignal by remember { mutableStateOf<String?>(null) }
     var audioEnabled by remember { mutableStateOf(audioPrefs.getBoolean(AUDIO_ENABLED_KEY, true)) }
@@ -295,6 +296,13 @@ fun NanduApp() {
         return
     }
 
+    if (showShunchangBattle) {
+        ShunchangBattleScreen(
+            onBack = { playSfx("close_panel"); showShunchangBattle = false }
+        )
+        return
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(InkBlack)) {
         Box(modifier = Modifier.weight(1f)) {
             when (currentTab) {
@@ -304,7 +312,8 @@ fun NanduApp() {
                     isRealAiEnabled = uiState.isRealAiEnabled,
                     onOpenSettings = { playSfx("open_panel"); showSettings = true },
                     onOpenPalace = { palaceId -> playSfx("council_open"); activePalaceId = palaceId },
-                    onNavigate = { tab -> playSfx("switch_tab"); currentTab = tab + 1 }
+                    onNavigate = { tab -> playSfx("switch_tab"); currentTab = tab + 1 },
+                    onOpenShunchang = { playSfx("military_start"); showShunchangBattle = true }
                 )
                 1 -> EmperorMainScreen(
                     uiState = uiState,

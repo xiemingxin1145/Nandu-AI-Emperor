@@ -58,6 +58,7 @@ fun PalaceHallScreen(
     onOpenSettings: () -> Unit,
     onOpenPalace: (String) -> Unit,
     onNavigate: (Int) -> Unit,
+    onOpenShunchang: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val songCities = state.cities.count { it.owner == "song" }
@@ -158,6 +159,9 @@ fun PalaceHallScreen(
                 PalaceWing(PalaceIds.HOUYUAN, "太后、皇后、宦官密奏", taskBadge(taskCounts, PalaceIds.HOUYUAN, "内廷"), Modifier.weight(1f), onOpenPalace)
                 PalaceWing(PalaceIds.TAIMIAO, "祭祀、威望、功业传承", taskBadge(taskCounts, PalaceIds.TAIMIAO, "名望 ${state.prestige}"), Modifier.weight(1f), onOpenPalace)
             }
+            Spacer(Modifier.height(12.dp))
+            // ── 顺昌战役·战前军议 入口（美术资产实装测试）──
+            ShunchangEntryCard(onClick = onOpenShunchang)
             Spacer(Modifier.height(12.dp))
 
             Text(
@@ -286,4 +290,72 @@ private fun DrawScope.drawPalaceAtmosphere() {
         drawLine(gold, Offset(x, 0f), Offset(x - 90f, size.height), strokeWidth = 1.1f)
     }
     drawCircle(HallGold.copy(alpha = 0.09f), radius = size.minDimension * 0.62f, center = Offset(size.width * 0.74f, size.height * 0.18f))
+}
+
+/**
+ * 顺昌战役·战前军议 入口卡片
+ * 美术资产实装能力测试场景入口
+ */
+@Composable
+private fun ShunchangEntryCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(96.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xBD2A0E08)),
+        border = BorderStroke(1.5.dp, HallRed.copy(alpha = 0.7f))
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            // 背景：攻城战图
+            AssetImage(
+                path = "images/battles/battle_siege.webp",
+                contentDescription = "顺昌战役",
+                contentScale = ContentScale.Crop,
+                placeholderText = "战",
+                modifier = Modifier.fillMaxSize()
+            )
+            // 暗化遮罩
+            Box(Modifier.fillMaxSize().background(Color(0xAA000000)))
+            // 内容
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 左侧：红色战报印章
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(HallRed.copy(alpha = 0.85f), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("急", color = HallCream, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("报", color = HallCream, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                // 中间：标题和描述
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "顺昌战役 · 战前军议",
+                        color = HallGold,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "完颜宗弼十万铁骑南下，刘锜孤城告急。入殿议攻守。",
+                        color = HallCream.copy(alpha = 0.85f),
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
+                // 右侧：进入箭头
+                Text("›", color = HallGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
 }
