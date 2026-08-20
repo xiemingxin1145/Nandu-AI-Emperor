@@ -126,6 +126,7 @@ fun NanduApp() {
     var activePalaceId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
     var currentTab by remember { mutableStateOf(0) }
+    var showOfficerList by remember { mutableStateOf(false) }
     var edictText by remember { mutableStateOf("") }
     var sfxSignal by remember { mutableStateOf<String?>(null) }
     var audioEnabled by remember { mutableStateOf(audioPrefs.getBoolean(AUDIO_ENABLED_KEY, true)) }
@@ -318,7 +319,18 @@ fun NanduApp() {
                 )
                 2 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
                 3 -> StateScreen(gameState = uiState.gameState)
-                4 -> MilitaryScreen(gameState = uiState.gameState)
+                4 -> if (showOfficerList) {
+                    OfficerListScreen(
+                        gameState = uiState.gameState,
+                        onBack = { showOfficerList = false }
+                    )
+                } else {
+                    MilitaryScreenV4(
+                        gameState = uiState.gameState,
+                        onBack = {},
+                        onOpenOfficerList = { showOfficerList = true }
+                    )
+                }
             }
         }
 
@@ -326,7 +338,7 @@ fun NanduApp() {
             listOf("皇宫" to 0, "朝议" to 1, "山河" to 2, "国政" to 3, "军务" to 4).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
-                    onClick = { playSfx("switch_tab"); activePalaceId = null; currentTab = idx },
+                    onClick = { playSfx("switch_tab"); activePalaceId = null; currentTab = idx; showOfficerList = false },
                     icon = {},
                     label = { Text(label, fontSize = 12.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(

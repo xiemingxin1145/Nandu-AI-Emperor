@@ -277,7 +277,8 @@ private fun OfficerRow(officer: Officer, cityName: String, onClick: () -> Unit =
 @Composable
 fun MilitaryScreenV4(
     gameState: GameState,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onOpenOfficerList: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedArmyId by remember { mutableStateOf<String?>(null) }
@@ -296,6 +297,12 @@ fun MilitaryScreenV4(
                 modifier = Modifier.clickable { onBack() }.padding(end = 12.dp))
             Text("军团总览", color = Color(0xFFC9A227), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
+            Text(
+                "人才",
+                color = Color(0xFFC9A227),
+                fontSize = 13.sp,
+                modifier = Modifier.clickable { onOpenOfficerList() }.padding(horizontal = 8.dp)
+            )
             val total = garrisoned.size + marching.size + engaging.size
             Text("共${total}支军团", color = Color(0xFF9A8862), fontSize = 12.sp)
         }
