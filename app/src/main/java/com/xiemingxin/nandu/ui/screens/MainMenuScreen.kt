@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +41,6 @@ import com.xiemingxin.nandu.ui.components.AssetImage
 import com.xiemingxin.nandu.ui.components.AssetVideoSurface
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 
-// ── 主菜单局部色 ──────────────────────────────────────
 private val MenuBg       = Color(0xFF0C0907)
 private val GoldDim      = Color(0xFFAA8820)
 private val CreamDim     = Color(0xFFB8A88A)
@@ -47,8 +48,9 @@ private val ItemBorder   = Color(0xFF8B6914)
 private val ItemPressed  = Color(0xFF2A1E08)
 
 /**
- * V1.1 主菜单。
+ * V1.2 主菜单。
  * 静态背景永远保留为 fallback；V3 动态主菜单视频可解码时自动覆盖其上。
+ * “天命绘卷”同时作为真机视频资产验收入口，可直接浏览全部 V3 MP4。
  */
 @Composable
 fun MainMenuScreen(
@@ -57,6 +59,13 @@ fun MainMenuScreen(
     onSettings: () -> Unit,
     onExit: () -> Unit
 ) {
+    var showGallery by remember { mutableStateOf(false) }
+
+    if (showGallery) {
+        VideoGalleryOverlay(onBack = { showGallery = false })
+        return
+    }
+
     val pulse = rememberInfiniteTransition(label = "title_pulse")
     val titleAlpha by pulse.animateFloat(
         initialValue = 0.90f, targetValue = 1f,
@@ -67,7 +76,6 @@ fun MainMenuScreen(
     )
 
     Box(modifier = Modifier.fillMaxSize().background(MenuBg)) {
-        // 静态图永远在底层：视频不支持 HEVC/资源失败时，玩家仍然看到完整主菜单。
         AssetImage(
             path = ArtResourceRegistry.menuBackground(),
             contentDescription = "南渡无悔主菜单",
@@ -76,7 +84,6 @@ fun MainMenuScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // V02：真正的动态主菜单。视频静音，声音由游戏 BGM 系统独立负责。
         VideoResourceRegistry.find("menu_loop")?.let { clip ->
             AssetVideoSurface(
                 path = clip.path,
@@ -150,8 +157,7 @@ fun MainMenuScreen(
             MenuEntry(
                 label = "天 命 绘 卷",
                 subtitle = "已见之人，已历之事，皆有迹可寻。",
-                onClick = { },
-                enabled = false
+                onClick = { showGallery = true }
             )
             Spacer(Modifier.height(14.dp))
             MenuEntry(
