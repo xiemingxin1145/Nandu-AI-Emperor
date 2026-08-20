@@ -231,7 +231,9 @@ data class GameState(
     val talentLeads: Set<String> = emptySet(),                    // 已发现的在野人才线索 officerId
     // Stage 3 城池任职体系：正式任命记录（区别于"人在城里"）
     val cityGovernors: Map<String, String> = emptyMap(),          // cityId → officerId，城池主官
-    val cityGarrisons: Map<String, String> = emptyMap()           // cityId → officerId，驻城守将
+    val cityGarrisons: Map<String, String> = emptyMap(),          // cityId → officerId，驻城守将
+    // Stage 8 人物 Agent 系统（全默认值，旧存档兼容）
+    val characterAgentStates: Map<String, com.xiemingxin.nandu.agent.CharacterAgentState> = emptyMap()
 )
 
 // ═══ V1.7 天下战略：势力归属统计与存亡判定（骨架，不改动既有经济/战斗结算逻辑）═══

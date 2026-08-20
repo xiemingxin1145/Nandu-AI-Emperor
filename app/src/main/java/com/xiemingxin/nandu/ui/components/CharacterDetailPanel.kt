@@ -38,6 +38,8 @@ import com.xiemingxin.nandu.game.PropResourceRegistry
 import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.VisualAssetV3
 import com.xiemingxin.nandu.game.commandLimit
+import com.xiemingxin.nandu.agent.CharacterAgentState
+import com.xiemingxin.nandu.agent.CharacterAgentSystem
 import com.xiemingxin.nandu.game.profile
 
 private val PanelGold = Color(0xFFC9A227)
@@ -51,7 +53,8 @@ fun CharacterDetailPanelWithState(
     officer: Officer,
     gameState: GameState,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    agentState: CharacterAgentState? = gameState.characterAgentStates[officer.id]
 ) {
     val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name ?: officer.currentCityId
     val isLeadPending = officer.id in gameState.talentLeads &&
