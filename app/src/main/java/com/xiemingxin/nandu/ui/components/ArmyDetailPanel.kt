@@ -88,17 +88,17 @@ fun ArmyDetailPanel(
             HorizontalDivider(color = Gold.copy(alpha = 0.2f), thickness = 0.5.dp)
             Spacer(Modifier.height(8.dp))
 
-            // 核心数值
-            StatRow("兵力", "${army.troops / 1000}k", Gold)
-            StatRow("士气", "${army.morale}%", if (army.morale >= 70) Green else if (army.morale >= 40) Color(0xFFFFD54F) else Red)
-            StatRow("补给", "${army.supplyLevel}%", when {
+            // 核心数值（Stage5：内联StatRow避免private function scope问题）
+            ArmyStatLine("兵力", "${army.troops / 1000}k", Gold)
+            ArmyStatLine("士气", "${army.morale}%", if (army.morale >= 70) Green else if (army.morale >= 40) Color(0xFFFFD54F) else Red)
+            ArmyStatLine("补给", "${army.supplyLevel}%", when {
                 army.supplyLevel >= 60 -> Green
                 army.supplyLevel >= 25 -> Color(0xFFFFD54F)
                 else -> Red
             })
-            StatRow("军型", army.armyType, Sub)
+            ArmyStatLine("军型", army.armyType, Sub)
             commander?.let {
-                StatRow("主帅统率", "${it.command}", if (it.command >= 80) Gold else Cream)
+                ArmyStatLine("主帅统率", "${it.command}", if (it.command >= 80) Gold else Cream)
             }
             // Stage 5: 战争操作按钮
             if (army.statusCode == ArmyStatus.ENGAGEMENT_PENDING) {
@@ -130,5 +130,13 @@ fun ArmyDetailPanel(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ArmyStatLine(label: String, value: String, valueColor: Color) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = Sub, fontSize = 12.sp)
+        Text(value, color = valueColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }

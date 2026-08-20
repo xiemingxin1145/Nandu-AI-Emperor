@@ -334,10 +334,6 @@ fun NanduApp() {
                         onRetreatArmy = { armyId -> viewModel.executeRetreatArmy(armyId) }
                     )
                 }
-                // 战报弹窗（跨Tab显示）
-                uiState.lastBattleOutcome?.let { outcome ->
-                    BattleReportPanel(outcome = outcome, onDismiss = { viewModel.dismissBattleReport() })
-                }
             }
         }
 
@@ -387,6 +383,10 @@ fun NanduApp() {
             }
         }
 
+        // Stage 5 战报弹窗
+        uiState.lastBattleOutcome?.let { outcome ->
+            BattleReportPanel(outcome = outcome, onDismiss = { viewModel.dismissBattleReport() })
+        }
         uiState.battleReport?.let { report ->
             Dialog(onDismissRequest = { playSfx("close_panel"); viewModel.dismissBattleReport() }) {
                 Card(

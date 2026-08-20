@@ -199,87 +199,18 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun siegeCity(targetCityId: String) {
+        // Stage 5: 旧攻城入口，转发给 WarSystem（向后兼容）
         val state = _uiState.value.gameState
-        val target = state.cities.firstOrNull { it.id == targetCityId } ?: return
-        if (target.owner == "song" && target.controlState == "STABLE") return
-
-        if (state.storyFlags.contains("sieged_this_turn")) {
-            _uiState.value = _uiState.value.copy(battleReport = "大军一旬之内已发动攻势，将士疲惫、粮道未稳，须待下一旬整备后再战。")
+        val army = state.armies.firstOrNull {
+            it.ownerFactionId == "song" &&
+            (it.statusCode == ArmyStatus.ENGAGEMENT_PENDING || it.statusCode == ArmyStatus.GARRISONED)
+        } ?: run {
+            _uiState.value = _uiState.value.copy(battleReport = "无可用军团，无法发起攻势。")
             return
         }
-        val songGrain = state.cities.filter { it.owner == "song" }.sumOf { it.grain }
-        val warGrainCost = 20000
-        if (songGrain < warGrainCost) {
-            _uiState.value = _uiState.value.copy(battleReport = "粮草不足两万石，大军无法出征。当务之急是屯田筹粮。")
-            return
-        }
-
-        val songArmies = state.armies.filter { it.ownerFactionId == "song" }
-        val attackerTroops = songArmies.sumOf { it.troops }.coerceAtLeast(5000)
-        val avgMorale = if (songArmies.isNotEmpty()) songArmies.sumOf { it.morale } / songArmies.size else 50
-        val commander = state.officers
-            .filter { it.faction == "song" || it.faction.contains("战") }
-            .maxByOrNull { it.command }
-        val command = commander?.command ?: 60
-
-        val outcome = BattleResolver.resolveSiege(
-            attackerTroops = attackerTroops,
-            attackerMorale = avgMorale,
-            commanderCommand = command,
-            city = target,
-            season = state.season,
-            weather = state.weather
-        )
-
-        val newOwner = if (outcome.newControlState == "STABLE" || outcome.newControlState == "FRONTLINE") {
-            if (outcome.attackerWins && target.owner == "jin") "song" else target.owner
-        } else target.owner
-        val newTarget = target.copy(
-            controlState = outcome.newControlState,
-            owner = newOwner,
-            troops = (target.troops - outcome.defenderLosses).coerceAtLeast(0)
-        )
-
-        val totalAtk = attackerTroops.coerceAtLeast(1)
-        val moraleShift = if (outcome.attackerWins) 8 else -12
-        val newArmies = state.armies.map { army ->
-            if (army.ownerFactionId == "song") {
-                val share = (outcome.attackerLosses.toDouble() * army.troops / totalAtk).toInt()
-                army.copy(
-                    troops = (army.troops - share).coerceAtLeast(0),
-                    morale = (army.morale + moraleShift).coerceIn(10, 100)
-                )
-            } else army
-        }
-
-        var remainingCost = warGrainCost
-        val citiesAfterGrain = state.cities.map { c ->
-            if (c.owner == "song" && remainingCost > 0) {
-                val deduct = minOf(c.grain, remainingCost)
-                remainingCost -= deduct
-                if (c.id == targetCityId) newTarget.copy(grain = (newTarget.grain - deduct).coerceAtLeast(0))
-                else c.copy(grain = c.grain - deduct)
-            } else if (c.id == targetCityId) newTarget else c
-        }
-        val newGameState = state.copy(
-            cities = citiesAfterGrain,
-            armies = newArmies,
-            storyFlags = state.storyFlags + "sieged_this_turn"
-        )
-        val earned = _uiState.value.earnedAchievements
-        val newAch = AchievementSystem.checkNewAchievements(newGameState, earned)
-        _uiState.value = _uiState.value.copy(
-            gameState = newGameState,
-            battleReport = outcome.report,
-            ending = VictoryJudge.judgeDefeat(newGameState),
-            earnedAchievements = earned + newAch,
-            newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement
-        )
+        executeAttackCity(army.id, targetCityId)
     }
 
-    fun dismissBattleReport() {
-        _uiState.value = _uiState.value.copy(battleReport = null)
-    }
 
     fun visitCity(cityId: String, action: CityVisitAction) {
         val state = _uiState.value.gameState
@@ -397,7 +328,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun dismissBattleReport() {
-        _uiState.value = _uiState.value.copy(lastBattleOutcome = null)
+        _uiState.value = _uiState.value.copy(lastBattleOutcome = null, battleReport = null)
     }
     // ─────────────────────────────────────────────────────────────────────────
 
