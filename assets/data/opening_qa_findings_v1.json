@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "game": "南渡无悔",
+    "audit": "opening-30min-director-v1",
+    "baselineBranch": "fix/world-ai-regression-tests-v1",
+    "date": "2026-08-20",
+    "scores": { "aiNative": 38, "historicalImmersion": 52, "feelsLikeRealGame": 45 }
+  },
+  "findings": [
+    {"id": "OPEN-001", "severity": "BLOCKER", "category": "historical_anachronism", "location": "MapData.kt node linan", "problem": "地图节点将 linan 显示为临安且 isCapital=true，与应天府行在矛盾。", "playerImpact": "玩家第一眼地图可能认定首都在临安。", "recommendedFix": "MapData 与 InitialData 对齐：显示名杭州，isCapital=false。", "priority": "BLOCKER"},
+    {"id": "OPEN-002", "severity": "BLOCKER", "category": "historical_anachronism", "location": "PrologueScreen.kt Act 6", "problem": "序章结尾称百官候在垂拱殿。", "playerImpact": "身份代入被拉到临安宫城印象。", "recommendedFix": "改为行在正殿/行殿等应天语境。", "priority": "BLOCKER"},
+    {"id": "OPEN-003", "severity": "P0", "category": "historical_anachronism", "location": "random_events_v1.json", "problem": "大量事件默认临安舞台，无年代门闸。", "playerImpact": "建炎元年抽到临安事件则信任崩塌。", "recommendedFix": "事件加 era/minTurn/requiresCapital。", "priority": "P0"},
+    {"id": "OPEN-004", "severity": "P0", "category": "court_ux", "location": "CourtCouncilSystem", "problem": "第一次朝会几乎只有历史名人台词卡。", "playerImpact": "像名人座谈会。", "recommendedFix": "至少 2～3 名具名小官入镜。", "priority": "P0"},
+    {"id": "OPEN-005", "severity": "P0", "category": "ai_native", "location": "过旬反馈 UI", "problem": "金军战略脑存在但玩家几乎看不见。", "playerImpact": "世界像在等按钮。", "recommendedFix": "每旬必出基于真实状态的金军动态摘要。", "priority": "P0"},
+    {"id": "OPEN-006", "severity": "P0", "category": "ai_native", "location": "npcInitiatives", "problem": "主动奏事结构空。", "playerImpact": "NPC 像菜单项。", "recommendedFix": "第一旬至少 1 条具名主动奏。", "priority": "P0"},
+    {"id": "OPEN-007", "severity": "P0", "category": "presentation", "location": "Prologue BGM whitelist", "problem": "BGM 白名单为空。", "playerImpact": "序章变静音 PPT。", "recommendedFix": "验收 1～2 条无歌词曲加入白名单。", "priority": "P0"},
+    {"id": "OPEN-008", "severity": "P1", "category": "historical_anachronism", "location": "CouncilConsequenceSystem", "problem": "结果文案写垂拱殿定……", "playerImpact": "持续错误宫城印象。", "recommendedFix": "统一行在朝议文案。", "priority": "P1"},
+    {"id": "OPEN-009", "severity": "P1", "category": "historical_anachronism", "location": "ArtResourceRegistry", "problem": "城名注册临安。", "playerImpact": "UI 标题穿帮。", "recommendedFix": "开局显示杭州。", "priority": "P1"},
+    {"id": "OPEN-010", "severity": "P1", "category": "historical_anachronism", "location": "WorldRegionPlan", "problem": "核心城用临安、绍兴后期名。", "playerImpact": "战略区划与 1127 不符。", "recommendedFix": "用杭州、越州。", "priority": "P1"},
+    {"id": "OPEN-011", "severity": "P1", "category": "court_ux", "location": "人物提示文案", "problem": "解锁等开发者句式。", "playerImpact": "破沉浸。", "recommendedFix": "改为未闻其名等。", "priority": "P1"},
+    {"id": "OPEN-012", "severity": "P1", "category": "character_continuity", "location": "宗泽外任 UI", "problem": "日程有、表现可能无。", "playerImpact": "名人消失像 bug。", "recommendedFix": "邸报写明赴东京留守。", "priority": "P1"},
+    {"id": "OPEN-013", "severity": "P1", "category": "ai_native", "location": "朝会后果", "problem": "只改数值不记人际。", "playerImpact": "决定无重量。", "recommendedFix": "下旬台词引用上旬方向。", "priority": "P1"},
+    {"id": "OPEN-014", "severity": "P1", "category": "presentation", "location": "天命绘卷", "problem": "像资产验收工具。", "playerImpact": "主菜单像开发包。", "recommendedFix": "移入设置或包装史卷。", "priority": "P1"},
+    {"id": "OPEN-015", "severity": "P2", "category": "court_population", "location": "npc library", "problem": "36 百官库未接通。", "playerImpact": "朝堂密度不够。", "recommendedFix": "先接 8 名 PROMOTABLE。", "priority": "P2"},
+    {"id": "OPEN-016", "severity": "P2", "category": "language", "location": "全局文案", "problem": "招募等词偏手游。", "playerImpact": "轻度破沉浸。", "recommendedFix": "按身份用访求/宣召/擢用。", "priority": "P2"},
+    {"id": "OPEN-017", "severity": "P2", "category": "audio", "location": "BGM 策略", "problem": "序章无曲、需分场景。", "playerImpact": "听觉空洞或疲劳。", "recommendedFix": "菜单/行在/前线分曲。", "priority": "P2"},
+    {"id": "OPEN-018", "severity": "P0", "category": "opening_pacing", "location": "序章到朝会衔接", "problem": "身份高潮后落入管理 UI。", "playerImpact": "情绪断崖。", "recommendedFix": "第一次朝会三拍导演案。", "priority": "P0"},
+    {"id": "OPEN-019", "severity": "P1", "category": "character_continuity", "location": "韩世忠场合", "problem": "可能混入主殿文班。", "playerImpact": "武将文班化。", "recommendedFix": "主殿过滤；枢密再出现。", "priority": "P1"},
+    {"id": "OPEN-020", "severity": "P2", "category": "ui_jargon", "location": "AI 设置主路径", "problem": "Provider 配置压迫主菜单。", "playerImpact": "削弱官家身份。", "recommendedFix": "设置深层化；Mock 可玩开局。", "priority": "P2"}
+  ]
+}
