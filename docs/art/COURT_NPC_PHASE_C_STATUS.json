@@ -1,0 +1,23 @@
+{
+  "phase": "C",
+  "branch": "art/song-court-npc-library-v1",
+  "webpReadyCount": 16,
+  "portraits": 8,
+  "halfbodies": 8,
+  "crowds": 0,
+  "tierC": 0,
+  "promotableCompletePortrait": 8,
+  "promotableCompleteHalfbody": 8,
+  "promotableHalfbodyLimited": ["npc_hubu_01", "npc_neishi_01"],
+  "zip": "Nandu_Court_NPC_Art_V1.zip",
+  "readyIds": [
+    "npc_court_zhongshu_01",
+    "npc_censor_01",
+    "npc_shumi_01",
+    "npc_court_qiju_01",
+    "npc_court_geishi_01",
+    "npc_court_zhongshu_02",
+    "npc_hubu_01",
+    "npc_neishi_01"
+  ]
+}
