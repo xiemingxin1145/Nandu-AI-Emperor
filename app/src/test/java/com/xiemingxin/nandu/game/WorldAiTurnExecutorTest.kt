@@ -61,6 +61,56 @@ class WorldAiTurnExecutorTest {
     }
 
     @Test
+    fun `not yet relevant person is never leaked to world ai context`() {
+        val state = GameState()
+        val zhaoDing = state.officers.first { it.id == "zhao_ding" }
+        assertEquals(OfficerStatus.NOT_YET_RELEVANT, zhaoDing.status)
+
+        val context = WorldContextFactory.fromState(state)
+        assertFalse(context.officers.any { it.id == zhaoDing.id })
+    }
+
+    @Test
+    fun `hidden undiscovered person is not leaked to world ai context`() {
+        val base = GameState()
+        val template = base.officers.first { it.id == "li_gang" }
+        val hidden = template.copy(
+            id = "test_hidden_officer",
+            name = "未发现之人",
+            status = OfficerStatus.HIDDEN,
+            currentCityId = "xinyang"
+        )
+        val state = base.copy(
+            officers = base.officers + hidden,
+            talentLeads = base.talentLeads - hidden.id
+        )
+
+        val context = WorldContextFactory.fromState(state)
+        assertFalse(context.officers.any { it.id == hidden.id })
+    }
+
+    @Test
+    fun `public enemy army remains visible to world ai context`() {
+        val state = GameState()
+        val publicJinArmy = state.armies.first { it.ownerFactionId == "jin" }
+
+        val context = WorldContextFactory.fromState(state)
+        assertTrue(context.armies.any { it.id == publicJinArmy.id && it.owner == "jin" })
+    }
+
+    @Test
+    fun `captive may appear as world fact but remains captive`() {
+        val state = GameState()
+        val qinHui = state.officers.first { it.id == "qin_hui" }
+        assertEquals(OfficerStatus.CAPTIVE, qinHui.status)
+
+        val context = WorldContextFactory.fromState(state)
+        val exposed = context.officers.firstOrNull { it.id == qinHui.id }
+        assertNotNull(exposed)
+        assertEquals(OfficerStatus.CAPTIVE.name, exposed!!.status)
+    }
+
+    @Test
     fun `enemy movement is validated and does not teleport across the map`() {
         val state = GameState()
         val army = state.armies.first { it.id == "army_jin_kaifeng" }
