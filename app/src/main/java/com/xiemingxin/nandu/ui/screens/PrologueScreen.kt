@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
  * 1. 画面时间轴永远独立于音频。旁白文件缺失、解码失败或播放报错，都不能导致秒跳。
  * 2. 新游戏明确告诉玩家：玩家意识穿越进入赵构身份，而不是默认扮演历史原版赵构。
  * 3. 只有玩家主动点击“跳过”才允许提前结束序章。
+ * 4. 当前测试版强制使用设备中文 TTS，保证真机一定有可听见的旁白；正式配音文件验收后再切回资产音频。
  */
 private enum class PrologueAct { ACT_1, ACT_2, ACT_3, ACT_4, ACT_5, DONE }
 
@@ -184,8 +185,9 @@ fun PrologueScreen(
             )
         }
 
-        // 旁白只负责声音，绝不再负责推进剧情。
-        config.narratorPath?.let { audioPlayer?.playVoice(it) }
+        // 真机反馈现有 WAV 无声，因此本测试分支先强制中文 TTS。
+        // 时间轴仍然独立：TTS 成功/失败都不会影响画面时长。
+        audioPlayer?.speakNarration(config.subtitle.replace("\n", " "))
 
         delay(config.durationMs)
         audioPlayer?.stopVoice()
