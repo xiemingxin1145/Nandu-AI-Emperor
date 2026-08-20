@@ -34,6 +34,7 @@ import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.PropResourceRegistry
 import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.VisualAssetV3
 import com.xiemingxin.nandu.game.commandLimit
@@ -122,6 +123,8 @@ fun CharacterDetailPanel(
     loyaltyRisk: String? = null
 ) {
     val p = officer.profile()
+    val signatureProps = PropResourceRegistry.signaturePropsForOfficer(officer.id)
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -196,6 +199,21 @@ fun CharacterDetailPanel(
                 SkillTagRow(p.skills)
                 Spacer(Modifier.height(4.dp))
                 Text(SkillEffects.shortSummary(p.skills), color = PanelSub, fontSize = 10.sp)
+            }
+
+            if (signatureProps.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                PropShelf(
+                    title = "象征物件",
+                    props = signatureProps
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "人物页物件用于身份与叙事识别；兵权、资源和真实持有状态仍由游戏规则决定。",
+                    color = PanelSub,
+                    fontSize = 9.sp,
+                    lineHeight = 14.sp
+                )
             }
 
             Spacer(Modifier.height(12.dp))
