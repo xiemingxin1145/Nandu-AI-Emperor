@@ -1,0 +1,122 @@
+{
+  "manifestVersion": 1,
+  "project": "Nandu-AI-Emperor",
+  "title": "南渡无悔",
+  "branchBaseline": "fix/prologue-audio-timeline-20260820",
+  "baselineSha": "7a6b4717e5eb813e022364ef36e842edbf22f212",
+  "scannedAt": "2026-08-20",
+  "root": "assets/videos/",
+  "totalClips": 51,
+  "notes": [
+    "Existing V3 pack from prior art pipeline (seedance-style generation).",
+    "README historically marked many clips as H.265/AAC 1280x720.",
+    "Audio tracks on these files are a known risk for prologue/menu bleed; game should mute video surfaces.",
+    "Do not regenerate same-purpose clips unless quality fails review.",
+    "Batch4 living-world scenes are NOT covered by this inventory."
+  ],
+  "categories": {
+    "intro": {
+      "count": 3,
+      "clips": [
+        {"id": "V01_splash_logo", "filename": "intro/V01_splash_logo.mp4", "purpose": "水墨片头 logo", "bytes": 812937, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V02_menu_bg_loop", "filename": "intro/V02_menu_bg_loop.mp4", "purpose": "主菜单动态背景循环", "bytes": 867687, "loop": true, "qualityStatus": "existing_v3"},
+        {"id": "V03_intro_cinematic", "filename": "intro/V03_intro_cinematic.mp4", "purpose": "靖康之难过场", "bytes": 3881803, "loop": false, "qualityStatus": "existing_v3_audio_risk"}
+      ]
+    },
+    "seasons": {
+      "count": 4,
+      "clips": [
+        {"id": "V04_season_spring", "filename": "seasons/V04_season_spring.mp4", "purpose": "春季节气 CG", "bytes": 1579804, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V05_season_summer", "filename": "seasons/V05_season_summer.mp4", "purpose": "夏季节气 CG", "bytes": 627037, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V06_season_autumn", "filename": "seasons/V06_season_autumn.mp4", "purpose": "秋季节气 CG", "bytes": 1051623, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V07_season_winter", "filename": "seasons/V07_season_winter.mp4", "purpose": "冬季节气 CG", "bytes": 1213810, "loop": false, "qualityStatus": "existing_v3"}
+      ]
+    },
+    "battle": {
+      "count": 6,
+      "clips": [
+        {"id": "V08_battle_field_clash", "filename": "battle/V08_battle_field_clash.mp4", "purpose": "平原对冲", "bytes": 1634883, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V09_battle_siege_assault", "filename": "battle/V09_battle_siege_assault.mp4", "purpose": "攻城", "bytes": 1150576, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V10_battle_naval_clash", "filename": "battle/V10_battle_naval_clash.mp4", "purpose": "水战", "bytes": 1057957, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V11_battle_mountain_pass", "filename": "battle/V11_battle_mountain_pass.mp4", "purpose": "山地关隘", "bytes": 1674418, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V12_battle_victory", "filename": "battle/V12_battle_victory.mp4", "purpose": "战胜", "bytes": 828798, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V13_battle_defeat", "filename": "battle/V13_battle_defeat.mp4", "purpose": "战败", "bytes": 578037, "loop": false, "qualityStatus": "existing_v3"}
+      ]
+    },
+    "units": {
+      "count": 15,
+      "clips": [
+        {"id": "V14_unit_song_infantry", "filename": "units/V14_unit_song_infantry.mp4", "purpose": "宋军步兵出场", "bytes": 1006907, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V15_unit_song_archer", "filename": "units/V15_unit_song_archer.mp4", "purpose": "宋军弓手出场", "bytes": 809219, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V16_unit_song_crossbow", "filename": "units/V16_unit_song_crossbow.mp4", "purpose": "宋军弩手出场", "bytes": 885005, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V17_unit_divine_arm", "filename": "units/V17_unit_divine_arm.mp4", "purpose": "神臂弓出场", "bytes": 1276696, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V18_unit_song_cavalry", "filename": "units/V18_unit_song_cavalry.mp4", "purpose": "宋军骑兵出场", "bytes": 1618833, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V19_unit_song_navy", "filename": "units/V19_unit_song_navy.mp4", "purpose": "宋军水军出场", "bytes": 1203062, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V20_unit_beiwei", "filename": "units/V20_unit_beiwei.mp4", "purpose": "背嵬军出场", "bytes": 1173032, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V21_unit_shengjie", "filename": "units/V21_unit_shengjie.mp4", "purpose": "胜捷军出场", "bytes": 1320709, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V22_unit_tabai", "filename": "units/V22_unit_tabai.mp4", "purpose": "踏白军出场", "bytes": 1460733, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V23_unit_scout", "filename": "units/V23_unit_scout.mp4", "purpose": "探马出场", "bytes": 784366, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V24_unit_jin_infantry", "filename": "units/V24_unit_jin_infantry.mp4", "purpose": "金军步兵出场", "bytes": 2010444, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V25_unit_jin_horse_archer", "filename": "units/V25_unit_jin_horse_archer.mp4", "purpose": "金军马弓手出场", "bytes": 1152435, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V26_unit_jin_heavy", "filename": "units/V26_unit_jin_heavy.mp4", "purpose": "金军重装出场", "bytes": 1069674, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V27_unit_jin_guaizi", "filename": "units/V27_unit_jin_guaizi.mp4", "purpose": "拐子马出场", "bytes": 1064971, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V28_unit_iron_pagoda", "filename": "units/V28_unit_iron_pagoda.mp4", "purpose": "铁浮屠出场", "bytes": 1593874, "loop": false, "qualityStatus": "existing_v3"}
+      ]
+    },
+    "skills": {
+      "count": 6,
+      "clips": [
+        {"id": "V29_skill_yue_fei", "filename": "skills/V29_skill_yue_fei.mp4", "purpose": "岳飞技能演出", "bytes": 1381940, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V30_skill_han_shizhong", "filename": "skills/V30_skill_han_shizhong.mp4", "purpose": "韩世忠技能演出", "bytes": 1229393, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V31_skill_li_gang", "filename": "skills/V31_skill_li_gang.mp4", "purpose": "李纲技能演出", "bytes": 1330231, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V32_skill_wu_jie", "filename": "skills/V32_skill_wu_jie.mp4", "purpose": "吴玠技能演出", "bytes": 909347, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V33_skill_qin_hui", "filename": "skills/V33_skill_qin_hui.mp4", "purpose": "秦桧技能演出", "bytes": 401512, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V34_skill_zong_ze", "filename": "skills/V34_skill_zong_ze.mp4", "purpose": "宗泽技能演出", "bytes": 1336986, "loop": false, "qualityStatus": "existing_v3"}
+      ]
+    },
+    "char_live": {
+      "count": 10,
+      "clips": [
+        {"id": "V35_char_yue_fei", "filename": "char_live/V35_char_yue_fei.mp4", "purpose": "岳飞动态立绘（呼吸/眨眼）", "bytes": 481671, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V36_char_han_shizhong", "filename": "char_live/V36_char_han_shizhong.mp4", "purpose": "韩世忠动态立绘", "bytes": 450400, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V37_char_qin_hui", "filename": "char_live/V37_char_qin_hui.mp4", "purpose": "秦桧动态立绘", "bytes": 278816, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V38_char_zhao_gou", "filename": "char_live/V38_char_zhao_gou.mp4", "purpose": "赵构动态立绘", "bytes": 348760, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V39_char_li_gang", "filename": "char_live/V39_char_li_gang.mp4", "purpose": "李纲动态立绘", "bytes": 230541, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V40_char_zhao_ding", "filename": "char_live/V40_char_zhao_ding.mp4", "purpose": "赵鼎动态立绘", "bytes": 342803, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V41_char_zhang_jun", "filename": "char_live/V41_char_zhang_jun.mp4", "purpose": "张浚动态立绘", "bytes": 327111, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V42_char_wu_jie", "filename": "char_live/V42_char_wu_jie.mp4", "purpose": "吴玠动态立绘", "bytes": 473998, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V43_char_liu_qi", "filename": "char_live/V43_char_liu_qi.mp4", "purpose": "刘锜动态立绘", "bytes": 659654, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"},
+        {"id": "V44_char_zong_ze", "filename": "char_live/V44_char_zong_ze.mp4", "purpose": "宗泽动态立绘", "bytes": 437296, "loop": true, "aspectHint": "3:4", "qualityStatus": "existing_v3"}
+      ]
+    },
+    "ui_effects": {
+      "count": 6,
+      "clips": [
+        {"id": "V45_ui_edict_stamp", "filename": "ui_effects/V45_ui_edict_stamp.mp4", "purpose": "朱批落印", "bytes": 181171, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V46_ui_city_capture", "filename": "ui_effects/V46_ui_city_capture.mp4", "purpose": "城池易手", "bytes": 329934, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V47_ui_level_up", "filename": "ui_effects/V47_ui_level_up.mp4", "purpose": "升级特效", "bytes": 508478, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V48_ui_gold_reward", "filename": "ui_effects/V48_ui_gold_reward.mp4", "purpose": "钱粮赏赐", "bytes": 162602, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V49_ui_grain_reward", "filename": "ui_effects/V49_ui_grain_reward.mp4", "purpose": "粮草入库", "bytes": 213176, "loop": false, "qualityStatus": "existing_v3"},
+        {"id": "V50_ui_morale_boost", "filename": "ui_effects/V50_ui_morale_boost.mp4", "purpose": "士气提升", "bytes": 239240, "loop": false, "qualityStatus": "existing_v3"}
+      ]
+    },
+    "cinematic": {
+      "count": 1,
+      "clips": [
+        {"id": "NanduWuhui_Prewar_CG_V01", "filename": "cinematic/NanduWuhui_Prewar_CG_V01.mp4", "purpose": "战前叙事 CG", "bytes": 2911462, "loop": false, "qualityStatus": "existing_v3"}
+      ]
+    }
+  },
+  "coverageGapsForBatch4": [
+    "垂拱殿空殿/列班循环背景",
+    "皇帝入殿短片",
+    "御花园循环",
+    "御书房循环",
+    "临安城循环",
+    "天下地图动态",
+    "宋军营寨循环",
+    "战前军议",
+    "穿越成为赵构身份镜头",
+    "序章补充：靖康陷落/二帝北狩/宋室南渡/康王即位/江南残山"
+  ]
+}
