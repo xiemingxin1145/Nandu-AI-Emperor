@@ -191,6 +191,106 @@ object ArtResourceRegistry {
         "water" to icon("water", "水路城", "city_water.webp")
     )
 
+    // V1 朝堂普通官员素材包（Nandu_Court_NPC_Art_V1_CLEAN_ALPHA）。
+    // 54张已清理透明背景的 WebP：6张殿内群像 + 24张按职位分类的具名占位官员(portrait+halfbody)
+    // + 16张具名通用官员(仅portrait) + 8张无脸/背影通用姿态(补边角列班)。
+    // 用途：给"普通官员奏报"场景（历史名臣不在京时的占位发言人）配真实头像，
+    // 不再用文字圆圈或单张 generic_scholar.webp 打天下。见 CourtCouncilSystem/EmperorMainScreen。
+    object CourtNpc {
+        private const val DIR = "$BASE/characters/npc_court_v1"
+        private const val CROWD_DIR = "$BASE/characters/court_crowd_v1"
+
+        // 12个职位，每个都有 portrait（正面头像）与 halfbody（半身立绘）两个文件。
+        val officePortraits: Map<String, String> = mapOf(
+            "censor_01" to "$DIR/portrait_npc_censor_01.webp",
+            "censor_02" to "$DIR/portrait_npc_censor_02.webp",
+            "taichang_01" to "$DIR/portrait_npc_taichang_01.webp",
+            "court_zhongshu_01" to "$DIR/portrait_npc_court_zhongshu_01.webp",
+            "court_zhongshu_02" to "$DIR/portrait_npc_court_zhongshu_02.webp",
+            "court_geishi_01" to "$DIR/portrait_npc_court_geishi_01.webp",
+            "court_qiju_01" to "$DIR/portrait_npc_court_qiju_01.webp",
+            "shumi_01" to "$DIR/portrait_npc_shumi_01.webp",
+            "bingbu_01" to "$DIR/portrait_npc_bingbu_01.webp",
+            "hubu_01" to "$DIR/portrait_npc_hubu_01.webp",
+            "neishi_01" to "$DIR/portrait_npc_neishi_01.webp",
+            "zhizhou_01" to "$DIR/portrait_npc_zhizhou_01.webp"
+        )
+        val officeHalfbodies: Map<String, String> = mapOf(
+            "censor_01" to "$DIR/halfbody_npc_censor_01.webp",
+            "censor_02" to "$DIR/halfbody_npc_censor_02.webp",
+            "taichang_01" to "$DIR/halfbody_npc_taichang_01.webp",
+            "court_zhongshu_01" to "$DIR/halfbody_npc_court_zhongshu_01.webp",
+            "court_zhongshu_02" to "$DIR/halfbody_npc_court_zhongshu_02.webp",
+            "court_geishi_01" to "$DIR/halfbody_npc_court_geishi_01.webp",
+            "court_qiju_01" to "$DIR/halfbody_npc_court_qiju_01.webp",
+            "shumi_01" to "$DIR/halfbody_npc_shumi_01.webp",
+            "bingbu_01" to "$DIR/halfbody_npc_bingbu_01.webp",
+            "hubu_01" to "$DIR/halfbody_npc_hubu_01.webp",
+            "neishi_01" to "$DIR/halfbody_npc_neishi_01.webp",
+            "zhizhou_01" to "$DIR/halfbody_npc_zhizhou_01.webp"
+        )
+        // “职位”对官职中文名，用于占位发言人的显示身份（不是历史真名，是虚构的泛称官员）。
+        val officeLabels: Map<String, String> = mapOf(
+            "censor_01" to "御史", "censor_02" to "御史",
+            "taichang_01" to "太常博士",
+            "court_zhongshu_01" to "中书舍人", "court_zhongshu_02" to "中书舍人",
+            "court_geishi_01" to "给事中",
+            "court_qiju_01" to "起居舍人",
+            "shumi_01" to "枢密院承旨",
+            "bingbu_01" to "兵部官员",
+            "hubu_01" to "户部官员",
+            "neishi_01" to "内侍",
+            "zhizhou_01" to "知州"
+        )
+
+        // 16个具名通用官员（虚构小人物，非历史真人），只有 portrait，用于人才线索/寻访场景配脸。
+        val namedGenericIds: List<String> = listOf(
+            "b_ding_yuanliang", "b_fang_jizhi", "b_meng_qishan", "b_feng_zhengchen",
+            "b_cao_gongjin", "b_xu_yanzhi", "b_pan_shixiong", "b_zhou_xiancheng",
+            "b_jin_anguo", "b_zheng_yongnian", "b_su_jiliang", "b_wu_keji",
+            "b_he_wucheng", "b_qian_wenbo", "b_song_boda", "b_li_shiyan"
+        )
+        fun namedGenericPortrait(id: String): String = "$DIR/portrait_npc_$id.webp"
+        /** 按种子稳定选一个具名通用官员头像（同一个 seed 永远选到同一张，避免同一处每次刷新换脸）。 */
+        fun namedGenericPortraitBySeed(seed: String): String {
+            val idx = (seed.hashCode() and Int.MAX_VALUE) % namedGenericIds.size
+            return namedGenericPortrait(namedGenericIds[idx])
+        }
+
+        // 8张无脸/背影通用姿态（c_rank_*），用于殿内列班背景里的"路人甲"，不承担对白。
+        val rankAndFilePoses: List<String> = listOf(
+            "c_rank_34left", "c_rank_34right", "c_rank_bow_head", "c_rank_front_hu",
+            "c_rank_junior_hu", "c_rank_side_left", "c_rank_sleeves", "c_rank_turn"
+        ).map { "$DIR/$it.webp" }
+
+        // 6张殿内群像背景（百官列班全景），可直接当背景图或按场景挑选。
+        val crowdScenes: Map<String, String> = mapOf(
+            "central_rear" to "$CROWD_DIR/court_crowd_central_rear.webp",
+            "civil_left" to "$CROWD_DIR/court_crowd_civil_left.webp",
+            "military_right" to "$CROWD_DIR/court_crowd_military_right.webp",
+            "junior_officials" to "$CROWD_DIR/court_crowd_junior_officials.webp",
+            "eunuchs" to "$CROWD_DIR/court_crowd_eunuchs.webp",
+            "dismissal" to "$CROWD_DIR/court_crowd_dismissal.webp"
+        )
+
+        /** 给"普通官员占位发言人"用：按种子稳定选一个职位，返回(职位中文名, portrait路径)。 */
+        fun officialBySeed(seed: String): Pair<String, String> {
+            val keys = officePortraits.keys.toList()
+            val idx = (seed.hashCode() and Int.MAX_VALUE) % keys.size
+            val key = keys[idx]
+            return (officeLabels[key] ?: "朝官") to (officePortraits[key] ?: Fallback.portrait)
+        }
+
+        /** 按种子稳定生成一个可被 portraitForOfficer 识别的虚拟id（"npc_court_<职位key>"）。 */
+        fun officialIdBySeed(seed: String): String {
+            val keys = officePortraits.keys.toList()
+            val idx = (seed.hashCode() and Int.MAX_VALUE) % keys.size
+            return "npc_court_${keys[idx]}"
+        }
+        fun officialLabelForId(virtualId: String): String =
+            officeLabels[virtualId.removePrefix("npc_court_")] ?: "朝官"
+    }
+
     val uiImages: Map<String, NamedArt> = mapOf(
         "dialog_frame" to ui("dialog_frame", "奏议框", "dialog_frame.webp"),
         "edict_bar" to ui("edict_bar", "圣旨落笔", "edict_bar.webp"),
@@ -214,8 +314,20 @@ object ArtResourceRegistry {
     fun locationBackground(locationId: String): String = locationBackgrounds[locationId]?.path ?: Fallback.event
     fun prologueCg(cgKey: String): String = eventImages["prologue_$cgKey"]?.path ?: Fallback.event
 
-    fun portraitForOfficer(officerId: String): String = historicalCharacters[officerId]?.portrait ?: templatePortraitFor(officerId)
-    fun halfbodyForOfficer(officerId: String): String = historicalCharacters[officerId]?.halfbody ?: templateHalfbodyFor(officerId)
+    fun portraitForOfficer(officerId: String): String {
+        if (officerId.startsWith("npc_court_")) {
+            val key = officerId.removePrefix("npc_court_")
+            return CourtNpc.officePortraits[key] ?: Fallback.portrait
+        }
+        return historicalCharacters[officerId]?.portrait ?: templatePortraitFor(officerId)
+    }
+    fun halfbodyForOfficer(officerId: String): String {
+        if (officerId.startsWith("npc_court_")) {
+            val key = officerId.removePrefix("npc_court_")
+            return CourtNpc.officeHalfbodies[key] ?: Fallback.halfbody
+        }
+        return historicalCharacters[officerId]?.halfbody ?: templateHalfbodyFor(officerId)
+    }
     fun cityBackground(cityId: String): String = cityBackgrounds[cityId]?.path ?: Fallback.city
     fun eventImage(eventId: String): String = eventImages[eventId]?.path ?: Fallback.event
     fun uiImage(id: String): String = uiImages[id]?.path ?: Fallback.ui
