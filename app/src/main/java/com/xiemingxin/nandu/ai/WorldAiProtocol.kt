@@ -143,7 +143,7 @@ object WorldContextFactory {
                 grain = city.grain,
                 terrain = city.terrain,
                 controlState = city.controlState,
-                neighbors = MapData.neighborsOf(city.id)
+                neighbors = MapData.neighborsOf(city.id).toList()
             )
         }
 
