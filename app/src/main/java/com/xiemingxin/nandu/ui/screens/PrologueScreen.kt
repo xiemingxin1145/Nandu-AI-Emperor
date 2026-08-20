@@ -50,17 +50,20 @@ import kotlinx.coroutines.launch
 
 /**
  * 正式历史序章。
- * - 画面时间轴与音频彻底解绑，音频失败不能秒跳。
- * - 明确玩家意识穿越成为赵构。
- * - V3 靖康过场视频已真正接入；不支持 HEVC 的设备自动回退静态 CG。
+ *
+ * 规则：
+ * 1. 画面时间轴独立于音频，音频成功/失败都不能让序章秒跳。
+ * 2. 使用已生成并验证为 AAC 48kHz 的 M4A 正式配音，不再默认使用系统 TTS。
+ * 3. 明确玩家意识穿越进入赵构身份，再由内侍奏报把玩家自然送入第一次朝会。
+ * 4. 靖康第二幕接 V3 动态过场；HEVC 不兼容时退回静态 CG。
  */
-private enum class PrologueAct { ACT_1, ACT_2, ACT_3, ACT_4, ACT_5, DONE }
+private enum class PrologueAct { ACT_1, ACT_2, ACT_3, ACT_4, ACT_5, ACT_6, DONE }
 
 private data class ActConfig(
     val cgPath: String,
     val cgFallback: String,
     val videoPath: String? = null,
-    val narratorPath: String?,
+    val narratorPath: String,
     val subtitle: String,
     val actTitle: String,
     val bgmPath: String?,
@@ -76,11 +79,11 @@ private val acts = listOf(
         actTitle = "第一幕 · 山河将倾",
         cgPath = "images/events/event_jin_army_crosses_huai.webp",
         cgFallback = "images/battles/battle_field.webp",
-        narratorPath = "audio/voice/narrator/narrator_act1_shanhejiangqing.wav",
+        narratorPath = "audio/voice/prologue/prologue_act1_shanhejiangqing.m4a",
         subtitle = "大宋靖康年间，金军铁骑再度南下。\n汴京以北，烽火连天，山河将倾。",
         bgmPath = "audio/bgm/bgm_crisis.ogg",
         ambiencePath = "audio/ambience/amb_frontier_wind.ogg",
-        durationMs = 16000,
+        durationMs = 14000,
         kenBurnsZoom = 1.2f,
         kenBurnsOffsetX = 0.05f
     ),
@@ -89,7 +92,7 @@ private val acts = listOf(
         cgPath = "images/events/event_jingkang_siege_01.webp",
         cgFallback = "images/battles/battle_siege.webp",
         videoPath = "videos/intro/V03_intro_cinematic.mp4",
-        narratorPath = "audio/voice/narrator/narrator_act2_jingkang.wav",
+        narratorPath = "audio/voice/prologue/prologue_act2_jingkang.m4a",
         subtitle = "汴京陷落，二帝北狩。\n百余年东京繁华，一夕倾覆。\n宗室百官，尽被掳北去。",
         bgmPath = "audio/bgm/bgm_event_sad.ogg",
         ambiencePath = "audio/ambience/amb_storm.ogg",
@@ -101,11 +104,11 @@ private val acts = listOf(
         actTitle = "第三幕 · 宋室南渡",
         cgPath = "images/events/event_jianyan_south_crossing_01.webp",
         cgFallback = "images/locations/yangzhou_river.webp",
-        narratorPath = "audio/voice/narrator/narrator_act3_nandu.wav",
+        narratorPath = "audio/voice/prologue/prologue_act3_nandu.m4a",
         subtitle = "康王赵构即位于南京应天府，改元建炎。\n然而江山未稳，金兵已经渡河而来。",
         bgmPath = "audio/bgm/bgm_map.ogg",
         ambiencePath = "audio/ambience/amb_river.ogg",
-        durationMs = 16000,
+        durationMs = 15000,
         kenBurnsZoom = 1.12f,
         kenBurnsOffsetX = -0.04f
     ),
@@ -113,11 +116,11 @@ private val acts = listOf(
         actTitle = "第四幕 · 旧史已成",
         cgPath = "images/events/event_imperial_war_council_01.webp",
         cgFallback = "images/palace/chuigongdian.webp",
-        narratorPath = "audio/voice/narrator/narrator_act4_lishipianzhuan.wav",
+        narratorPath = "audio/voice/prologue/prologue_act4_lishipianzhuan.m4a",
         subtitle = "靖康已成旧史，山河却仍在烽火之中。\n从这一刻起，未来不再只有一条路。",
         bgmPath = "audio/bgm/bgm_main_menu.ogg",
         ambiencePath = "audio/ambience/amb_palace_murmur.ogg",
-        durationMs = 15000,
+        durationMs = 16000,
         kenBurnsZoom = 1.2f,
         kenBurnsOffsetY = 0.02f
     ),
@@ -125,13 +128,24 @@ private val acts = listOf(
         actTitle = "第五幕 · 我成了赵构",
         cgPath = "images/events/cg_prologue_identity_reflection.webp",
         cgFallback = "images/palace/chuigongdian.webp",
-        narratorPath = null,
-        subtitle = "再睁开眼时，我已不在原来的世界。\n铜镜里的那张脸，属于大宋官家——赵构。\n\n殿外传来内侍的声音：\n“官家，百官已经候在垂拱殿。”\n\n旧史已成。余下山河，由我执笔。",
+        narratorPath = "audio/voice/prologue/prologue_act5_player_inner.m4a",
+        subtitle = "再睁开眼时，我已不在原来的世界。\n铜镜里的那张脸，属于大宋官家——赵构。\n\n旧史已成。余下山河，由我执笔。",
         bgmPath = "audio/bgm/bgm_main_menu.ogg",
         ambiencePath = "audio/ambience/amb_palace_murmur.ogg",
-        durationMs = 18000,
+        durationMs = 17000,
         kenBurnsZoom = 1.12f,
         kenBurnsOffsetX = 0.02f
+    ),
+    ActConfig(
+        actTitle = "第六幕 · 百官候朝",
+        cgPath = "images/palace/chuigongdian.webp",
+        cgFallback = "images/events/event_imperial_war_council_01.webp",
+        narratorPath = "audio/voice/prologue/prologue_act6_neishi.m4a",
+        subtitle = "殿外脚步停住。\n\n“官家，百官已经候在垂拱殿。”",
+        bgmPath = "audio/bgm/bgm_court.ogg",
+        ambiencePath = "audio/ambience/amb_palace_murmur.ogg",
+        durationMs = 8000,
+        kenBurnsZoom = 1.08f
     )
 )
 
@@ -161,8 +175,8 @@ fun PrologueScreen(
         offsetXAnim.snapTo(0f)
         offsetYAnim.snapTo(0f)
 
-        config.bgmPath?.let { audioPlayer?.playBgm(it, volume = 0.46f) }
-        config.ambiencePath?.let { audioPlayer?.playAmbience(it, volume = 0.32f) }
+        config.bgmPath?.let { audioPlayer?.playBgm(it, volume = 0.42f) }
+        config.ambiencePath?.let { audioPlayer?.playAmbience(it, volume = 0.28f) }
 
         actAlpha = 1f
         delay(700)
@@ -189,8 +203,8 @@ fun PrologueScreen(
             }
         }
 
-        // 当前验收分支强制中文 TTS；正式配音确认真机可播后再切换预生成文件。
-        audioPlayer?.speakNarration(config.subtitle.replace("\n", " "))
+        // 正式 M4A 配音。注意：推进仍然只由下面的 delay 控制，绝不绑定播放回调。
+        audioPlayer?.playVoice(config.narratorPath, voiceVolume = 1f)
 
         delay(config.durationMs)
         audioPlayer?.stopVoice()
@@ -300,7 +314,7 @@ fun PrologueScreen(
             Text(
                 text = config.subtitle,
                 color = Color(0xFFE8DCC0),
-                fontSize = if (currentAct == PrologueAct.ACT_5) 16.sp else 15.sp,
+                fontSize = if (currentAct == PrologueAct.ACT_5 || currentAct == PrologueAct.ACT_6) 16.sp else 15.sp,
                 lineHeight = 26.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp)
@@ -410,7 +424,8 @@ private fun nextAct(currentAct: PrologueAct): PrologueAct = when (currentAct) {
     PrologueAct.ACT_2 -> PrologueAct.ACT_3
     PrologueAct.ACT_3 -> PrologueAct.ACT_4
     PrologueAct.ACT_4 -> PrologueAct.ACT_5
-    PrologueAct.ACT_5 -> PrologueAct.DONE
+    PrologueAct.ACT_5 -> PrologueAct.ACT_6
+    PrologueAct.ACT_6 -> PrologueAct.DONE
     PrologueAct.DONE -> PrologueAct.DONE
 }
 
@@ -422,6 +437,7 @@ private fun DrawScope.drawPrologueParticles(act: PrologueAct) {
         PrologueAct.ACT_3 -> Color(0xFFB0C4DE).copy(alpha = 0.3f)
         PrologueAct.ACT_4 -> Color(0xFFC9A227).copy(alpha = 0.32f)
         PrologueAct.ACT_5 -> Color(0xFFC9A227).copy(alpha = 0.22f)
+        PrologueAct.ACT_6 -> Color(0xFFC9A227).copy(alpha = 0.16f)
         PrologueAct.DONE -> Color.Transparent
     }
     val random = kotlin.random.Random(act.ordinal * 42L)
