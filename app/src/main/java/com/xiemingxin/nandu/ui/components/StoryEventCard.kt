@@ -17,6 +17,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -25,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.CgResourceRegistry
 import com.xiemingxin.nandu.story.StoryEvent
 
 private val EventGold = Color(0xFFC9A227)
@@ -46,6 +51,17 @@ fun StoryEventCard(
     modifier: Modifier = Modifier,
     onChoice: (String) -> Unit
 ) {
+    val eventVideo = remember(event.eventId, event.type, event.title, event.description, event.artHint) {
+        CgResourceRegistry.videoFor(
+            eventId = event.eventId,
+            type = event.type,
+            title = event.title,
+            description = event.description,
+            artHint = event.artHint
+        )
+    }
+    var showVideo by remember(event.eventId) { mutableStateOf(false) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -71,7 +87,18 @@ fun StoryEventCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TagText(text = if (event.chapter == "数据事件包") "JSON事件" else event.chapter.ifBlank { "朝堂事件" })
                 TagText(text = eventTypeName(event.type))
-                TagText(text = "CG")
+                TagText(text = if (eventVideo == null) "CG" else "动态CG")
+            }
+
+            if (eventVideo != null) {
+                OutlinedButton(
+                    onClick = { showVideo = true },
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    border = BorderStroke(1.dp, EventGold.copy(alpha = 0.75f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = EventGold)
+                ) {
+                    Text("播放战前过场 · 14秒", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             Text(
@@ -150,6 +177,10 @@ fun StoryEventCard(
             }
         }
     }
+
+    if (showVideo && eventVideo != null) {
+        CgVideoDialog(video = eventVideo, onDismiss = { showVideo = false })
+    }
 }
 
 private fun eventCgPath(event: StoryEvent): String {
@@ -158,6 +189,10 @@ private fun eventCgPath(event: StoryEvent): String {
 
     val text = listOf(event.title, event.description, event.artHint, event.type, event.chapter).joinToString(" ")
     val key = when {
+        text.contains("顺昌") -> "shunchang_prewar_batch1"
+        text.contains("出征") || text.contains("调兵") || text.contains("迎战") -> "army_departure_batch1"
+        text.contains("金军") || text.contains("金兵") || text.contains("压境") || text.contains("渡淮") -> "jin_approach_batch1"
+        text.contains("下诏") || text.contains("领旨") || text.contains("军令") -> "imperial_edict_batch1"
         text.contains("岳飞") || text.contains("请战") || text.contains("北伐") -> "yuefei_petition"
         text.contains("风波亭") || text.contains("秦桧") || text.contains("冤") -> "fengboting_crisis"
         text.contains("皇后") || text.contains("后苑") || text.contains("内廷") -> "empress_secret"

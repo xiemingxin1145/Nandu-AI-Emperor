@@ -36,13 +36,13 @@ object ArtResourceRegistry {
     val historicalCharacters: Map<String, CharacterArt> = listOf(
         // 有专属 portrait_ + halfbody_ 文件的核心人物
         character("zhao_gou",     "赵构",       "song",      "portrait_zhao_gou.webp",      "halfbody_zhao_gou.webp"),
-        character("yue_fei",      "岳飞",       "song",      "portrait_yue_fei.webp",       "halfbody_yue_fei.webp"),
-        character("han_shizhong", "韩世忠",     "song",      "portrait_han_shizhong.webp",  "halfbody_han_shizhong.webp"),
+        character("yue_fei",      "岳飞",       "song",      "batch1/portrait_yue_fei_batch1.webp",      "batch1/halfbody_yue_fei_batch1.webp"),
+        character("han_shizhong", "韩世忠",     "song",      "batch1/portrait_han_shizhong_batch1.webp", "batch1/halfbody_han_shizhong_batch1.webp"),
         character("wu_jie",       "吴玠",       "song",      "wu_jie.webp",                 "halfbody_wu_jie.webp"),
         character("liu_qi",       "刘锜",       "song",      "portrait_liu_qi.webp",        "halfbody_liu_qi.webp"),
         character("li_gang",      "李纲",       "song",      "portrait_li_gang.webp",       "halfbody_li_gang.webp"),
         character("zhao_ding",    "赵鼎",       "song",      "portrait_zhao_ding.webp",     "halfbody_zhao_ding.webp"),
-        character("qin_hui",      "秦桧",       "song",      "portrait_qin_hui.webp",       "halfbody_qin_hui.webp"),
+        character("qin_hui",      "秦桧",       "song",      "batch1/portrait_qin_hui_batch1.webp",      "batch1/halfbody_qin_hui_batch1.webp"),
         character("zhang_jun",    "张浚",       "song",      "portrait_zhang_jun.webp",     "halfbody_zhang_jun.webp"),
         character("zong_ze",      "宗泽",       "song",      "portrait_zong_ze.webp",       "halfbody_zong_ze.webp"),
         character("wanyan_zongbi","完颜宗弼",   "jin",       "portrait_wanyan_zongbi.webp", "halfbody_wanyan_zongbi.webp"),
@@ -125,6 +125,14 @@ object ArtResourceRegistry {
     )
 
     val eventImages: Map<String, NamedArt> = mapOf(
+        // 2026-08 美术总纲 Batch 1：精确事件优先于关键词回退。
+        "han_shizhong_requests_battle" to event("han_shizhong_requests_battle", "韩世忠请战", "batch1/event_imperial_edict_batch1.webp"),
+        "jin_army_crosses_huai" to event("jin_army_crosses_huai", "金军渡淮", "batch1/event_jin_approach_batch1.webp"),
+        "yangzhou_panic_flee" to event("yangzhou_panic_flee", "扬州惊变", "batch1/event_jin_approach_batch1.webp"),
+        "shunchang_prewar_batch1" to event("shunchang_prewar_batch1", "顺昌战前", "batch1/event_shunchang_prewar_batch1.webp"),
+        "imperial_edict_batch1" to event("imperial_edict_batch1", "下诏出兵", "batch1/event_imperial_edict_batch1.webp"),
+        "army_departure_batch1" to event("army_departure_batch1", "城门出征", "batch1/event_army_departure_batch1.webp"),
+        "jin_approach_batch1" to event("jin_approach_batch1", "金军压境", "batch1/event_jin_approach_batch1.webp"),
         "yuefei_petition" to event("yuefei_petition", "岳飞请战", "event_yuefei_petition.webp"),
         "fengboting_crisis" to event("fengboting_crisis", "风波亭危机", "event_fengboting_crisis.webp"),
         "empress_secret" to event("empress_secret", "皇后密陈", "event_empress_secret.webp"),
@@ -146,7 +154,7 @@ object ArtResourceRegistry {
     )
 
     val palaceBackgrounds: Map<String, NamedArt> = mapOf(
-        PalaceIds.CHUIGONG to palace(PalaceIds.CHUIGONG, "垂拱殿", "chuigongdian.webp"),
+        PalaceIds.CHUIGONG to palace(PalaceIds.CHUIGONG, "垂拱殿", "batch1/chuigongdian_batch1.webp"),
         PalaceIds.ZHENGSHI to palace(PalaceIds.ZHENGSHI, "政事堂", "zhengshitang.webp"),
         PalaceIds.SHUMI to palace(PalaceIds.SHUMI, "枢密院", "shumiyuan.webp"),
         PalaceIds.WENDE to palace(PalaceIds.WENDE, "文德殿", "wendedian.webp"),
