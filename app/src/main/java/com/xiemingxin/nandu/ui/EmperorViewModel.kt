@@ -25,6 +25,8 @@ import com.xiemingxin.nandu.game.ArmyMovementSystem
 import com.xiemingxin.nandu.game.ArmySupplySystem
 import com.xiemingxin.nandu.game.ArmySystem
 import com.xiemingxin.nandu.game.WarSystem
+import com.xiemingxin.nandu.agent.CharacterAgentSystem
+import com.xiemingxin.nandu.agent.AgentProposal
 import com.xiemingxin.nandu.game.ArmyStatus
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.AchievementSystem
@@ -74,7 +76,9 @@ data class UiState(
     val earnedAchievements: Set<String> = emptySet(),
     val newAchievement: String? = null,
     val lastVisitNarration: String? = null,
-    val lastBattleOutcome: com.xiemingxin.nandu.game.BattleOutcome? = null  // Stage 5 战报
+    val lastBattleOutcome: com.xiemingxin.nandu.game.BattleOutcome? = null,  // Stage 5 战报
+    // Stage 8 Agent 提案
+    val agentProposals: List<AgentProposal> = emptyList()
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }

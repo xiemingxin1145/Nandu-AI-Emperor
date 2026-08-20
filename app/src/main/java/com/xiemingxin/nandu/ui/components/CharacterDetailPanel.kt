@@ -28,6 +28,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.agent.AgentPlanType
+import com.xiemingxin.nandu.agent.CharacterAgentState
+import com.xiemingxin.nandu.agent.EmperorAttitude
 import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
@@ -39,13 +42,14 @@ import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.VisualAssetV3
 import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
+import kotlin.math.abs
 
 private val PanelGold = Color(0xFFC9A227)
 private val PanelCream = Color(0xFFE8DCC0)
 private val PanelDark = Color(0xF21A1208)
 private val PanelSub = Color(0xFF9A8862)
 
-/** Stage 3 + Visual Integration V3 officer details. */
+/** Stage 3 + Visual Integration V3 + Stage 8 Agent officer details. */
 @Composable
 fun CharacterDetailPanelWithState(
     officer: Officer,
@@ -65,13 +69,19 @@ fun CharacterDetailPanelWithState(
     val currentRole = AppointmentSystem.currentRole(gameState, officer.id)
 
     if (!isFullyRevealed && officer.status == OfficerStatus.HIDDEN) {
-        HiddenOfficerHintPanel(officer = officer, cityName = cityName, onDismiss = onDismiss, modifier = modifier)
+        HiddenOfficerHintPanel(
+            officer = officer,
+            cityName = cityName,
+            onDismiss = onDismiss,
+            modifier = modifier
+        )
     } else {
         CharacterDetailPanel(
             officer = officer,
             cityName = cityName,
             currentRole = currentRole,
             loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
+            agentState = gameState.agentStates[officer.id],
             onDismiss = onDismiss,
             modifier = modifier
         )
@@ -79,7 +89,7 @@ fun CharacterDetailPanelWithState(
 }
 
 @Composable
-private fun HiddenOfficerHintPanel(
+fun HiddenOfficerHintPanel(
     officer: Officer,
     cityName: String,
     onDismiss: () -> Unit,
@@ -120,7 +130,8 @@ fun CharacterDetailPanel(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     currentRole: String = "",
-    loyaltyRisk: String? = null
+    loyaltyRisk: String? = null,
+    agentState: CharacterAgentState? = null
 ) {
     val p = officer.profile()
     val signatureProps = PropResourceRegistry.signaturePropsForOfficer(officer.id)
@@ -135,7 +146,6 @@ fun CharacterDetailPanel(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
-                // The halfbody is now the visual anchor instead of a tiny 92dp portrait.
                 AssetImage(
                     path = VisualAssetV3.halfbodyForOfficer(officer.id),
                     fallbackPath = ArtResourceRegistry.portraitForOfficer(officer.id),
@@ -166,16 +176,8 @@ fun CharacterDetailPanel(
                         Text("职务：$currentRole", color = Color(0xFF8FB573), fontSize = 11.sp)
                     }
                     Spacer(Modifier.height(5.dp))
-                    Text(
-                        "忠：${OfficerIntel.loyaltyLabel(officer.loyalty)}",
-                        color = PanelSub,
-                        fontSize = 11.sp
-                    )
-                    Text(
-                        "志：${OfficerIntel.ambitionLabel(p.ambition)}",
-                        color = PanelSub,
-                        fontSize = 11.sp
-                    )
+                    Text("忠：${OfficerIntel.loyaltyLabel(officer.loyalty)}", color = PanelSub, fontSize = 11.sp)
+                    Text("志：${OfficerIntel.ambitionLabel(p.ambition)}", color = PanelSub, fontSize = 11.sp)
                     Spacer(Modifier.height(10.dp))
                     MiniStat("名望", OfficerIntel.fameLabel(p.fame))
                     Spacer(Modifier.height(5.dp))
@@ -203,10 +205,7 @@ fun CharacterDetailPanel(
 
             if (signatureProps.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
-                PropShelf(
-                    title = "象征物件",
-                    props = signatureProps
-                )
+                PropShelf(title = "象征物件", props = signatureProps)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "人物页物件用于身份与叙事识别；兵权、资源和真实持有状态仍由游戏规则决定。",
@@ -234,12 +233,17 @@ fun CharacterDetailPanel(
                 Spacer(Modifier.height(4.dp))
                 Text(officer.bio, color = PanelSub, fontSize = 10.sp, lineHeight = 16.sp)
             }
+
+            if (agentState != null) {
+                Spacer(Modifier.height(14.dp))
+                AgentInfoSection(agentState)
+            }
         }
     }
 }
 
 @Composable
-private fun StatBar(label: String, value: Int) {
+fun StatBar(label: String, value: Int) {
     val frac = value.coerceIn(0, 100) / 100f
     val barColor = when {
         value >= 90 -> Color(0xFFD4AF37)
@@ -273,7 +277,7 @@ private fun StatBar(label: String, value: Int) {
 }
 
 @Composable
-private fun MiniStat(label: String, value: String) {
+fun MiniStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.Start) {
         Text(value, color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(label, color = PanelSub, fontSize = 9.sp)
@@ -281,7 +285,7 @@ private fun MiniStat(label: String, value: String) {
 }
 
 @Composable
-private fun SkillTagRow(skills: List<String>) {
+fun SkillTagRow(skills: List<String>) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         skills.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -298,5 +302,75 @@ private fun SkillTagRow(skills: List<String>) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AgentInfoSection(agentState: CharacterAgentState) {
+    val red = Color(0xFFE57373)
+    val green = Color(0xFF8FB573)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text("人物当前状态", color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+
+        InfoRow("长期志向", agentState.longTermGoal.label, PanelGold)
+        InfoRow("当前目标", agentState.currentGoal.label, PanelCream)
+        if (agentState.currentPlan != AgentPlanType.OBSERVE && agentState.currentPlan != AgentPlanType.PRIVATE_ALLIANCE) {
+            InfoRow("当前计划", agentState.currentPlan.label, green)
+        }
+
+        val attColor = when (agentState.emperorAttitude) {
+            EmperorAttitude.DEVOTED, EmperorAttitude.SUPPORTIVE -> green
+            EmperorAttitude.NEUTRAL -> PanelCream
+            else -> red
+        }
+        InfoRow("对君上态度", agentState.emperorAttitude.label, attColor)
+        InfoRow(
+            "忠诚度",
+            "${agentState.loyaltyToEmperor}%",
+            if (agentState.loyaltyToEmperor >= 70) green else if (agentState.loyaltyToEmperor >= 45) PanelCream else red
+        )
+
+        if (agentState.recentMemory.isNotEmpty() || agentState.compressedMemorySummary.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text("近期记忆", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            agentState.recentMemory.takeLast(3).forEach { mem ->
+                Text("· [旬${mem.turn}] ${mem.summary}", color = PanelSub, fontSize = 11.sp)
+            }
+            if (agentState.compressedMemorySummary.isNotBlank()) {
+                Text("· 往事：${agentState.compressedMemorySummary.take(80)}…", color = PanelSub.copy(alpha = 0.7f), fontSize = 10.sp)
+            }
+        }
+
+        val notableRelations = agentState.relations.values
+            .filter { abs(it.score) >= 30 }
+            .sortedByDescending { abs(it.score) }
+            .take(4)
+        if (notableRelations.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text("人际关系", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            notableRelations.forEach { rel ->
+                val relColor = if (rel.score >= 0) green else red
+                Text(
+                    "· ${rel.targetOfficerId} (${rel.tag.label} ${if (rel.score > 0) "+" else ""}${rel.score})",
+                    color = relColor,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String, valueColor: Color) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = PanelSub, fontSize = 12.sp)
+        Text(value, color = valueColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }

@@ -11,7 +11,7 @@ object GameSaveCodec {
     // V1.7 天下战略：Faction/City/Officer 补齐扩展字段序列化，存档结构升级到 V3。
     // 旧存档（V1/V2）读取时所有新增字段均走 optXxx 默认值兜底，不会崩溃，只是那些旧存档里
     // 本就没有记录过的扩展数值（如城池人口、势力关系等）会被重置为初始默认值。
-    private const val SAVE_VERSION = 6
+    private const val SAVE_VERSION = 7
 
     fun export(state: GameState): String {
         val root = JSONObject()
@@ -295,4 +295,72 @@ object GameSaveCodec {
         if (this == null) return emptyList()
         return (0 until length()).map { optString(it) }
     }
+    // ── Stage 8 AgentState 序列化 ─────────────────────────────────────────────
+
+    private fun agentStatesToJson(
+        states: Map<String, com.xiemingxin.nandu.agent.CharacterAgentState>
+    ): org.json.JSONArray {
+        val arr = org.json.JSONArray()
+        states.forEach { (id, s) ->
+            arr.put(org.json.JSONObject()
+                .put("id", id)
+                .put("longTermGoal", s.longTermGoal.name)
+                .put("currentGoal", s.currentGoal.name)
+                .put("goalPersistTurns", s.goalPersistTurns)
+                .put("warBias", s.warBias)
+                .put("loyaltyToEmperor", s.loyaltyToEmperor)
+                .put("ambition", s.ambition)
+                .put("riskTolerance", s.riskTolerance)
+                .put("fearLevel", s.fearLevel)
+                .put("emperorAttitude", s.emperorAttitude.name)
+                .put("adviceAdoptedCount", s.adviceAdoptedCount)
+                .put("adviceRejectedCount", s.adviceRejectedCount)
+                .put("rewardCount", s.rewardCount)
+                .put("punishCount", s.punishCount)
+                .put("currentPlan", s.currentPlan.name)
+                .put("compressedMemorySummary", s.compressedMemorySummary)
+                .put("lastActiveTurn", s.lastActiveTurn)
+                .put("inactive", s.inactive)
+            )
+        }
+        return arr
+    }
+
+    private fun parseAgentStates(
+        arr: org.json.JSONArray?
+    ): Map<String, com.xiemingxin.nandu.agent.CharacterAgentState> {
+        if (arr == null) return emptyMap()
+        val result = mutableMapOf<String, com.xiemingxin.nandu.agent.CharacterAgentState>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.optJSONObject(i) ?: continue
+            val id = obj.optString("id").ifBlank { "" }
+            if (id.isBlank()) continue
+            fun goal(key: String, default: com.xiemingxin.nandu.agent.AgentGoal) =
+                runCatching { com.xiemingxin.nandu.agent.AgentGoal.valueOf(obj.optString(key)) }.getOrDefault(default)
+            result[id] = com.xiemingxin.nandu.agent.CharacterAgentState(
+                officerId = id,
+                longTermGoal = goal("longTermGoal", com.xiemingxin.nandu.agent.AgentGoal.UNDEFINED),
+                currentGoal = goal("currentGoal", com.xiemingxin.nandu.agent.AgentGoal.UNDEFINED),
+                goalPersistTurns = obj.optInt("goalPersistTurns", 0),
+                warBias = obj.optInt("warBias", 50),
+                loyaltyToEmperor = obj.optInt("loyaltyToEmperor", 70),
+                ambition = obj.optInt("ambition", 40),
+                riskTolerance = obj.optInt("riskTolerance", 50),
+                fearLevel = obj.optInt("fearLevel", 20),
+                emperorAttitude = runCatching { com.xiemingxin.nandu.agent.EmperorAttitude.valueOf(obj.optString("emperorAttitude")) }
+                    .getOrDefault(com.xiemingxin.nandu.agent.EmperorAttitude.NEUTRAL),
+                adviceAdoptedCount = obj.optInt("adviceAdoptedCount", 0),
+                adviceRejectedCount = obj.optInt("adviceRejectedCount", 0),
+                rewardCount = obj.optInt("rewardCount", 0),
+                punishCount = obj.optInt("punishCount", 0),
+                currentPlan = runCatching { com.xiemingxin.nandu.agent.AgentPlanType.valueOf(obj.optString("currentPlan")) }
+                    .getOrDefault(com.xiemingxin.nandu.agent.AgentPlanType.OBSERVE),
+                compressedMemorySummary = obj.optString("compressedMemorySummary", ""),
+                lastActiveTurn = obj.optInt("lastActiveTurn", -1),
+                inactive = obj.optBoolean("inactive", false)
+            )
+        }
+        return result
+    }
+
 }
