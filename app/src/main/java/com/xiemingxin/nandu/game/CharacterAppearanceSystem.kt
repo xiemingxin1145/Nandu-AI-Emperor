@@ -71,6 +71,10 @@ object CharacterAppearanceSystem {
                     else if (characterId in politicalShadow && state.turn >= 3) CharacterVisibility.RUMORED
                     else CharacterVisibility.HIDDEN
                 OfficerStatus.DISMISSED, OfficerStatus.DECEASED -> CharacterVisibility.SEEN
+                // V1.1 历史 Canon 新增状态。
+                OfficerStatus.CAPTIVE -> CharacterVisibility.HIDDEN
+                OfficerStatus.IN_CAPITAL -> CharacterVisibility.SEEN
+                OfficerStatus.NOT_YET_RELEVANT -> CharacterVisibility.HIDDEN
             }
         }
 
@@ -95,7 +99,18 @@ object CharacterAppearanceSystem {
         // DEPLOYED 可在军报/奏折中出现，但不能瞬移进垂拱殿；
         // SOLDIER/WANDERING/HIDDEN 仍属待发现/待征辟，更不能一边征辟一边上朝；
         // 正在赶路的人也不行——诏令已发不等于人已经到了。
-        if (!CharacterStateSource.isAtCourt(officer)) return false
+        //
+        // V1.1 历史 Canon：IN_CAPITAL 是特例——人在京城、有军职，但只在军务性质的宫殿
+        // （枢密院/SHUMI）里以有限身份出现，不进入常朝文班（如开局初期的韩世忠）。
+        val eligible = when (officer.status) {
+            OfficerStatus.IN_COURT -> CharacterStateSource.isAtCourt(officer)
+            OfficerStatus.IN_CAPITAL ->
+                CharacterStateSource.isInCapital(officer) &&
+                    !CharacterStateSource.isTraveling(officer) &&
+                    palaceId == PalaceIds.SHUMI
+            else -> false
+        }
+        if (!eligible) return false
 
         val allowed = allowedPalacesFor(characterId, visibilityFor(state, characterId))
         return palaceId in allowed

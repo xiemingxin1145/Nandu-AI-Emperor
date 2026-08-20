@@ -430,8 +430,13 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
 
             // 活朝堂：召回入朝的人物在此检查是否已抵达临安，抵达才真正转 IN_COURT，不瞬移。
             val travelResult = CharacterTravelSystem.tickArrivals(advancedState)
-            val nextState = travelResult.first
+            val stateAfterTravel = travelResult.first
             val travelReports = travelResult.second
+
+            // V1.1 历史 Canon：处理预定状态迁移（如宗泽开局入对、随后外任转东京留守）。
+            val scheduledResult = CharacterTravelSystem.tickScheduledTransitions(stateAfterTravel)
+            val nextState = scheduledResult.first
+            val scheduledReports = scheduledResult.second
 
             val event = EventDirector.selectForTurn(
                 state = nextState,
@@ -449,7 +454,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                 lastOutcomes = emptyList(),
                 lastRejected = emptyList(),
                 currentStoryEvent = event,
-                storyOutcomes = worldReports + marchReports + supplyReports + travelReports,
+                storyOutcomes = worldReports + marchReports + supplyReports + travelReports + scheduledReports,
                 ending = ending,
                 earnedAchievements = earned + newAch,
                 newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement,

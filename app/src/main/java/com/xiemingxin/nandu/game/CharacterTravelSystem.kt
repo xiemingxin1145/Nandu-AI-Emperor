@@ -32,4 +32,36 @@ object CharacterTravelSystem {
         if (reports.isEmpty()) return state to emptyList()
         return state.copy(officers = newOfficers) to reports
     }
+
+    /**
+     * V1.1 历史 Canon：处理"人物当前在场，但已知会在某旬后转为另一状态/地点"的预定迁移。
+     * 典型场景：宗泽开局当天入对在朝，随后按史实外任、转东京留守——不经历"途中不可见"的过程，
+     * 到点直接切换，转场前一直正常可见/可参与朝会。
+     */
+    fun tickScheduledTransitions(state: GameState): Pair<GameState, List<String>> {
+        val reports = mutableListOf<String>()
+        val newOfficers = state.officers.map { officer ->
+            val turn = officer.scheduledTurn
+            val newStatus = officer.scheduledStatus
+            if (turn != null && newStatus != null && state.turn >= turn) {
+                val newCityId = officer.scheduledCityId ?: officer.currentCityId
+                val cityName = state.cities.find { it.id == newCityId }?.name ?: newCityId
+                val statusLabel = when (newStatus) {
+                    OfficerStatus.DEPLOYED -> "外任$cityName"
+                    OfficerStatus.IN_COURT -> "入朝"
+                    else -> "转任"
+                }
+                reports += "【任命】${officer.name}$statusLabel。"
+                officer.copy(
+                    status = newStatus,
+                    currentCityId = newCityId,
+                    scheduledStatus = null,
+                    scheduledCityId = null,
+                    scheduledTurn = null
+                )
+            } else officer
+        }
+        if (reports.isEmpty()) return state to emptyList()
+        return state.copy(officers = newOfficers) to reports
+    }
 }

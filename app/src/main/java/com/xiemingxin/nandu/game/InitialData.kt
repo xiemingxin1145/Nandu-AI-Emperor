@@ -27,16 +27,31 @@ object InitialData {
     )
 
     val officers = listOf(
-        Officer("yue_fei", "岳飞", "军中小卒", command=99, force=98, strategy=93, politics=52, loyalty=100, currentCityId="xiangyang", status=OfficerStatus.HIDDEN, charm=75, ambition=40, rankLevel=0, origin="军户", skills=listOf("步战","骑战","严军","野战","北伐"), bio="相州汤阴人，少负气节，沉厚寡言。背刺精忠报国，志在收复中原。开局沉于行伍，待明主识拔。"),
-        Officer("han_shizhong", "韩世忠", "低阶武官", command=94, force=95, strategy=85, politics=58, loyalty=95, currentCityId="jiankang", status=OfficerStatus.SOLDIER, charm=80, ambition=45, rankLevel=2, origin="军户", skills=listOf("水战","江防","突袭","守江"), bio="延安人，行伍出身，勇冠三军。其妻梁红玉亦有巾帼之志。擅水战，黄天荡可建奇功。"),
-        Officer("li_gang", "李纲", "主战派", command=82, force=45, strategy=88, politics=92, loyalty=98, currentCityId="linan", charm=78, ambition=35, rankLevel=4, origin="士族", skills=listOf("守城","城防","民心","抗围城"), bio="邵武人，靖康年间力主抗金，守东京有功。刚直敢言，然易遭主和派排挤。"),
-        Officer("zong_ze", "宗泽", "主战派", command=90, force=65, strategy=92, politics=85, loyalty=100, currentCityId="kaifeng", status=OfficerStatus.WANDERING, charm=82, ambition=30, rankLevel=4, origin="寒门", skills=listOf("召义军","提振军心","中原反抗","抗金"), bio="婺州义乌人，老成持重。东京留守，招抚河北义军，三呼渡河而殁。其志可昭日月。"),
-        Officer("zhao_ding", "赵鼎", "文臣派", command=55, force=30, strategy=86, politics=95, loyalty=96, currentCityId="linan", charm=72, ambition=40, rankLevel=4, origin="寒门", skills=listOf("政务","筹粮","安民","理财"), bio="解州闻喜人，中兴贤相。长于治理，善理财赋，调和朝堂。然与秦桧政见相左。"),
-        Officer("qin_hui", "秦桧", "寒门文士", command=35, force=25, strategy=85, politics=90, loyalty=30, currentCityId="linan", status=OfficerStatus.HIDDEN, charm=70, ambition=80, rankLevel=2, origin="寒门", skills=listOf("外交","党争","议和","内斗"), bio="江宁人，工于心计。靖康中随二帝北狩，后自金营南归，其归诚真伪，朝野多有疑虑。"),
-        Officer("wu_jie", "吴玠", "边地武人", command=90, force=85, strategy=88, politics=65, loyalty=95, currentCityId="xinguan", status=OfficerStatus.HIDDEN, charm=68, ambition=42, rankLevel=3, origin="军户", skills=listOf("山地战","守关","克骑兵","川陕防线"), bio="德顺军陇干人，西北边军出身。仙人关、和尚原大破金军，川陕锁钥赖以不失。"),
+        // V1.1 历史 Canon：岳飞建炎元年五月因越职上书被夺官，此时是流落军中的白身，
+        // 非普通朝班可见之人；WANDERING 且可征辟，符合《金佗稡编》卷四记载。
+        Officer("yue_fei", "岳飞", "军中小卒", command=99, force=98, strategy=93, politics=52, loyalty=100, currentCityId="xiangyang", status=OfficerStatus.WANDERING, charm=75, ambition=40, rankLevel=0, origin="军户", skills=listOf("步战","骑战","严军","野战","北伐"), bio="相州汤阴人，少负气节，沉厚寡言。建炎元年五月越职上书言事，被夺官逐出军中，此刻正流落待访。志在收复中原，待明主识拔。"),
+        // V1.1 历史 Canon：韩世忠此时在京有军职（御营宿卫一类差遣），但不是常朝文班固定成员，
+        // 只在军务性质的场合（枢密院/SHUMI）以有限身份出席。
+        Officer("han_shizhong", "韩世忠", "低阶武官", command=94, force=95, strategy=85, politics=58, loyalty=95, currentCityId="linan", status=OfficerStatus.IN_CAPITAL, charm=80, ambition=45, rankLevel=2, origin="军户", skills=listOf("水战","江防","突袭","守江"), bio="延安人，行伍出身，勇冠三军。其妻梁红玉亦有巾帼之志。此时任御营武职，随驾在京，尚未独当一面。"),
+        Officer("li_gang", "李纲", "主战派", command=82, force=45, strategy=88, politics=92, loyalty=98, currentCityId="linan", charm=78, ambition=35, rankLevel=4, origin="士族", skills=listOf("守城","城防","民心","抗围城"), bio="邵武人，靖康年间力主抗金，守东京有功。开局当日刚抵行在并入见拜相，刚直敢言，然易遭主和派排挤。"),
+        // V1.1 历史 Canon：《建炎以来系年要录》卷六载，六月己未朔宗泽本人自卫南分兵屯河上，
+        // 以数百骑赴南都入对——开局当天他确实在朝，但很快外任知开封府、转东京留守，
+        // 此后只应通过奏疏/军报常态出现，不再肉身参加普通朝会。scheduledTurn 处理这个自动转场。
+        Officer("zong_ze", "宗泽", "主战派", command=90, force=65, strategy=92, politics=85, loyalty=100, currentCityId="linan", status=OfficerStatus.IN_COURT, scheduledStatus=OfficerStatus.DEPLOYED, scheduledCityId="kaifeng", scheduledTurn=3, charm=82, ambition=30, rankLevel=4, origin="寒门", skills=listOf("召义军","提振军心","中原反抗","抗金"), bio="婺州义乌人，老成持重。六月己未朔自卫南赴南都入对，旬日内即将外任，转东京留守，招抚河北义军，三呼渡河而殁。其志可昭日月。"),
+        // V1.1 历史 Canon：赵鼎建炎元年尚未进入本局核心叙事视野，不应作为开局默认 IN_COURT。
+        Officer("zhao_ding", "赵鼎", "文臣派", command=55, force=30, strategy=86, politics=95, loyalty=96, currentCityId="linan", status=OfficerStatus.NOT_YET_RELEVANT, charm=72, ambition=40, rankLevel=4, origin="寒门", skills=listOf("政务","筹粮","安民","理财"), bio="解州闻喜人，中兴贤相。此时尚未进入朝廷核心，后期方显理财调和之才。"),
+        // V1.1 历史 Canon：秦桧此时仍羁留金营（挞懒军中），建炎四年十月方才南归，
+        // 在此之前不可入宋廷、不可征辟。currentCityId 记为开封，标记其身陷敌境，非在宋境游历。
+        Officer("qin_hui", "秦桧", "寒门文士", command=35, force=25, strategy=85, politics=90, loyalty=30, currentCityId="kaifeng", status=OfficerStatus.CAPTIVE, charm=70, ambition=80, rankLevel=2, origin="寒门", skills=listOf("外交","党争","议和","内斗"), bio="江宁人，工于心计。靖康中随二帝北狩，此刻仍羁留金营，尚未南归。其归诚真伪，日后朝野多有疑虑。"),
+        // V1.1 历史 Canon：吴玠此时尚未进入本局核心叙事视野。
+        Officer("wu_jie", "吴玠", "边地武人", command=90, force=85, strategy=88, politics=65, loyalty=95, currentCityId="xinguan", status=OfficerStatus.NOT_YET_RELEVANT, charm=68, ambition=42, rankLevel=3, origin="军户", skills=listOf("山地战","守关","克骑兵","川陕防线"), bio="德顺军陇干人，西北边军出身。此时尚未崭露头角，后于仙人关、和尚原大破金军，川陕锁钥赖以不失。"),
         Officer("zhang_jun", "张浚", "主战派", command=75, force=50, strategy=84, politics=82, loyalty=90, currentCityId="linan", charm=74, ambition=60, rankLevel=4, origin="士族", skills=listOf("都督诸军","北伐","调度","荐才"), bio="汉州绵竹人，志大才疏而忠勇可嘉。力主北伐，然富平之败为其所累，用之需权衡。"),
-        Officer("liu_qi", "刘锜", "军中小卒", command=88, force=88, strategy=80, politics=55, loyalty=92, currentCityId="shouchun", status=OfficerStatus.HIDDEN, charm=66, ambition=38, rankLevel=1, origin="将门", skills=listOf("守城","硬抗","反冲锋","顺昌大捷"), bio="德顺军人，泸川军节度使刘仲武之子。沉毅善守，顺昌之战大破金军铁浮屠，威震淮西。"),
-        Officer("zhang_jun2", "张俊", "低阶武官", command=78, force=75, strategy=60, politics=65, loyalty=55, currentCityId="linan", status=OfficerStatus.SOLDIER, charm=58, ambition=70, rankLevel=2, origin="军户", skills=listOf("野战","征伐","逐利"), bio="成纪人，中兴四将之一，然贪财好利，晚节附秦桧构陷岳飞。忠诚存疑，用之当防。")
+        // V1.1 历史 Canon：刘锜此时尚未进入本局核心叙事视野。
+        Officer("liu_qi", "刘锜", "军中小卒", command=88, force=88, strategy=80, politics=55, loyalty=92, currentCityId="shouchun", status=OfficerStatus.NOT_YET_RELEVANT, charm=66, ambition=38, rankLevel=1, origin="将门", skills=listOf("守城","硬抗","反冲锋","顺昌大捷"), bio="德顺军人，泸川军节度使刘仲武之子。此时尚未崭露头角，后于顺昌之战大破金军铁浮屠，威震淮西。"),
+        Officer("zhang_jun2", "张俊", "低阶武官", command=78, force=75, strategy=60, politics=65, loyalty=55, currentCityId="linan", status=OfficerStatus.SOLDIER, charm=58, ambition=70, rankLevel=2, origin="军户", skills=listOf("野战","征伐","逐利"), bio="成纪人，中兴四将之一，然贪财好利，晚节附秦桧构陷岳飞。忠诚存疑，用之当防。"),
+        // V1.1 历史 Canon 新增：黄潜善、汪伯彦，开局即在朝，与李纲、宗泽的主战路线构成政治张力。
+        Officer("huang_qianshan", "黄潜善", "执政文臣", command=40, force=20, strategy=55, politics=78, loyalty=55, currentCityId="linan", status=OfficerStatus.IN_COURT, charm=68, ambition=65, rankLevel=4, origin="士族", skills=listOf("因循","主和","巡幸"), bio="福州人，建炎初拜相，与汪伯彦并称，力主南幸避敌，后因应对金军渡淮不力遭贬。"),
+        Officer("wang_boyan", "汪伯彦", "执政文臣", command=42, force=22, strategy=58, politics=76, loyalty=52, currentCityId="linan", status=OfficerStatus.IN_COURT, charm=66, ambition=68, rankLevel=4, origin="士族", skills=listOf("因循","主和","逢迎"), bio="祁门人，藩邸旧臣，深得赵构信重，与黄潜善同秉朝政，主张避敌南幸，后同遭贬黜。")
     )
 
     val cities = listOf(

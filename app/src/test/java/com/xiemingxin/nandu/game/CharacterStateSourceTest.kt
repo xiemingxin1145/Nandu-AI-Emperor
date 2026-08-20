@@ -33,12 +33,16 @@ class CharacterStateSourceTest {
         status: OfficerStatus = OfficerStatus.IN_COURT,
         currentCityId: String = "linan",
         travelDestinationCityId: String? = null,
-        travelArrivalTurn: Int? = null
+        travelArrivalTurn: Int? = null,
+        scheduledStatus: OfficerStatus? = null,
+        scheduledCityId: String? = null,
+        scheduledTurn: Int? = null
     ) = Officer(
         id = id, name = name, faction = "宋廷", command = 80, force = 80, strategy = 80,
         politics = 60, loyalty = 90, currentCityId = currentCityId, status = status,
         charm = 65, ambition = 30, rankLevel = 3, origin = "将门", skills = emptyList(), bio = "",
-        travelDestinationCityId = travelDestinationCityId, travelArrivalTurn = travelArrivalTurn
+        travelDestinationCityId = travelDestinationCityId, travelArrivalTurn = travelArrivalTurn,
+        scheduledStatus = scheduledStatus, scheduledCityId = scheduledCityId, scheduledTurn = scheduledTurn
     )
 
     private fun state(officers: List<Officer>, turn: Int = 10) = GameState(
@@ -154,5 +158,80 @@ class CharacterStateSourceTest {
         assertTrue(attendeeIds.contains("li_gang"))
         assertTrue(attendeeIds.contains("zhao_ding"))
         assertFalse("外任的岳飞不应混入出席名单", attendeeIds.contains("yue_fei"))
+    }
+
+    // ══════ V1.1 历史 Canon 用例 ══════
+
+    // 8. 宗泽开局当天 AT_COURT（IN_COURT），即便已挂了预定外任，也不影响当天出席
+    @Test
+    fun zongZeCanAttendCourtOnOpeningDayDespiteScheduledTransition() {
+        val zongZe = officer(
+            "zong_ze", "宗泽", status = OfficerStatus.IN_COURT, currentCityId = "linan",
+            scheduledStatus = OfficerStatus.DEPLOYED, scheduledCityId = "kaifeng", scheduledTurn = 3
+        )
+        val st = state(listOf(zongZe), turn = 1)
+        assertTrue(CharacterStateSource.isAtCourt(zongZe))
+        assertTrue(CharacterAppearanceSystem.canAppearInPalace(st, "zong_ze", PalaceIds.CHUIGONG))
+    }
+
+    // 9. 宗泽的预定外任到点才生效，之后不再肉身参加朝会
+    @Test
+    fun zongZeScheduledTransitionFiresOnlyAtScheduledTurn() {
+        val zongZe = officer(
+            "zong_ze", "宗泽", status = OfficerStatus.IN_COURT, currentCityId = "linan",
+            scheduledStatus = OfficerStatus.DEPLOYED, scheduledCityId = "kaifeng", scheduledTurn = 3
+        )
+        val early = state(listOf(zongZe), turn = 2)
+        val (stillAtCourt, noReports) = CharacterTravelSystem.tickScheduledTransitions(early)
+        assertTrue(noReports.isEmpty())
+        assertEquals(OfficerStatus.IN_COURT, stillAtCourt.officers.first { it.id == "zong_ze" }.status)
+
+        val onTime = state(listOf(zongZe), turn = 3)
+        val (departed, reports) = CharacterTravelSystem.tickScheduledTransitions(onTime)
+        val zongZeAfter = departed.officers.first { it.id == "zong_ze" }
+        assertTrue(reports.isNotEmpty())
+        assertEquals(OfficerStatus.DEPLOYED, zongZeAfter.status)
+        assertEquals("kaifeng", zongZeAfter.currentCityId)
+        assertNull(zongZeAfter.scheduledStatus)
+        assertFalse(
+            "外任后的宗泽不应再出现在普通朝会",
+            CharacterAppearanceSystem.canAppearInPalace(departed, "zong_ze", PalaceIds.CHUIGONG)
+        )
+    }
+
+    // 10. 秦桧 CAPTIVE：不可入朝，不可征辟
+    @Test
+    fun captiveOfficerCannotAttendCourtOrBeRecruited() {
+        val qinHui = officer("qin_hui", "秦桧", status = OfficerStatus.CAPTIVE, currentCityId = "kaifeng")
+        val st = state(listOf(qinHui)).copy(gold = 50000)
+        assertFalse(CharacterAppearanceSystem.canAppearInPalace(st, "qin_hui", PalaceIds.CHUIGONG))
+        assertFalse(CharacterStateSource.isRecruitable(qinHui))
+        val result = RecruitmentSystem.recruit(st, "qin_hui", goldOffered = 5000, seed = 1L)
+        assertTrue(result is RecruitmentSystem.RecruitResult.NotFound)
+    }
+
+    // 11. 韩世忠 IN_CAPITAL：可在军务殿（SHUMI）有限出席，不进入常朝（CHUIGONG）
+    @Test
+    fun inCapitalOfficerOnlyAppearsInMilitaryPalace() {
+        val hanShizhong = officer("han_shizhong", "韩世忠", status = OfficerStatus.IN_CAPITAL, currentCityId = "linan")
+        val st = state(listOf(hanShizhong))
+        assertTrue(
+            "IN_CAPITAL 应能在军务殿有限出席",
+            CharacterAppearanceSystem.canAppearInPalace(st, "han_shizhong", PalaceIds.SHUMI)
+        )
+        assertFalse(
+            "IN_CAPITAL 不应进入常朝文班",
+            CharacterAppearanceSystem.canAppearInPalace(st, "han_shizhong", PalaceIds.CHUIGONG)
+        )
+    }
+
+    // 12. 赵鼎 NOT_YET_RELEVANT：不可入朝、不会被寻访/征辟系统摸到
+    @Test
+    fun notYetRelevantOfficerIsFullyHiddenFromEarlyGame() {
+        val zhaoDing = officer("zhao_ding", "赵鼎", status = OfficerStatus.NOT_YET_RELEVANT, currentCityId = "linan")
+        val st = state(listOf(zhaoDing))
+        assertFalse(CharacterAppearanceSystem.canAppearInPalace(st, "zhao_ding", PalaceIds.CHUIGONG))
+        assertFalse(CharacterStateSource.isRecruitable(zhaoDing))
+        assertEquals(CharacterVisibility.HIDDEN, CharacterAppearanceSystem.visibilityFor(st, "zhao_ding"))
     }
 }

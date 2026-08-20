@@ -68,6 +68,10 @@ object CharacterStateSource {
             OfficerStatus.HIDDEN -> "尚未被发现"
             OfficerStatus.DISMISSED -> "已罢黜"
             OfficerStatus.DECEASED -> "已故"
+            // V1.1 历史 Canon 新增状态。
+            OfficerStatus.CAPTIVE -> "羁留敌营，未归"
+            OfficerStatus.IN_CAPITAL -> "在京任军职，仅军务场合出席"
+            OfficerStatus.NOT_YET_RELEVANT -> "此时尚未进入本局视野"
         }
     }
 }

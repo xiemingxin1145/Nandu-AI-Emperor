@@ -137,6 +137,10 @@ object GameSaveCodec {
         // V1.0 活朝堂：赶路状态是可选字段，人不在途中时不写入，读取端按"没有=未在赶路"处理。
         travelDestinationCityId?.let { obj.put("travelDestinationCityId", it) }
         travelArrivalTurn?.let { obj.put("travelArrivalTurn", it) }
+        // V1.1 历史 Canon：预定状态迁移，同样只在有值时写入。
+        scheduledStatus?.let { obj.put("scheduledStatus", it.name) }
+        scheduledCityId?.let { obj.put("scheduledCityId", it) }
+        scheduledTurn?.let { obj.put("scheduledTurn", it) }
         return obj
     }
 
@@ -162,7 +166,10 @@ object GameSaveCodec {
             skills = optJSONArray("skills")?.toStringList() ?: fallback?.skills ?: emptyList(),
             bio = optString("bio", fallback?.bio ?: ""),
             travelDestinationCityId = if (has("travelDestinationCityId")) optString("travelDestinationCityId") else null,
-            travelArrivalTurn = if (has("travelArrivalTurn")) optInt("travelArrivalTurn") else null
+            travelArrivalTurn = if (has("travelArrivalTurn")) optInt("travelArrivalTurn") else null,
+            scheduledStatus = if (has("scheduledStatus")) enumValueOf(optString("scheduledStatus")) else null,
+            scheduledCityId = if (has("scheduledCityId")) optString("scheduledCityId") else null,
+            scheduledTurn = if (has("scheduledTurn")) optInt("scheduledTurn") else null
         )
     }
 
