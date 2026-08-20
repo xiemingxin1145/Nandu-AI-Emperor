@@ -124,9 +124,11 @@ class WarSystemTest {
         val city  = city("jiankang", "song", 1000)
         val a     = army("a", "song", lastBattle = 7).copy(primaryUnitId = "song_beiwei_elite")
         val state = st(listOf(city), armies = listOf(a))
-        val decoded = GameSaveCodec.decode(GameSaveCodec.encode(state))
-        val after = decoded?.armies?.find { it.id == "a" }
-        assertNotNull(after)
+        val exported = GameSaveCodec.export(state)
+        val decoded = GameSaveCodec.import(exported).getOrNull()
+        assertNotNull("存档解码应成功", decoded)
+        val after = decoded!!.armies.find { it.id == "a" }
+        assertNotNull("Army 在存档中存在", after)
         assertEquals(7, after?.lastBattleTurn)
         assertEquals("song_beiwei_elite", after?.primaryUnitId)
     }
