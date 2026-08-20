@@ -54,7 +54,7 @@ object GameSaveCodec {
             turn = root.optInt("turn", 1),
             era = root.optString("era", "建炎元年"),
             calendar = root.optJSONObject("calendar")?.toCalendar() ?: GameCalendar(),
-            season = enumValueOf(root.optString("season", Season.SPRING.name)),
+            season = enumValueOf(root.optString("season", Season.SUMMER.name)),
             weather = enumValueOf(root.optString("weather", WeatherType.RAIN.name)),
             gold = root.optInt("gold", 50000),
             grain = root.optInt("grain", 200000),
@@ -91,7 +91,7 @@ object GameSaveCodec {
     private fun JSONObject.toCalendar() = GameCalendar(
         eraName = optString("eraName", "建炎元年"),
         year = optInt("year", 1),
-        month = optInt("month", 1),
+        month = optInt("month", 6),
         tenDay = optInt("tenDay", 1)
     )
 
@@ -125,14 +125,24 @@ object GameSaveCodec {
         )
     }
 
-    private fun Officer.toJson() = JSONObject()
-        .put("id", id).put("name", name).put("faction", faction)
-        .put("command", command).put("force", force).put("strategy", strategy)
-        .put("politics", politics).put("loyalty", loyalty)
-        .put("currentCityId", currentCityId).put("status", status.name)
-        .put("charm", charm).put("ambition", ambition).put("rankLevel", rankLevel)
-        .put("merit", merit).put("origin", origin)
-        .put("skills", JSONArray(skills)).put("bio", bio)
+    private fun Officer.toJson(): JSONObject {
+        val obj = JSONObject()
+            .put("id", id).put("name", name).put("faction", faction)
+            .put("command", command).put("force", force).put("strategy", strategy)
+            .put("politics", politics).put("loyalty", loyalty)
+            .put("currentCityId", currentCityId).put("status", status.name)
+            .put("charm", charm).put("ambition", ambition).put("rankLevel", rankLevel)
+            .put("merit", merit).put("origin", origin)
+            .put("skills", JSONArray(skills)).put("bio", bio)
+        // V1.0 活朝堂：赶路状态是可选字段，人不在途中时不写入，读取端按"没有=未在赶路"处理。
+        travelDestinationCityId?.let { obj.put("travelDestinationCityId", it) }
+        travelArrivalTurn?.let { obj.put("travelArrivalTurn", it) }
+        // V1.1 历史 Canon：预定状态迁移，同样只在有值时写入。
+        scheduledStatus?.let { obj.put("scheduledStatus", it.name) }
+        scheduledCityId?.let { obj.put("scheduledCityId", it) }
+        scheduledTurn?.let { obj.put("scheduledTurn", it) }
+        return obj
+    }
 
     private fun JSONObject.toOfficer(): Officer {
         val id = optString("id")
@@ -154,7 +164,12 @@ object GameSaveCodec {
             merit = optInt("merit", fallback?.merit ?: 0),
             origin = optString("origin", fallback?.origin ?: ""),
             skills = optJSONArray("skills")?.toStringList() ?: fallback?.skills ?: emptyList(),
-            bio = optString("bio", fallback?.bio ?: "")
+            bio = optString("bio", fallback?.bio ?: ""),
+            travelDestinationCityId = if (has("travelDestinationCityId")) optString("travelDestinationCityId") else null,
+            travelArrivalTurn = if (has("travelArrivalTurn")) optInt("travelArrivalTurn") else null,
+            scheduledStatus = if (has("scheduledStatus")) enumValueOf<OfficerStatus>(optString("scheduledStatus")) else null,
+            scheduledCityId = if (has("scheduledCityId")) optString("scheduledCityId") else null,
+            scheduledTurn = if (has("scheduledTurn")) optInt("scheduledTurn") else null
         )
     }
 

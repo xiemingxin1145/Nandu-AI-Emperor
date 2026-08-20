@@ -37,6 +37,10 @@ object OfficerProfiles {
             OfficerStatus.DEPLOYED -> promoteToDeployed(base)
             OfficerStatus.DISMISSED -> base.copy(rank = "罢黜")
             OfficerStatus.DECEASED -> base.copy(rank = "已故")
+            // V1.1 历史 Canon 新增状态。
+            OfficerStatus.CAPTIVE -> base.copy(rank = "羁留敌营", fame = base.fame.coerceAtMost(5), experience = base.experience.coerceAtMost(15))
+            OfficerStatus.IN_CAPITAL -> base.copy(rank = if (base.rank in listOf("军中小卒", "低阶武官", "边地武人")) "御营武职" else base.rank, fame = (base.fame + 5).coerceAtMost(100))
+            OfficerStatus.NOT_YET_RELEVANT -> base.copy(rank = "尚未登场", fame = 0, experience = base.experience.coerceAtMost(5))
         }
         return applyRankProgress(officer, statusProfile)
     }

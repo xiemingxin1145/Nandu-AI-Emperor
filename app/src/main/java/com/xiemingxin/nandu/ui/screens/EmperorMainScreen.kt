@@ -19,8 +19,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.ai.NpcResponse
+import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.CharacterAppearanceSystem
+import com.xiemingxin.nandu.game.CharacterStateSource
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
+import com.xiemingxin.nandu.game.PalaceIds
+import com.xiemingxin.nandu.game.PalaceRegistry
 import com.xiemingxin.nandu.game.controlledCityCount
 import com.xiemingxin.nandu.game.garrisonTroopsOf
 import com.xiemingxin.nandu.game.playerFaction
@@ -153,6 +158,7 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
     val player = state.playerFaction()
     val controlledCities = player?.let { state.controlledCityCount(it.id) } ?: state.cities.count { it.owner == "song" }
     val totalTroops = player?.let { state.garrisonTroopsOf(it.id) } ?: state.cities.filter { it.owner == "song" }.sumOf { it.troops }
+    val capitalName = state.cities.firstOrNull { it.id == CharacterStateSource.CAPITAL_CITY_ID }?.name ?: "南京应天府"
     Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF0D0A04))) {
         Row(
             modifier = Modifier
@@ -170,7 +176,7 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "${player?.name ?: "大宋"} · ${state.season.label} · ${state.weather.label}",
+                    text = "${player?.name ?: "大宋"} · 行在 $capitalName · ${state.season.label} · ${state.weather.label}",
                     color = Color(0xFF8B7355),
                     fontSize = 9.sp,
                     maxLines = 1
@@ -186,18 +192,14 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
                 IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
                     Text("⚙", fontSize = 16.sp)
                 }
-                Text(
-                    "V1.7",
-                    color = Color(0xFF3A3020),
-                    fontSize = 8.sp
-                )
+                Text("V1.7", color = Color(0xFF3A3020), fontSize = 8.sp)
             }
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp).padding(bottom = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            HudStat("🏙", "控城 ${controlledCities}")
+            HudStat("🏙", "控城 $controlledCities")
             HudStat("🛡", "总兵力 ${totalTroops / 1000}k")
         }
     }
@@ -220,13 +222,14 @@ fun IdleView(
     onSubmit: () -> Unit,
     isLoading: Boolean
 ) {
+    val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
     Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { CourtStageHeader(state = state, title = "垂拱殿听政", subtitle = "群臣列班 · 御笔候旨") }
+            item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "群臣列班 · 御笔候旨") }
             item { CourtOfficerRow(state = state) }
             item {
                 Card(
@@ -244,7 +247,7 @@ fun IdleView(
                             modifier = Modifier.fillMaxWidth().height(170.dp),
                             placeholder = {
                                 Text(
-                                    "传朕旨意…\n如：命岳飞率三万兵从鄂州取襄阳，韩世忠守建康，赵鼎筹粮，秦桧暂退中枢。",
+                                    "传朕旨意…\n如：命枢密院核前线军情，李纲议边防，黄潜善、汪伯彦各陈南幸利害。",
                                     color = Color(0xFF8B7355),
                                     fontSize = 13.sp
                                 )
@@ -263,16 +266,13 @@ fun IdleView(
             }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val hints = listOf("调兵出征", "任命守将", "修缮城防", "筹粮备战", "压制主和", "赏赐名将")
+                    val hints = listOf("调兵出征", "任命守将", "修缮城防", "筹粮备战", "召臣奏对", "赏罚官员")
                     items(hints) { hint ->
                         FilterChip(
                             selected = false,
                             onClick = { onEdictChange(if (edictText.isBlank()) hint else "$edictText，$hint") },
                             label = { Text(hint, fontSize = 11.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = Color(0xFF2A1F12),
-                                labelColor = CourtGold
-                            )
+                            colors = FilterChipDefaults.filterChipColors(containerColor = Color(0xFF2A1F12), labelColor = CourtGold)
                         )
                     }
                 }
@@ -302,12 +302,13 @@ fun IdleView(
 
 @Composable
 fun LoadingView() {
+    val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = CourtGold)
             Spacer(Modifier.height(16.dp))
-            Text("垂拱殿中，群臣传看圣旨…", color = CourtGold)
+            Text("$courtName 中，群臣传看圣旨…", color = CourtGold)
             Text("AI 正在拆解命令与朝堂反应", color = CourtSub, fontSize = 11.sp)
         }
     }
@@ -324,9 +325,7 @@ fun ConfirmEdictView(state: GameState, result: EdictResult, onConfirm: () -> Uni
             item { CourtStageHeader(state = state, title = "AI 奏议解析", subtitle = result.summary) }
             item { CourtDebatePanel(state = state, responses = result.npcResponses) }
             item { CommandPanel(result) }
-            if (result.riskTags.isNotEmpty() || result.clarificationNeeded) {
-                item { RiskPanel(result) }
-            }
+            if (result.riskTags.isNotEmpty() || result.clarificationNeeded) item { RiskPanel(result) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
@@ -350,7 +349,7 @@ fun ConfirmEdictView(state: GameState, result: EdictResult, onConfirm: () -> Uni
 private fun CourtBackground() {
     AssetImage(
         path = "images/buildings/building_imperial_palace_01.webp",
-        contentDescription = "垂拱殿内景",
+        contentDescription = "应天行在内殿",
         contentScale = ContentScale.Crop,
         placeholderText = "殿",
         modifier = Modifier.fillMaxSize()
@@ -358,11 +357,7 @@ private fun CourtBackground() {
     Box(
         modifier = Modifier.fillMaxSize().background(
             Brush.verticalGradient(
-                listOf(
-                    CourtInk.copy(alpha = 0.40f),
-                    CourtInk.copy(alpha = 0.18f),
-                    CourtInk.copy(alpha = 0.93f)
-                )
+                listOf(CourtInk.copy(alpha = 0.40f), CourtInk.copy(alpha = 0.18f), CourtInk.copy(alpha = 0.93f))
             )
         )
     )
@@ -389,14 +384,21 @@ private fun CourtStageHeader(state: GameState, title: String, subtitle: String) 
     }
 }
 
+/**
+ * 活朝堂：谁能站在行在内殿，统一由 CharacterAppearanceSystem.canAppearInPalace 决定。
+ * 外任、领军、俘虏、未到时代、罢黜、赶路中的人物一律不能肉身列班。
+ */
 @Composable
 private fun CourtOfficerRow(state: GameState) {
-    val ids = listOf("li_gang", "zhao_ding", "qin_hui", "yue_fei", "han_shizhong")
-    val officers = ids.mapNotNull { id -> state.officers.firstOrNull { it.id == id } }
+    val present = state.officers.filter {
+        CharacterAppearanceSystem.canAppearInPalace(state, it.id, PalaceIds.CHUIGONG)
+    }
+    if (present.isEmpty()) {
+        DutyOfficialMiniCard()
+        return
+    }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(officers) { officer ->
-            OfficerMiniCard(officer = officer)
-        }
+        items(present) { officer -> OfficerMiniCard(officer = officer) }
     }
 }
 
@@ -410,10 +412,14 @@ private fun OfficerMiniCard(officer: Officer) {
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(9.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(factionColor(officer.faction).copy(alpha = 0.26f)),
-                    contentAlignment = Alignment.Center
-                ) { Text(officer.name.take(1), color = CourtGold, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+                AssetImage(
+                    path = ArtResourceRegistry.portraitForOfficer(officer.id),
+                    contentDescription = officer.name,
+                    contentScale = ContentScale.Crop,
+                    placeholderText = officer.name.take(1),
+                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp))
+                        .background(factionColor(officer.faction).copy(alpha = 0.26f))
+                )
                 Spacer(Modifier.width(7.dp))
                 Column {
                     Text(officer.name, color = CourtCream, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -427,7 +433,32 @@ private fun OfficerMiniCard(officer: Officer) {
 }
 
 @Composable
+private fun DutyOfficialMiniCard() {
+    Card(
+        modifier = Modifier.width(220.dp).height(72.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xD51E1508)),
+        border = BorderStroke(1.dp, CourtSub.copy(alpha = 0.5f))
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.Center) {
+            Text("中书舍人 当值", color = CourtGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("重臣多在外任/领军时，由当值百官承接奏对；不会把不在行在的名臣强行召回。", color = CourtSub, fontSize = 9.sp, lineHeight = 12.sp)
+        }
+    }
+}
+
+@Composable
 private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
+    val inCourtResponses = responses.filter { response ->
+        state.officers.any { it.id == response.officerId } &&
+            CharacterAppearanceSystem.canAppearInPalace(state, response.officerId, PalaceIds.CHUIGONG)
+    }
+    val remoteResponses = responses.filter { response ->
+        val officer = state.officers.firstOrNull { it.id == response.officerId }
+        officer != null && !CharacterAppearanceSystem.canAppearInPalace(state, response.officerId, PalaceIds.CHUIGONG) &&
+            CharacterAppearanceSystem.visibilityFor(state, response.officerId) != com.xiemingxin.nandu.game.CharacterVisibility.HIDDEN
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -435,13 +466,23 @@ private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
         border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("群臣当殿奏对", color = CourtGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            if (responses.isEmpty()) {
-                Text("殿中暂无人出班。", color = CourtSub, fontSize = 12.sp)
+            Text("群臣奏对", color = CourtGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            if (inCourtResponses.isEmpty()) {
+                Text("本轮暂无在殿官员出班。", color = CourtSub, fontSize = 12.sp)
             } else {
-                responses.forEach { response ->
-                    val officer = state.officers.firstOrNull { it.id == response.officerId }
-                    DebateCard(response = response, officer = officer)
+                Text("【当殿】", color = CourtGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                inCourtResponses.forEach { response ->
+                    val officer = state.officers.first { it.id == response.officerId }
+                    DebateCard(response = response, officer = officer, remote = false)
+                }
+            }
+
+            if (remoteResponses.isNotEmpty()) {
+                Divider(color = CourtSub.copy(alpha = 0.25f))
+                Text("【奏札 / 军报转呈】", color = CourtSub, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                remoteResponses.forEach { response ->
+                    val officer = state.officers.first { it.id == response.officerId }
+                    DebateCard(response = response, officer = officer, remote = true)
                 }
             }
         }
@@ -449,7 +490,7 @@ private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
 }
 
 @Composable
-private fun DebateCard(response: NpcResponse, officer: Officer?) {
+private fun DebateCard(response: NpcResponse, officer: Officer?, remote: Boolean) {
     val c = attitudeColor(response.attitude)
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -461,11 +502,16 @@ private fun DebateCard(response: NpcResponse, officer: Officer?) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text(officer?.name ?: response.officerId, color = CourtCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text("${officer?.faction ?: "朝臣"} · ${officer?.currentCityId ?: "御前"}", color = CourtSub, fontSize = 9.sp)
+                    val location = officer?.let { CharacterStateSource.statusHint(GameState(officers = listOf(it)), it) }
+                    Text(
+                        if (remote) "${officer?.faction ?: "朝臣"} · 远程奏报" else "${officer?.faction ?: "朝臣"} · 当殿",
+                        color = CourtSub,
+                        fontSize = 9.sp
+                    )
                 }
                 Text(attitudeLabel(response.attitude), color = c, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
-            Text("“${response.text}”", color = CourtCream, fontSize = 12.sp, lineHeight = 18.sp)
+            Text(if (remote) "奏称：“${response.text}”" else "“${response.text}”", color = CourtCream, fontSize = 12.sp, lineHeight = 18.sp)
             officer?.let {
                 Text("忠诚 ${it.loyalty}｜野心 ${it.ambition}｜${it.skills.take(3).joinToString("、")}", color = CourtSub, fontSize = 9.sp)
             }
