@@ -40,14 +40,16 @@ object BattleResolver {
     fun resolveUnit(army: Army): BattleUnitDef? {
         if (army.primaryUnitId.isNotBlank())
             return BattleUnitCatalog.byId(army.primaryUnitId)
-        // armyType 映射
+        // Fix #6: 按 ownerFactionId 区分宋金兵种，不写死宋方视角
+        val isJin = army.ownerFactionId == "jin"
         val id = when {
-            army.armyType.contains("naval")    -> if (army.ownerFactionId == "jin") null else "song_navy"
-            army.armyType.contains("cavalry")  -> if (army.ownerFactionId == "jin") "jin_heavy_cavalry" else "song_cavalry"
-            army.armyType.contains("elite")    -> if (army.ownerFactionId == "jin") "jin_iron_pagoda" else "song_beiwei_elite"
-            army.armyType.contains("mountain") -> "song_crossbowman"
-            army.armyType.contains("frontier") -> if (army.ownerFactionId == "jin") "jin_infantry" else "song_infantry"
-            else -> if (army.ownerFactionId == "jin") "jin_infantry" else "song_infantry"
+            army.armyType.contains("naval")    -> if (isJin) null else "song_navy"
+            army.armyType.contains("cavalry")  -> if (isJin) "jin_heavy_cavalry" else "song_cavalry"
+            army.armyType.contains("elite")    -> if (isJin) "jin_iron_pagoda" else "song_beiwei_elite"
+            army.armyType.contains("mountain") -> if (isJin) "jin_infantry" else "song_crossbowman"
+            army.armyType.contains("archer")   -> if (isJin) "jin_horse_archer" else "song_divine_arm_crossbow"
+            army.armyType.contains("frontier") -> if (isJin) "jin_infantry" else "song_infantry"
+            else -> if (isJin) "jin_infantry" else "song_infantry"
         } ?: return null
         return BattleUnitCatalog.byId(id)
     }
@@ -274,7 +276,12 @@ object BattleResolver {
         if (city.popularSupport >= 80) mods.add("民心所向，军民同仇(+)")
 
         // 攻方战力
-        val attackerEnemyUnit = BattleUnitCatalog.byId("song_infantry")  // 守城方通用
+        // Fix #6: 守方兵种按城池owner决定，而非写死song_infantry
+        val defenderFactionId = city.owner
+        val attackerEnemyUnit = if (defenderFactionId == "jin")
+            BattleUnitCatalog.byId("jin_infantry")
+        else
+            BattleUnitCatalog.byId("song_infantry")
         val attackPowerBase = armyPower(attackerArmy, attackerCommander,
             attackerEnemyUnit, city.terrain, state.season, state.weather, true, mods)
 

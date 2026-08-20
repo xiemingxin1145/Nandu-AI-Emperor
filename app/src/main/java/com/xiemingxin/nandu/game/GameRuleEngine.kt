@@ -323,22 +323,38 @@ object GameRuleEngine {
                 }
                 // Stage 5 战争命令 ────────────────────────────────
                 "attack_city" -> {
-                    val armyId = currentState.armies.find { it.commanderId == command.officerId }?.id
-                        ?: currentState.armies.find { it.id == command.officerId }?.id
-                        ?: currentState.armies.find { it.statusCode == ArmyStatus.ENGAGEMENT_PENDING }?.id
+                    // Fix #9: 多支待战军团时，必须唯一确定，不允许随意选第一支
+                    val byCommander = currentState.armies.find { it.commanderId == command.officerId }
+                    val byId = currentState.armies.find { it.id == command.officerId }
+                    val pendingArmies = currentState.armies.filter {
+                        it.statusCode == ArmyStatus.ENGAGEMENT_PENDING
+                    }
+                    val armyId: String? = when {
+                        byCommander != null -> byCommander.id
+                        byId != null -> byId.id
+                        pendingArmies.size == 1 -> pendingArmies.first().id  // 唯一待战，可自动选
+                        pendingArmies.size > 1 -> null                        // 多支，拒绝模糊
+                        else -> null
+                    }
                     val tgtCity = command.toCityId.ifBlank { command.cityId }.ifBlank {
                         armyId?.let { id -> currentState.armies.find { it.id == id }?.targetCityId } ?: ""
                     }
-                    if (armyId == null || tgtCity.isBlank()) {
-                        rejected.add("【进攻失败】找不到待战军团或攻击目标。")
-                    } else {
-                        val warResult = WarSystem.executeAttack(currentState, armyId, tgtCity)
-                        when (warResult) {
-                            is WarSystem.WarResult.Success -> {
-                                currentState = warResult.newState
-                                outcomes.add(warResult.message)
+                    when {
+                        armyId == null && pendingArmies.size > 1 ->
+                            rejected.add("【进攻失败】当前有${pendingArmies.size}支待战军团（${pendingArmies.joinToString("、") { it.name }}），请在圣旨中明确指定主帅或军团。")
+                        armyId == null ->
+                            rejected.add("【进攻失败】找不到待战军团。")
+                        tgtCity.isBlank() ->
+                            rejected.add("【进攻失败】未指定攻击目标城池。")
+                        else -> {
+                            val warResult = WarSystem.executeAttack(currentState, armyId, tgtCity)
+                            when (warResult) {
+                                is WarSystem.WarResult.Success -> {
+                                    currentState = warResult.newState
+                                    outcomes.add(warResult.message)
+                                }
+                                is WarSystem.WarResult.Failure -> rejected.add(warResult.reason)
                             }
-                            is WarSystem.WarResult.Failure -> rejected.add(warResult.reason)
                         }
                     }
                 }
