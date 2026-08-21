@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,6 +39,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,12 +54,11 @@ import kotlinx.coroutines.launch
 /**
  * 正式历史序章。
  *
- * 音频硬规则：
- * 1. 画面时间轴绝不依赖音频回调，音频失败不能让序章秒跳。
- * 2. 正式旁白使用已打包的 M4A；播放器失败时也只影响该条声音。
- * 3. 序章 BGM 只能从已人工验收的白名单进入，旧曲不得自动复用。
- * 4. 所有生成视频的内嵌音轨一律静音；配乐、环境声、旁白只由游戏音频层负责。
- * 5. 每幕切换前先停掉上一幕 BGM/环境声/人声，防止叠音和残留。
+ * V1.6.1 交互规则：
+ * 1. 音频失败绝不推动时间轴，避免“序章秒过”。
+ * 2. 自动播放节奏缩短；玩家可随时点“下一幕”或左滑快进。
+ * 3. 右滑可回看上一幕；“跳过序章”才会直接进入游戏。
+ * 4. 旁白、BGM、环境声分层播放；生成视频内嵌音轨永远静音。
  */
 private enum class PrologueAct { ACT_1, ACT_2, ACT_3, ACT_4, ACT_5, ACT_6, DONE }
 
@@ -76,12 +78,10 @@ private data class ActConfig(
     val kenBurnsOffsetY: Float = 0f
 )
 
-/**
- * 只有真机试听通过、确认无歌词/人声/爆音/提示语的曲目才允许加入。
- * 当前先清空，彻底隔离旧的 crisis/event_sad/map/main_menu/court BGM。
- * 新的南宋场景音乐入库后再逐条加入白名单。
- */
-private val CERTIFIED_PROLOGUE_BGM: Set<String> = emptySet()
+private const val BGM_WORLD_MAP = "audio/bgm/bgm_worldmap_loop.ogg"
+private const val BGM_COURT = "audio/bgm/bgm_chuigong_hall_loop.ogg"
+
+private val CERTIFIED_PROLOGUE_BGM = setOf(BGM_WORLD_MAP, BGM_COURT)
 
 private val acts = listOf(
     ActConfig(
@@ -90,10 +90,11 @@ private val acts = listOf(
         cgFallback = "images/battles/battle_field.webp",
         narratorPath = "audio/voice/prologue/prologue_act1_shanhejiangqing.m4a",
         subtitle = "大宋靖康年间，金军铁骑再度南下。\n汴京以北，烽火连天，山河将倾。",
+        bgmPath = BGM_WORLD_MAP,
         ambiencePath = "audio/ambience/amb_frontier_wind.ogg",
         ambienceVolume = 0.10f,
-        durationMs = 14000,
-        kenBurnsZoom = 1.2f,
+        durationMs = 8_000,
+        kenBurnsZoom = 1.16f,
         kenBurnsOffsetX = 0.05f
     ),
     ActConfig(
@@ -103,10 +104,10 @@ private val acts = listOf(
         videoPath = "videos/intro/V03_intro_cinematic.mp4",
         narratorPath = "audio/voice/prologue/prologue_act2_jingkang.m4a",
         subtitle = "汴京陷落，二帝北狩。\n百余年东京繁华，一夕倾覆。\n宗室百官，尽被掳北去。",
-        // 本幕暂不叠加 storm：先把生成视频内嵌噪音与旧 BGM 完全隔离。
+        bgmPath = BGM_WORLD_MAP,
         ambiencePath = null,
-        durationMs = 20000,
-        kenBurnsZoom = 1.18f,
+        durationMs = 10_000,
+        kenBurnsZoom = 1.16f,
         kenBurnsOffsetY = -0.03f
     ),
     ActConfig(
@@ -115,10 +116,11 @@ private val acts = listOf(
         cgFallback = "images/locations/yangzhou_river.webp",
         narratorPath = "audio/voice/prologue/prologue_act3_nandu.m4a",
         subtitle = "康王赵构即位于南京应天府，改元建炎。\n然而江山未稳，金兵已经渡河而来。",
+        bgmPath = BGM_WORLD_MAP,
         ambiencePath = "audio/ambience/amb_river.ogg",
         ambienceVolume = 0.10f,
-        durationMs = 15000,
-        kenBurnsZoom = 1.12f,
+        durationMs = 8_000,
+        kenBurnsZoom = 1.10f,
         kenBurnsOffsetX = -0.04f
     ),
     ActConfig(
@@ -127,10 +129,11 @@ private val acts = listOf(
         cgFallback = "images/palace/chuigongdian.webp",
         narratorPath = "audio/voice/prologue/prologue_act4_lishipianzhuan.m4a",
         subtitle = "靖康已成旧史，山河却仍在烽火之中。\n从这一刻起，未来不再只有一条路。",
+        bgmPath = BGM_COURT,
         ambiencePath = "audio/ambience/amb_palace_murmur.ogg",
         ambienceVolume = 0.08f,
-        durationMs = 16000,
-        kenBurnsZoom = 1.2f,
+        durationMs = 8_000,
+        kenBurnsZoom = 1.16f,
         kenBurnsOffsetY = 0.02f
     ),
     ActConfig(
@@ -139,10 +142,11 @@ private val acts = listOf(
         cgFallback = "images/palace/chuigongdian.webp",
         narratorPath = "audio/voice/prologue/prologue_act5_player_inner.m4a",
         subtitle = "再睁开眼时，我已不在原来的世界。\n铜镜里的那张脸，属于大宋官家——赵构。\n\n旧史已成。余下山河，由我执笔。",
+        bgmPath = BGM_COURT,
         ambiencePath = "audio/ambience/amb_palace_murmur.ogg",
         ambienceVolume = 0.07f,
-        durationMs = 17000,
-        kenBurnsZoom = 1.12f,
+        durationMs = 10_000,
+        kenBurnsZoom = 1.10f,
         kenBurnsOffsetX = 0.02f
     ),
     ActConfig(
@@ -151,10 +155,11 @@ private val acts = listOf(
         cgFallback = "images/events/event_imperial_war_council_01.webp",
         narratorPath = "audio/voice/prologue/prologue_act6_neishi.m4a",
         subtitle = "殿外脚步停住。\n\n“官家，百官已经候在垂拱殿。”",
+        bgmPath = BGM_COURT,
         ambiencePath = "audio/ambience/amb_palace_murmur.ogg",
         ambienceVolume = 0.07f,
-        durationMs = 8000,
-        kenBurnsZoom = 1.08f
+        durationMs = 5_000,
+        kenBurnsZoom = 1.06f
     )
 )
 
@@ -165,23 +170,42 @@ fun PrologueScreen(
     modifier: Modifier = Modifier
 ) {
     var currentAct by remember { mutableStateOf(PrologueAct.ACT_1) }
-    var actAlpha by remember { mutableStateOf(0f) }
-    var subtitleAlpha by remember { mutableStateOf(0f) }
+    var actAlpha by remember { mutableFloatStateOf(0f) }
+    var subtitleAlpha by remember { mutableFloatStateOf(0f) }
+    var dragDistance by remember { mutableFloatStateOf(0f) }
     val scaleAnim = remember { Animatable(1f) }
     val offsetXAnim = remember { Animatable(0f) }
     val offsetYAnim = remember { Animatable(0f) }
 
-    val actIndex = currentAct.ordinal.coerceAtMost(acts.size - 1)
+    val actIndex = currentAct.ordinal.coerceAtMost(acts.lastIndex)
     val config = acts[actIndex]
+
+    fun stopActAudio() {
+        audioPlayer?.stopVoice()
+        audioPlayer?.stopAmbience()
+        audioPlayer?.stopBgm()
+    }
+
+    fun advanceAct() {
+        stopActAudio()
+        val next = nextAct(currentAct)
+        if (next == PrologueAct.DONE) {
+            onPrologueComplete()
+        } else {
+            currentAct = next
+        }
+    }
+
+    fun retreatAct() {
+        val previous = previousAct(currentAct) ?: return
+        stopActAudio()
+        currentAct = previous
+    }
 
     LaunchedEffect(currentAct) {
         if (currentAct == PrologueAct.DONE) return@LaunchedEffect
 
-        // 每幕都从干净音场开始，避免主菜单/上一幕残留继续响。
-        audioPlayer?.stopVoice()
-        audioPlayer?.stopBgm()
-        audioPlayer?.stopAmbience()
-
+        stopActAudio()
         actAlpha = 0f
         subtitleAlpha = 0f
         scaleAnim.snapTo(1f)
@@ -190,13 +214,13 @@ fun PrologueScreen(
 
         config.bgmPath
             ?.takeIf { it in CERTIFIED_PROLOGUE_BGM }
-            ?.let { audioPlayer?.playBgm(it, volume = 0.30f) }
+            ?.let { audioPlayer?.playBgm(it, volume = 0.20f) }
         config.ambiencePath?.let {
             audioPlayer?.playAmbience(it, volume = config.ambienceVolume)
         }
 
         actAlpha = 1f
-        delay(850)
+        delay(500)
         subtitleAlpha = 1f
 
         if (config.videoPath == null) {
@@ -221,29 +245,33 @@ fun PrologueScreen(
         }
 
         audioPlayer?.playVoice(config.narratorPath, voiceVolume = 1f)
-
         delay(config.durationMs)
-        audioPlayer?.stopVoice()
-
-        val next = nextAct(currentAct)
-        if (next == PrologueAct.DONE) {
-            audioPlayer?.stopAmbience()
-            audioPlayer?.stopBgm()
-            onPrologueComplete()
-        } else {
-            currentAct = next
-        }
+        advanceAct()
     }
 
     DisposableEffect(Unit) {
-        onDispose {
-            audioPlayer?.stopVoice()
-            audioPlayer?.stopAmbience()
-            audioPlayer?.stopBgm()
-        }
+        onDispose { stopActAudio() }
     }
 
-    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(currentAct) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragDistance = 0f },
+                    onHorizontalDrag = { _, amount -> dragDistance += amount },
+                    onDragEnd = {
+                        when {
+                            dragDistance <= -80f -> advanceAct()
+                            dragDistance >= 80f -> retreatAct()
+                        }
+                        dragDistance = 0f
+                    },
+                    onDragCancel = { dragDistance = 0f }
+                )
+            }
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -280,12 +308,11 @@ fun PrologueScreen(
                 .alpha(actAlpha)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.70f)),
                         radius = 800f
                     )
                 )
         )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -322,7 +349,7 @@ fun PrologueScreen(
         Card(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 28.dp, vertical = 64.dp)
+                .padding(horizontal = 28.dp, vertical = 86.dp)
                 .alpha(subtitleAlpha),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.58f)),
@@ -346,32 +373,66 @@ fun PrologueScreen(
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
                 .clickable {
-                    audioPlayer?.stopVoice()
-                    audioPlayer?.stopAmbience()
-                    audioPlayer?.stopBgm()
+                    stopActAudio()
                     onPrologueComplete()
                 },
             shape = CircleShape,
             colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f)),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                Color(0xFFC9A227).copy(alpha = 0.5f)
-            )
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC9A227).copy(alpha = 0.5f))
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("跳过", color = Color(0xFFC9A227), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.size(6.dp))
-                Text("»", color = Color(0xFFC9A227), fontSize = 14.sp)
-            }
+            Text(
+                "跳过序章",
+                color = Color(0xFFC9A227),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            )
         }
 
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp),
+                .padding(bottom = 48.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (currentAct != PrologueAct.ACT_1) {
+                Card(
+                    modifier = Modifier.clickable { retreatAct() },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.52f)),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.22f))
+                ) {
+                    Text("‹ 上一幕", color = Color(0xFFB8AC92), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+            }
+            Card(
+                modifier = Modifier.clickable { advanceAct() },
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2B210E).copy(alpha = 0.86f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC9A227).copy(alpha = 0.7f))
+            ) {
+                Text(
+                    if (currentAct == PrologueAct.ACT_6) "进入建炎元年 ›" else "下一幕 ›",
+                    color = Color(0xFFE4C75A),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp)
+                )
+            }
+        }
+
+        Text(
+            "左滑快进 · 右滑回看",
+            color = Color.White.copy(alpha = 0.38f),
+            fontSize = 10.sp,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             acts.indices.forEach { i ->
@@ -429,7 +490,6 @@ private fun PrologueAssetVideo(
                     view.setVideoURI(Uri.parse("file:///android_asset/$path"))
                     view.setOnPreparedListener { player ->
                         player.isLooping = false
-                        // 生成视频的自带音轨永远不用。序章声音由 GameAudioPlayer 统一管理。
                         player.setVolume(0f, 0f)
                         view.start()
                     }
@@ -452,6 +512,16 @@ private fun nextAct(currentAct: PrologueAct): PrologueAct = when (currentAct) {
     PrologueAct.ACT_5 -> PrologueAct.ACT_6
     PrologueAct.ACT_6 -> PrologueAct.DONE
     PrologueAct.DONE -> PrologueAct.DONE
+}
+
+private fun previousAct(currentAct: PrologueAct): PrologueAct? = when (currentAct) {
+    PrologueAct.ACT_1 -> null
+    PrologueAct.ACT_2 -> PrologueAct.ACT_1
+    PrologueAct.ACT_3 -> PrologueAct.ACT_2
+    PrologueAct.ACT_4 -> PrologueAct.ACT_3
+    PrologueAct.ACT_5 -> PrologueAct.ACT_4
+    PrologueAct.ACT_6 -> PrologueAct.ACT_5
+    PrologueAct.DONE -> PrologueAct.ACT_6
 }
 
 private fun DrawScope.drawPrologueParticles(act: PrologueAct) {
