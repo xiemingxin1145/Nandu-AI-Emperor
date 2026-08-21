@@ -25,9 +25,13 @@ data class ImperialDecision(
 
     fun requestAmendment(): ImperialDecision = copy(amendmentRequested = true)
 
+    /**
+     * 皇帝是否可以朱批，只由“圣意是否完整 + 是否存在真正可执行事项”决定。
+     * 大臣意见永远只是参考，绝不能反过来成为皇帝下旨的强制前置条件。
+     * selectedOfficerIds 仅用于记录“采纳了谁的意见”，不再锁死朱批按钮。
+     */
     fun canExecute(result: EdictResult, hasLongTermMandate: Boolean = false): Boolean =
-        !result.clarificationNeeded && (result.commands.isNotEmpty() || hasLongTermMandate) &&
-            (result.npcResponses.isEmpty() || selectedOfficerIds.isNotEmpty())
+        !result.clarificationNeeded && (result.commands.isNotEmpty() || hasLongTermMandate)
 }
 
 enum class WorldTurnActionKind(val label: String) {
