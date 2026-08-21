@@ -15,7 +15,7 @@ data class EdictResult(
     val confidence: Float = 1.0f,                    // 解析置信度
     val clarificationNeeded: Boolean = false,        // 是否需要澄清
     val clarificationHint: String = "",             // 澄清提示
-    val interactionType: String = "ORDER"            // CHAT / CONSULT / ORDER / CLARIFICATION
+    val interactionType: String = ""                 // CHAT / CONSULT / ORDER / CLARIFICATION；缺省时由本地推断
 )
 
 @Serializable
