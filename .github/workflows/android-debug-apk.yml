@@ -17,13 +17,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -45,7 +44,7 @@ jobs:
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/build.log; exit ${PIPESTATUS[0]}
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Verify stable debug signing certificate
         shell: bash
@@ -53,22 +52,11 @@ jobs:
           APK=app/build/outputs/apk/debug/app-debug.apk
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
           "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/apkcert.txt
-          ACTUAL=$(awk -F': ' '/certificate SHA-256 digest/ {print tolower($2); exit}' /tmp/apkcert.txt)
+          ACTUAL=$(sed -nE 's/.*certificate SHA-256 digest: ([0-9a-fA-F]+).*/\L\1/p' /tmp/apkcert.txt | head -1)
           EXPECTED='ec1b19d8ffe51983a1b33bbedc7724d9d441218b7edd6c6e2062cf97d3843875'
           test "$ACTUAL" = "$EXPECTED" || { echo "::error::APK 签名指纹变化：$ACTUAL。升级包必须保持稳定签名。"; exit 1; }
 
-      - name: Commit error log to repo
-        if: failure()
-        run: |
-          cp /tmp/build.log build-error-latest.txt 2>/dev/null || true
-          git config user.email "ci@bot.dev"
-          git config user.name "CI Bot"
-          git add -- build-error-latest.txt
-          git diff --cached --quiet || git commit -m "ci: build error [skip ci]"
-          git push --force-with-lease || git push
-
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: nandu-v1.6.1-debug-apk
