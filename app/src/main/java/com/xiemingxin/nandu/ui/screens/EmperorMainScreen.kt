@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -387,18 +388,66 @@ private fun CourtStageHeader(state: GameState, title: String, subtitle: String) 
 /**
  * 活朝堂：谁能站在行在内殿，统一由 CharacterAppearanceSystem.canAppearInPalace 决定。
  * 外任、领军、俘虏、未到时代、罢黜、赶路中的人物一律不能肉身列班。
+ *
+ * COURT-001：真正把落地已久但没怎么用起来的群像/普通官员素材接进主视图——
+ * 背景群像 + 侧翼列班撑出"百官林立"的观感，前景仍然只显示真正满足
+ * canAppearInPalace 的正式人物，不混淆"谁真的在场"这件事。
  */
 @Composable
 private fun CourtOfficerRow(state: GameState) {
     val present = state.officers.filter {
         CharacterAppearanceSystem.canAppearInPalace(state, it.id, PalaceIds.CHUIGONG)
     }
-    if (present.isEmpty()) {
-        DutyOfficialMiniCard(state)
-        return
+
+    Box {
+        // 背景群像：半透明衬底，纯氛围，不代表任何具体人物/游戏状态。
+        // 按当前旬数稳定选一张，避免同一处每次刷新都换背景图。
+        val crowdScene = remember(state.turn) {
+            val scenes = ArtResourceRegistry.CourtNpc.crowdScenes.values.toList()
+            scenes[(state.turn.hashCode() and Int.MAX_VALUE) % scenes.size]
+        }
+        AssetImage(
+            path = crowdScene,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            placeholderText = "",
+            modifier = Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(14.dp)).alpha(0.30f)
+        )
+
+        Column {
+            if (present.isEmpty()) {
+                DutyOfficialMiniCard(state)
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(present) { officer -> OfficerMiniCard(officer = officer) }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            CourtBackgroundRetinue(state)
+        }
     }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(present) { officer -> OfficerMiniCard(officer = officer) }
+}
+
+/**
+ * 侧翼列班：纯视觉氛围填充，用无脸/背影通用姿态撑场，不可点击、不对应任何具体
+ * Officer 实体、不参与任何游戏逻辑判断——避免玩家把它们误认成真正在场的、
+ * 有身份的人物。按当前旬数洗牌，旬数不变时顺序稳定。
+ */
+@Composable
+private fun CourtBackgroundRetinue(state: GameState) {
+    val poses = remember(state.turn) {
+        ArtResourceRegistry.CourtNpc.rankAndFilePoses.shuffled(kotlin.random.Random(state.turn))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        poses.take(6).forEach { pose ->
+            AssetImage(
+                path = pose,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                placeholderText = "",
+                modifier = Modifier.width(26.dp).height(46.dp).clip(RoundedCornerShape(4.dp)).alpha(0.55f)
+            )
+        }
     }
 }
 

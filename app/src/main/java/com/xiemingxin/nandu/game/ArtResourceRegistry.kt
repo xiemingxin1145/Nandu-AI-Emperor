@@ -93,6 +93,11 @@ object ArtResourceRegistry {
 
     val cityBackgrounds: Map<String, NamedArt> = mapOf(
         "linan" to city("linan", "临安", "linan_palace.webp"),
+        // COURT-001 止血：应天府城池图之前一直是"孤儿资源"——豆包早就画好了
+        // （原路径 images/cities/city_yingtianfu.webp，跟其它城池图所在的
+        // images/city/ 单数目录不一致，代码从来没读到过），开局首都因此一直
+        // 掉到临安的图。这里只是把已有文件挪对目录、接上注册表，没有新增美术。
+        "yingtianfu" to city("yingtianfu", "应天府", "yingtianfu.webp"),
         "jiankang" to city("jiankang", "建康", "jiankang_river_fortress.webp"),
         "xiangyang" to city("xiangyang", "襄阳", "xiangyang_fortress.webp"),
         "kaifeng" to city("kaifeng", "汴京", "kaifeng_old_capital.webp"),

@@ -80,7 +80,7 @@ fun PalaceHallScreen(
         AssetImage(
             path = "images/palace/chuigongdian.webp",
             fallbackPath = "images/palace/linan_street.webp",
-            contentDescription = "临安行在",
+            contentDescription = "皇宫大殿",
             contentScale = ContentScale.Crop,
             placeholderText = "宫",
             modifier = Modifier.fillMaxSize()
@@ -112,7 +112,7 @@ fun PalaceHallScreen(
                 border = BorderStroke(1.dp, HallGold.copy(alpha = 0.46f))
             ) {
                 Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("临 安 行 在", color = HallGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("皇 宫 行 在", color = HallGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     Text("建炎天子 · 南渡朝廷 · V2.2 美术资源接线", color = HallCream, fontSize = 11.sp)
                     Spacer(Modifier.height(10.dp))
                     AssetImage(
