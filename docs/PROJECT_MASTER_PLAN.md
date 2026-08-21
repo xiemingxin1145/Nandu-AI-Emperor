@@ -11,8 +11,8 @@
 并行已验证分支：`feat/court-001-crowd-wiring`（PR #54，尚未并入主集成线）  
 并行审计分支：`docs/roster-001-expansion-audit`（Claude，ROSTER-001）  
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
-当前下一任务：**STAB-006 全仓历史硬编码审计（进行中，分支 fix/stab-006-historical-hardcode-audit，当前会话）**  
-当前里程碑进度：**5 / 8**  
+当前下一任务：**STAB-007 正式入口 Smoke Test**  
+当前里程碑进度：**6 / 8**  
 当前总进度：**5 / 37**
 
 ---
@@ -240,31 +240,53 @@ AI 可生成建议、奏议、计划、外交措辞和候选行动；最终数�
 
 ## STAB-006 — 全仓历史硬编码审计
 
-状态：`IN_PROGRESS`（分支 `fix/stab-006-historical-hardcode-audit`，当前会话）
+状态：`DONE`
 
 审计并处理：固定年份、固定官职、固定位置、固定城市归属、固定历史结果、正式流程中的 UI 假数据。
 
 完成标准：输出审计清单，高危正式流程硬编码清零。
 
-进行中记录（未完成，Draft PR 尚未建立/CI 未跑完前不得标 DONE）：
+完成记录：
 
-- 已有提交（基于 `release/v1.6.1`，含 STAB-004/STAB-005 已完成内容）：
-  - `3245825` STAB-006: enforce declared story trigger guards
-  - `284ae4d` STAB-006: preserve structured trigger fields from event packs
-  - `8ea6412` STAB-006: make declared story effects mutate real world state
-  - `b929b26` STAB-006: add story trigger guard regressions
-  - `df096c2` STAB-006: add story effect writeback regressions
-  - `7502462` STAB-006: fix era name never advancing past Jianyan + audit checklist
-- `7502462` 修了三处高危正式流程穿帮（`GameCalendar` 年号永不切换 / `IntroScreen`
-  硬编码"临安行在" / `MockProvider` 硬编码"垂拱殿"摘要），新增
-  `docs/STAB006_HARDCODE_AUDIT.md` 审计清单，新增 `GameCalendarEraTest.kt`。
-- 待办：建 Draft PR（基线接 STAB-005，不合 main）→ 跑完整 unit tests / Android
-  Build / Debug APK CI → CI 全绿后再做最后一轮穿帮核查、确认审计文档完整 →
-  再标 DONE、推进里程碑进度、把 STAB-007 改为 NEXT。
+- 日期：2026-08-21
+- 分支：`fix/stab-006-historical-hardcode-audit`（从 `release/v1.6.1` 切出，已含
+  STAB-004/STAB-005 全部内容）
+- 提交：
+  - `3245825`/`284ae4d`/`8ea6412`/`b929b26`/`df096c2` —— 本分支既有工作：让
+    `EventDirector` 强制执行 JSON 声明的触发条件（`required_npc_alive`/
+    `city_owner`/`blocked_flags`/`trigger_event` 等），让 `StoryEventEffectApplier`
+    把声明的效果真正写回 `GameState`（兼容 camelCase/snake_case，处理嵌套
+    city 效果），及对应回归测试。这部分不属于本次改动，仅记录。
+  - `7502462` —— 本次新增：修了三处高危正式流程穿帮
+    （`GameCalendar.advance()` 年号永不从"建炎"切到"绍兴" / `IntroScreen.kt`
+    硬编码"临安行在" / `MockProvider.kt` 硬编码"垂拱殿已议定圣旨"摘要），
+    新增 `docs/STAB006_HARDCODE_AUDIT.md` 审计清单，新增 `GameCalendarEraTest.kt`。
+  - `d168239` —— 把本任务标 IN_PROGRESS 并记录分支/提交，避免总纲失真。
+- PR：#60 → `release/v1.6.1`，Draft，未合并 main。
+- CI：`android-build.yml` 与 `android-debug-apk.yml` 均触发并全部 `success`——
+  版本/签名策略检查、视频兼容性检查（STAB-005 成果）、unit tests、Debug APK
+  构建、签名指纹校验、APK 上传，每一步都真实跑过，没有 skip（除了只在失败时
+  触发的诊断步骤）。
+- 测试结果：`GameCalendarEraTest.kt` 6 个用例本地真实 JVM 跑通；整个
+  `game`+`agent` 测试套件（含本分支已有的 `BattleDirectiveSystemTest`/
+  `BattleOpportunitySystemTest`/`BattleScenePresentationSystemTest`/
+  `PalaceTaskSystemRegressionTest` 等）112 个测试全部通过。CI 上的完整
+  `testDebugUnitTest` 同样 `success`。
+- 遗留问题（已写入 `docs/STAB006_HARDCODE_AUDIT.md`，非高危，本次未修）：
+  1. `MockProvider.kt` 硬编码"zhao_ding"作为默认发言人（多处）——下游
+     `CourtDebatePanel` 已用 `CharacterAppearanceSystem` 过滤 HIDDEN 人物，
+     实际不会展示给玩家；真正修复需要给 `parseEdict()` 加 `GameState` 参数，
+     牵连 `AiProvider` 接口和其它 Provider 实现类，留给专门任务。
+  2. `VoiceProfiles.kt` 里的 `HistoricalEvent`（`fixedHistory`/
+     `intervenableEvents`/`potentialFuture`）是完全没有被任何代码引用的死
+     代码，像是给 V1.7 `HIST-001` 准备的设计草稿，启动 `HIST-001` 时应先看
+     一眼再决定复用还是清理。
+  3. `Faction("jin").rulerName` 与金国唯一有立绘的人物（完颜宗弼）不一致，
+     `ROSTER-001`（`docs/ROSTER_EXPANSION_AUDIT.md`）已记录，交叉引用。
 
 ## STAB-007 — 正式入口 Smoke Test
 
-状态：`TODO`
+状态：`NEXT`
 
 逐一检查主菜单、序章、皇宫、朝议、地图、国政、军务、人物、城池内景、八宫殿、设置/AI、战役/CG/视频。
 
