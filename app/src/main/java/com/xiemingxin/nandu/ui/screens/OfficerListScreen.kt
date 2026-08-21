@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.*
 import com.xiemingxin.nandu.ui.components.AssetImage
 import com.xiemingxin.nandu.ui.components.AssetVideoSurface
-import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
+import com.xiemingxin.nandu.ui.components.CharacterDetailPanelWithState
 
 private val BgDark    = Color(0xFF0E0A05)
 private val CardDark  = Color(0xFF1A1208)
@@ -178,14 +178,10 @@ fun OfficerListScreen(
                             )
                         }
 
-                        CharacterDetailPanel(
+                        CharacterDetailPanelWithState(
                             officer = officer,
-                            cityName = cityName,
-                            onDismiss = { selectedOfficer = null },
-                            currentRole = role,
-                            loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
-                            statusHint = CharacterStateSource.statusHint(gameState, officer),
-                            armyName = CharacterStateSource.armyOf(gameState, officer.id)?.name
+                            gameState = gameState,
+                            onDismiss = { selectedOfficer = null }
                         )
                     }
                 }

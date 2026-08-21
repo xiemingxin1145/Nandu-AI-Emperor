@@ -2,6 +2,7 @@ package com.xiemingxin.nandu.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,14 +11,21 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.game.CharacterDetailEntryPolicy
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.ui.components.CharacterDetailDialog
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -26,18 +34,36 @@ import com.xiemingxin.nandu.ui.theme.XuanCream
 
 @Composable
 fun StateScreen(gameState: GameState) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().background(InkBlack).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item { HeaderCard(gameState) }
-        item { ResourceGrid(gameState) }
-        item { CourtPowerCard(gameState) }
-        item { FactionCard(gameState) }
-        item { TalentHintCard(gameState) }
-        item { CitySummaryCard(gameState) }
-        item { OfficerSummaryCard(gameState) }
-        item { ChroniclePreviewCard(gameState) }
+    var selectedOfficer by remember { mutableStateOf<Officer?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().background(InkBlack).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            item { HeaderCard(gameState) }
+            item { ResourceGrid(gameState) }
+            item { CourtPowerCard(gameState) }
+            item { FactionCard(gameState) }
+            item { TalentHintCard(gameState) }
+            item { CitySummaryCard(gameState) }
+            item {
+                OfficerSummaryCard(
+                    state = gameState,
+                    onOfficerClick = { selectedOfficer = it }
+                )
+            }
+            item { ChroniclePreviewCard(gameState) }
+        }
+
+        selectedOfficer?.let { officer ->
+            CharacterDetailDialog(
+                officer = officer,
+                gameState = gameState,
+                onDismiss = { selectedOfficer = null }
+            )
+        }
     }
 }
 
@@ -129,19 +155,41 @@ private fun CitySummaryCard(state: GameState) {
 }
 
 @Composable
-private fun OfficerSummaryCard(state: GameState) {
-    val active = state.officers.filter { it.status == OfficerStatus.IN_COURT || it.status == OfficerStatus.DEPLOYED }
+private fun OfficerSummaryCard(
+    state: GameState,
+    onOfficerClick: (Officer) -> Unit
+) {
+    val active = CharacterDetailEntryPolicy.registeredForStateScreen(state)
     PanelCard {
         SectionTitle("朝廷已登记人才")
         if (active.isEmpty()) {
             Text("尚无可用人才。请下旨寻访。", color = Color(0xFF8B7355), fontSize = 12.sp)
         } else {
+            Text("点选人名可阅履历", color = Color(0xFFB9AA82), fontSize = 11.sp)
+            Spacer(Modifier.height(8.dp))
             active.take(8).forEach { officer ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${officer.name} · ${officer.faction}", color = XuanCream, fontSize = 12.sp)
-                    Text("统${officer.command} 忠${officer.loyalty} @${officer.currentCityId}", color = Color(0xFFB9AA82), fontSize = 11.sp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOfficerClick(officer) }
+                        .background(Color(0xFF1D150B), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "${officer.name} · ${officer.faction.ifBlank { "未载" }}",
+                        color = XuanCream,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "统${officer.command} 忠${officer.loyalty}",
+                        color = ImperialGold,
+                        fontSize = 12.sp
+                    )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
             }
         }
     }

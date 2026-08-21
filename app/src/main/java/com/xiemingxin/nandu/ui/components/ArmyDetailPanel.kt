@@ -1,6 +1,7 @@
 package com.xiemingxin.nandu.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -15,6 +16,7 @@ import com.xiemingxin.nandu.game.Army
 import com.xiemingxin.nandu.game.ArmyStatus
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
+import com.xiemingxin.nandu.game.Officer
 
 private val Gold   = Color(0xFFC9A227)
 private val Cream  = Color(0xFFE8DCC0)
@@ -33,7 +35,8 @@ fun ArmyDetailPanel(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onAttack: (() -> Unit)? = null,      // Stage5: 进攻按钮回调
-    onRetreat: (() -> Unit)? = null      // Stage5: 撤退按钮回调
+    onRetreat: (() -> Unit)? = null,     // Stage5: 撤退按钮回调
+    onCommanderClick: ((Officer) -> Unit)? = null
 ) {
     val commander = gameState.officers.find { it.id == army.commanderId }
     val currentCity = gameState.cities.find { it.id == army.currentCityId }
@@ -67,7 +70,18 @@ fun ArmyDetailPanel(
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Text("主帅：${commander?.name ?: "无"}", color = Cream, fontSize = 13.sp)
+            val commanderName = commander?.name ?: "无"
+            if (commander != null && onCommanderClick != null) {
+                val opened = commander
+                Text(
+                    text = "主帅：$commanderName  · 点此阅履历",
+                    color = Cream,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onCommanderClick.invoke(opened) }
+                )
+            } else {
+                Text("主帅：$commanderName", color = Cream, fontSize = 13.sp)
+            }
             Text("所属：${army.ownerFactionId}", color = Sub, fontSize = 11.sp)
             Spacer(Modifier.height(8.dp))
 
