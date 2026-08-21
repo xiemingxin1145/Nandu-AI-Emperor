@@ -39,9 +39,14 @@ object DelegatedActionValidator {
         if (action.armyId.isNotBlank()) {
             val army = state.armies.firstOrNull { it.id == action.armyId }
             if (army == null) return ValidationResult.Rejected("找不到军团：${action.armyId}")
+            if (army.ownerFactionId != playerFactionId)
+                return ValidationResult.Rejected("「${army.name}」不属于宋廷，不得越权统领。")
             if (army.id in mandate.prohibitedArmyIds)
                 return ValidationResult.Rejected("圣旨明令不得调动「${army.name}」。")
-            if (!ImperialMandateSystem.isArmyCoveredByMandate(state, army, mandate))
+            val appointingSelfToVacantCommand = kind == MandateActionKind.ASSIGN_COMMANDER &&
+                army.commanderId.isBlank() && action.officerId == mandate.responsibleOfficerId &&
+                state.officers.firstOrNull { it.id == mandate.responsibleOfficerId }?.currentCityId == army.currentCityId
+            if (!appointingSelfToVacantCommand && !ImperialMandateSystem.isArmyCoveredByMandate(state, army, mandate))
                 return ValidationResult.Rejected("「${army.name}」不在此人受权统辖的范围内。")
         }
 
@@ -184,7 +189,13 @@ object DelegatedActionValidator {
             return state to record(state, mandate, responsibleId, MandateActionKind.RESUPPLY,
                 "$responsibleName 调粮未行", false, "圣旨粮草预算不足")
         }
-        val budgeted = if (success) withMandateUpdated(newState, spendBudget(mandate, 0, spent)) else newState
+        val budgeted = if (success) {
+            withMandateUpdated(newState, spendBudget(mandate, 0, spent)).copy(
+                armies = newState.armies.map { army ->
+                    if (army.id == action.armyId) army.copy(lastSuppliedTurn = state.turn) else army
+                }
+            )
+        } else newState
         return budgeted to record(
             state, mandate, responsibleId, MandateActionKind.RESUPPLY,
             if (success) "$responsibleName 奉旨调粮：$message" else "$responsibleName 调粮未行",

@@ -136,4 +136,29 @@ class ImperialMandateIntegrationTest {
         assertEquals(30_000, ImperialMandatePolicy.parseAmount("30,000"))
         assertNull(ImperialMandatePolicy.parseAmount("若干"))
     }
+
+    @Test
+    fun authorizedArmyAutonomouslyChoosesFriendlyFrontierAlongExistingRoads() {
+        val commander = state.officers.first { it.id == "zong_ze" }.copy(status = OfficerStatus.DEPLOYED,
+            scheduledStatus = null, scheduledCityId = null, scheduledTurn = null)
+        val army = state.armies.first { it.id == "army_song_linan" }.copy(commanderId = commander.id,
+            name = "宗泽部", troops = 5000, supplyLevel = 90)
+        val mandate = ImperialMandate("mandate_move", 1, goal = "增援江淮北线", responsibleOfficerId = commander.id,
+            regionCityIds = setOf("yingtianfu", "chuzhou", "yangzhou"),
+            autonomyLevel = MandateAutonomyLevel.DISCRETIONARY,
+            allowedActions = setOf(MandateActionKind.REPOSITION_ARMY), budgetGold = 10000, budgetGrain = 20000)
+        val before = state.copy(turn = 3,
+            officers = state.officers.map { if (it.id == commander.id) commander else it },
+            armies = state.armies.map { if (it.id == army.id) army else it },
+            imperialMandates = listOf(mandate))
+        val result = WorldAiTurnExecutor.execute(before, WorldTurnPlan())
+        val moving = result.newState.armies.first { it.id == army.id }
+
+        assertEquals(ArmyStatus.MARCHING, moving.statusCode)
+        assertEquals("yingtianfu", moving.currentCityId)
+        assertTrue(moving.routeNodeIds.size >= 2)
+        assertTrue(moving.routeNodeIds.zipWithNext().all { (from, to) -> to in MapData.neighborsOf(from) })
+        assertTrue(result.newState.cities.first { it.id == moving.targetCityId }.owner == "song")
+        assertEquals(MandateActionKind.REPOSITION_ARMY, result.newState.mandateExecutionLog.single().actionKind)
+    }
 }

@@ -378,4 +378,33 @@ class DelegationSystemTest {
         assertEquals(1000, result.newState.armies.single().troops)
         assertTrue(result.newState.mandateExecutionLog.isEmpty())
     }
+
+    @Test
+    fun authorizedArmyAutonomouslyReceivesRealBudgetedSupply() {
+        val zongZe = officer("zong_ze", "宗泽")
+        val army = songArmy("zong_ze", troops = 1000).copy(supplyLevel = 30)
+        val m = mandate("zong_ze", allowedActions = setOf(MandateActionKind.RESUPPLY),
+            autonomyLevel = MandateAutonomyLevel.DISCRETIONARY, budgetGrain = 20000)
+        val state = baseState(listOf(zongZe), listOf(army), listOf(m))
+        val result = WorldAiTurnExecutor.execute(state, WorldTurnPlan())
+
+        assertTrue(result.newState.armies.single().supplyLevel > 30)
+        assertTrue(result.newState.cities.first { it.id == "yingtianfu" }.grain < 100000)
+        assertTrue(result.newState.imperialMandates.single().spentGrain > 0)
+        assertEquals(MandateActionKind.RESUPPLY, result.newState.mandateExecutionLog.single().actionKind)
+    }
+
+    @Test
+    fun authorizedMinisterCanAcceptVacantCommandOnlyAtRealLocation() {
+        val zongZe = officer("zong_ze", "宗泽")
+        val vacant = songArmy("", troops = 5000, id = "vacant_song_army")
+        val m = mandate("zong_ze", allowedActions = setOf(MandateActionKind.ASSIGN_COMMANDER),
+            autonomyLevel = MandateAutonomyLevel.DISCRETIONARY)
+        val state = baseState(listOf(zongZe), listOf(vacant), listOf(m))
+        val result = WorldAiTurnExecutor.execute(state, WorldTurnPlan())
+
+        assertEquals("zong_ze", result.newState.armies.single().commanderId)
+        assertEquals("yingtianfu", result.newState.officers.single().currentCityId)
+        assertEquals(MandateActionKind.ASSIGN_COMMANDER, result.newState.mandateExecutionLog.single().actionKind)
+    }
 }

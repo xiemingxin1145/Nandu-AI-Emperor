@@ -452,7 +452,8 @@ object WorldAiTurnExecutor {
     /**
      * DELEGATION-001：便宜从事级别的授权，负责人在预算/范围内自主判断该不该做。
      * 只使用负责人本人所在、仍归本方控制的真实城池；既可补既有军团，也可依法
-     * 募兵成军或修缮城防。一旬最多一件，所有动作仍先经过正式授权 validator。
+     * 募兵成军、修缮城防、同城任将、真实道路调军和当地补给。
+     * 一旬最多一件，所有动作仍先经过正式授权 validator。
      */
     private fun autoExecuteMandates(
         state: GameState,
@@ -490,9 +491,51 @@ object WorldAiTurnExecutor {
                     if (raise > 0) WorldAction("repair_defense", playerFactionId, "", city.id,
                         "便宜从事：加固实际驻地城防", raise, commander.id) else null
                 } else null
-                val action = if (army == null) recruit ?: repair
-                    else if (state.turn % 2 == 0 && mandate.autonomyLevel == MandateAutonomyLevel.DISCRETIONARY) repair ?: recruit
-                    else recruit ?: repair
+                val assign = if (army == null && MandateActionKind.ASSIGN_COMMANDER in mandate.allowedActions) {
+                    val vacant = state.armies.firstOrNull {
+                        it.ownerFactionId == playerFactionId && it.currentCityId == city.id &&
+                            it.commanderId.isBlank() && it.id !in mandate.prohibitedArmyIds &&
+                            it.statusCode in setOf(ArmyStatus.GARRISONED, ArmyStatus.STANDBY)
+                    }
+                    vacant?.let { WorldAction("assign_commander", playerFactionId, it.id, city.id,
+                        "奉旨接掌同城无人统领的军团", 0, commander.id) }
+                } else null
+                val supply = if (army != null && MandateActionKind.RESUPPLY in mandate.allowedActions && army.supplyLevel < 65) {
+                    val required = ((army.troops / 50) * (100 - army.supplyLevel)).coerceAtLeast(1000)
+                    if (mandate.remainingGrain() >= required && city.grain >= required) {
+                        WorldAction("resupply_army", playerFactionId, army.id, city.id,
+                            "奉旨以当地真实粮草补足军需", 0, commander.id)
+                    } else null
+                } else null
+                val reposition = if (army != null && MandateActionKind.REPOSITION_ARMY in mandate.allowedActions &&
+                    army.supplyLevel >= 50 && army.id !in mandate.prohibitedArmyIds) {
+                    val destination = state.cities.asSequence()
+                        .filter { it.owner == playerFactionId && it.id != city.id &&
+                            (mandate.regionCityIds.isEmpty() || it.id in mandate.regionCityIds) &&
+                            it.id !in mandate.prohibitedCityIds && it.controlState in setOf("FRONTLINE", "CONTESTED") }
+                        .mapNotNull { target ->
+                            val route = ArmyMovementSystem.findRoute(city.id, target.id, army.armyType)
+                                ?: return@mapNotNull null
+                            if (route.drop(1).any { node ->
+                                    state.cities.firstOrNull { it.id == node }?.owner?.let { it != playerFactionId } == true
+                                }) return@mapNotNull null
+                            target to route.size
+                        }
+                        .sortedWith(compareBy<Pair<City, Int>> { if (it.first.controlState == "CONTESTED") 0 else 1 }
+                            .thenBy { it.second }.thenBy { it.first.defense })
+                        .firstOrNull()?.first
+                    destination?.let { WorldAction("move_army", playerFactionId, army.id, it.id,
+                        "奉旨沿真实道路增援${it.name}", 0, commander.id) }
+                } else null
+                val action = when {
+                    army == null -> recruit ?: assign ?: repair
+                    supply != null -> supply
+                    mandate.autonomyLevel == MandateAutonomyLevel.DISCRETIONARY && state.turn % 3 == 0 ->
+                        reposition ?: repair ?: recruit
+                    mandate.autonomyLevel == MandateAutonomyLevel.DISCRETIONARY && state.turn % 2 == 0 ->
+                        repair ?: reposition ?: recruit
+                    else -> recruit ?: reposition ?: repair
+                }
                 action?.let { mandate to it }
             }.firstOrNull() ?: return state to emptyList()
 
