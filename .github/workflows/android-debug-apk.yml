@@ -35,10 +35,25 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Grant execute permission
-        run: chmod +x gradlew scripts/check_android_release_policy.sh
+        run: chmod +x gradlew scripts/check_android_release_policy.sh scripts/prepare_android_video_assets.sh scripts/check_video_assets.sh
 
       - name: Enforce Android release version and stable debug signing
         run: ./scripts/check_android_release_policy.sh
+
+      - name: Ensure ffmpeg/ffprobe for video preparation and QA
+        shell: bash
+        run: |
+          if ! command -v ffprobe >/dev/null 2>&1 || ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffprobe -version | head -1
+
+      - name: Prepare Android-compatible MP4s
+        run: ./scripts/prepare_android_video_assets.sh
+
+      - name: Validate packaged MP4 compatibility
+        run: ./scripts/check_video_assets.sh
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace

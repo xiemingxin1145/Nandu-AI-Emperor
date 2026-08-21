@@ -76,6 +76,12 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // STAB-005: a single robust video implementation for packaged Android assets.
+    // Media3 handles asset:// data sources and reports structured playback/decoder errors,
+    // replacing the mixed legacy VideoView / MediaPlayer paths.
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
+
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
