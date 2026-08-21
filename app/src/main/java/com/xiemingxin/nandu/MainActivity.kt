@@ -3,6 +3,7 @@ package com.xiemingxin.nandu
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Card
@@ -33,6 +34,8 @@ import com.xiemingxin.nandu.game.HistoricalBattleAvailability
 import com.xiemingxin.nandu.game.AchievementSystem
 import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.game.AudioResourceRegistry
+import com.xiemingxin.nandu.ui.AppBackTarget
+import com.xiemingxin.nandu.ui.AppNavigationPolicy
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.components.BattleReportPanel
 import com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer
@@ -157,6 +160,35 @@ fun NanduApp() {
         sfxSignal = "$event:${System.nanoTime()}"
     }
 
+    val backTarget = AppNavigationPolicy.backTarget(
+        showSettings = showSettings,
+        showPrologue = showPrologue,
+        interiorCityId = interiorCityId,
+        activePalaceId = activePalaceId,
+        showOfficerList = showOfficerList,
+        showShunchangBattle = showShunchangBattle,
+        currentTab = currentTab
+    )
+    BackHandler(enabled = uiState.ending == GameEnding.ONGOING && backTarget != null) {
+        playSfx("close_panel")
+        when (backTarget) {
+            AppBackTarget.SETTINGS -> showSettings = false
+            AppBackTarget.PROLOGUE -> {
+                showPrologue = false
+                showIntro = true
+            }
+            AppBackTarget.CITY_INTERIOR -> {
+                interiorCityId = null
+                viewModel.dismissVisitNarration()
+            }
+            AppBackTarget.PALACE -> activePalaceId = null
+            AppBackTarget.BATTLE -> showShunchangBattle = false
+            AppBackTarget.OFFICERS -> showOfficerList = false
+            AppBackTarget.PRIMARY_TAB -> currentTab = 0
+            null -> Unit
+        }
+    }
+
     // 序章拥有独占音频控制权，避免主菜单 BGM 和序章 BGM/旁白同时抢播放器。
     if (!showPrologue) {
         GameAudioController(
@@ -193,7 +225,7 @@ fun NanduApp() {
     }
 
     // ── 主菜单 ──────────────────────────────────────────
-    if (showIntro && !showPrologue) {
+    if (AppNavigationPolicy.shouldShowMainMenu(showIntro, showPrologue, showSettings)) {
         MainMenuScreen(
             onNewGame = {
                 playSfx("confirm")
@@ -366,7 +398,7 @@ fun NanduApp() {
                 } else {
                     MilitaryScreenV4(
                         gameState = uiState.gameState,
-                        onBack = {},
+                        onBack = { playSfx("close_panel"); currentTab = 0 },
                         onOpenOfficerList = { showOfficerList = true },
                         onAttackArmy = { armyId, cityId -> viewModel.executeAttackCity(armyId, cityId) },
                         onRetreatArmy = { armyId -> viewModel.executeRetreatArmy(armyId) }

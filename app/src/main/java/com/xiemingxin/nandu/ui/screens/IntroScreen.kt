@@ -79,7 +79,7 @@ fun IntroScreen(onStart: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().background(IntroInk)) {
         AssetImage(
             path = "images/buildings/building_imperial_palace_01.webp",
-            contentDescription = "临安行在",
+            contentDescription = "皇宫",
             contentScale = ContentScale.Crop,
             placeholderText = "宫",
             modifier = Modifier.fillMaxSize()

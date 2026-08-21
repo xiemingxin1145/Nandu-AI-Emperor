@@ -1,22 +1,24 @@
 package com.xiemingxin.nandu.story
 
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.Season
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * V1.0 剧情事件导演。
- * - candidates()：筛选所有可触发事件（原有逻辑保留）
- * - selectForTurn()：按分池加权随机选出本旬事件列表
- * - chainCandidates()：连锁事件查找
+ * 剧情事件导演。
+ *
+ * STAB-006 原则：JSON 中声明的触发条件必须真正执行。历史文本可以提供候选剧情，
+ * 但不得因为导演忽略 required_npc_alive / city_owner / blocked_flags / trigger_event 等字段，
+ * 让已经死亡的人、已经易手的城市或没有发生过的前置事件继续按史书硬播。
  */
 object EventDirector {
-
-    // ─── 原有接口（保留，向下兼容）───────────────────────────────────────
 
     fun candidates(
         state: GameState,
@@ -24,11 +26,13 @@ object EventDirector {
         firedEventIds: Set<String> = emptySet(),
         flags: Set<String> = emptySet()
     ): List<StoryEvent> {
+        val activeFlags = flags + state.storyFlags
         return events
             .filter { it.repeatable || it.eventId !in firedEventIds }
             .filter { matchesTurn(state, it.trigger) }
             .filter { matchesRequiredCity(state, it.trigger) }
-            .filter { matchesCondition(state, it.trigger, flags) }
+            .filter { matchesDeclaredGuards(state, it.trigger, activeFlags) }
+            .filter { matchesCondition(state, it.trigger, activeFlags) }
             .sortedWith(compareBy<StoryEvent> { typePriority(it.type) }.thenBy { it.eventId })
     }
 
@@ -43,13 +47,9 @@ object EventDirector {
         return event.choices.firstOrNull { it.id == choiceId }?.flags?.toSet().orEmpty()
     }
 
-    // ─── V1.0 新增：分池加权随机选取 ─────────────────────────────────────
-
     /**
      * 每旬从多个事件池中按权重随机选出最多 [maxPerTurn] 个事件。
-     * 主线/金国/城池危机 → 优先级最高，直接取头部；
-     * 朝堂/军事随机 → 各取1个（加权随机）；
-     * 人才发现/传闻 → 概率触发。
+     * event.trigger.random_chance 在进入事件池前先执行；类型级概率随后执行。
      */
     fun selectForTurn(
         state: GameState,
@@ -60,6 +60,7 @@ object EventDirector {
         maxPerTurn: Int = 3
     ): List<StoryEvent> {
         val pool = candidates(state, events, firedEventIds, flags)
+            .filter { matchesRandomChance(it.trigger, rng) }
         if (pool.isEmpty()) return emptyList()
 
         val highPriorityTypes = setOf("main_story", "jin_event", "city_crisis")
@@ -71,27 +72,16 @@ object EventDirector {
         val sidePool     = pool.filter { it.type == "side_story" || it.type == "diplomacy_event" }
 
         val selected = mutableListOf<StoryEvent>()
-
-        // 主线/危机：不随机，直接取优先级最高的一个
         mainPool.firstOrNull()?.let { selected += it }
-
-        // 朝堂：加权随机取1个
         weightedPick(courtPool, state, rng)?.let { if (it !in selected) selected += it }
-
-        // 军事：加权随机取1个
         weightedPick(militaryPool, state, rng)?.let { if (it !in selected) selected += it }
 
-        // 人才发现：30% 概率触发
         if (talentPool.isNotEmpty() && rng.nextInt(100) < 30) {
             weightedPick(talentPool, state, rng)?.let { if (it !in selected) selected += it }
         }
-
-        // 野史传闻：40% 概率触发
         if (rumorPool.isNotEmpty() && rng.nextInt(100) < 40) {
             weightedPick(rumorPool, state, rng)?.let { if (it !in selected) selected += it }
         }
-
-        // 外交/支线：20% 概率触发
         if (sidePool.isNotEmpty() && rng.nextInt(100) < 20) {
             weightedPick(sidePool, state, rng)?.let { if (it !in selected) selected += it }
         }
@@ -99,9 +89,6 @@ object EventDirector {
         return selected.distinctBy { it.eventId }.take(maxPerTurn)
     }
 
-    /**
-     * 连锁事件查找：在父事件 chain_next 中找出尚未触发的第一个后续事件。
-     */
     fun chainCandidates(
         event: StoryEvent,
         allEvents: List<StoryEvent>,
@@ -112,8 +99,6 @@ object EventDirector {
             .filter { it.eventId in event.chainNext }
             .filterNot { it.eventId in firedEventIds }
     }
-
-    // ─── 权重计算 ──────────────────────────────────────────────────────────
 
     private fun weightedPick(
         pool: List<StoryEvent>,
@@ -131,10 +116,6 @@ object EventDirector {
         return pool.last()
     }
 
-    /**
-     * 动态权重：base weight + 局势加成。
-     * 局势越紧张，对应事件池权重越高，让随机更贴合当前处境。
-     */
     private fun dynamicWeight(event: StoryEvent, state: GameState): Int {
         var w = event.weight.coerceAtLeast(1)
         when (event.type) {
@@ -147,8 +128,6 @@ object EventDirector {
         return w
     }
 
-    // ─── 触发条件匹配（原有逻辑）─────────────────────────────────────────
-
     private fun matchesTurn(state: GameState, trigger: JsonObject): Boolean {
         val min = trigger.int("turn_min") ?: Int.MIN_VALUE
         val max = trigger.int("turn_max") ?: Int.MAX_VALUE
@@ -159,6 +138,56 @@ object EventDirector {
         val required = trigger.string("required_city") ?: return true
         return state.cities.any { it.id == required }
     }
+
+    /** Execute every structured guard currently present in the shipped event packs. */
+    private fun matchesDeclaredGuards(state: GameState, trigger: JsonObject, flags: Set<String>): Boolean {
+        val requiredNpcAlive = trigger.string("required_npc_alive")
+        if (requiredNpcAlive != null) {
+            val officer = state.officers.firstOrNull { it.id == requiredNpcAlive } ?: return false
+            if (officer.status == OfficerStatus.DECEASED) return false
+        }
+
+        val triggerEvent = trigger.string("trigger_event")
+        if (triggerEvent != null && triggerEvent !in flags) return false
+
+        val blockedFlags = trigger.strings("blocked_flags")
+        if (blockedFlags.any { it in flags }) return false
+
+        val requiredFlags = trigger.strings("required_flags")
+        if (requiredFlags.any { it !in flags }) return false
+
+        trigger.objectValue("city_owner")?.forEach { (cityId, ownerValue) ->
+            val owner = runCatching { ownerValue.jsonPrimitive.content }.getOrNull() ?: return false
+            if (state.cities.none { it.id == cityId && it.owner == owner }) return false
+        }
+
+        val requiredCityOwner = trigger.string("required_city_owner")
+        val requiredCity = trigger.string("required_city")
+        if (requiredCityOwner != null && requiredCity != null) {
+            if (state.cities.none { it.id == requiredCity && it.owner == requiredCityOwner }) return false
+        }
+
+        if (!atLeast(state.jinThreat, trigger.int("jin_threat_gte"))) return false
+        if (!atMost(state.jinThreat, trigger.int("jin_threat_lte"))) return false
+        if (!atLeast(state.courtStability, trigger.int("court_stability_gte"))) return false
+        if (!atMost(state.courtStability, trigger.int("court_stability_lte"))) return false
+        if (!atLeast(state.gold, trigger.int("gold_gte"))) return false
+        if (!atMost(state.gold, trigger.int("gold_lte"))) return false
+        if (!atLeast(state.grain, trigger.int("grain_gte"))) return false
+        if (!atMost(state.grain, trigger.int("grain_lte"))) return false
+        if (!atLeast(state.warFactionPower, trigger.int("war_faction_power_gte"))) return false
+        if (!atLeast(state.peaceFactionPower, trigger.int("peace_faction_power_gte"))) return false
+
+        return true
+    }
+
+    private fun matchesRandomChance(trigger: JsonObject, rng: kotlin.random.Random): Boolean {
+        val chance = trigger.double("random_chance") ?: return true
+        return rng.nextDouble() < chance.coerceIn(0.0, 1.0)
+    }
+
+    private fun atLeast(actual: Int, minimum: Int?): Boolean = minimum == null || actual >= minimum
+    private fun atMost(actual: Int, maximum: Int?): Boolean = maximum == null || actual <= maximum
 
     private fun matchesCondition(state: GameState, trigger: JsonObject, flags: Set<String>): Boolean {
         val condition = trigger.string("condition") ?: return true
@@ -190,16 +219,16 @@ object EventDirector {
     }
 
     private fun valueOf(state: GameState, key: String): Int? = when (key) {
-        "turn"             -> state.turn
-        "gold"             -> state.gold
-        "grain"            -> state.grain
-        "troopMorale"      -> state.troopMorale
-        "courtStability"   -> state.courtStability
-        "jinThreat"        -> state.jinThreat
-        "warFactionPower"  -> state.warFactionPower
-        "peaceFactionPower"-> state.peaceFactionPower
-        "popularSupport"   -> state.cities.map { it.popularSupport }.average().toInt()
-        else               -> null
+        "turn"              -> state.turn
+        "gold"              -> state.gold
+        "grain"             -> state.grain
+        "troopMorale"       -> state.troopMorale
+        "courtStability"    -> state.courtStability
+        "jinThreat"         -> state.jinThreat
+        "warFactionPower"   -> state.warFactionPower
+        "peaceFactionPower" -> state.peaceFactionPower
+        "popularSupport"    -> state.cities.map { it.popularSupport }.takeIf { it.isNotEmpty() }?.average()?.toInt()
+        else -> null
     }
 
     private fun typePriority(type: String): Int = when (type) {
@@ -215,7 +244,11 @@ object EventDirector {
     }
 
     private fun JsonObject.int(key: String): Int? = this[key]?.jsonPrimitive?.intOrNull
+    private fun JsonObject.double(key: String): Double? = this[key]?.jsonPrimitive?.doubleOrNull
     private fun JsonObject.string(key: String): String? = this[key]?.jsonPrimitive?.contentOrNullSafe()
+    private fun JsonObject.strings(key: String): List<String> =
+        (this[key] as? JsonArray)?.mapNotNull { element -> runCatching { element.jsonPrimitive.content }.getOrNull() }.orEmpty()
+    private fun JsonObject.objectValue(key: String): JsonObject? = this[key] as? JsonObject
     private fun JsonElement.contentOrNullSafe(): String? = runCatching { jsonPrimitive.content }.getOrNull()
     @Suppress("unused")
     private fun JsonObject.boolean(key: String): Boolean? = this[key]?.jsonPrimitive?.booleanOrNull
