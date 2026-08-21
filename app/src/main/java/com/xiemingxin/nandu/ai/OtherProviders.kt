@@ -141,11 +141,6 @@ private object OpenAiCompatibleEngine {
         val transcript: String
     )
 
-    /**
-     * 只保存在当前应用进程内，绝不写回玩家输入框。
-     * 当一轮明确要求“补充圣意”时，下一次短句会自动带上这一段隐藏上下文。
-     * 下一轮若被判定为新话题/完整命令，则立即清空，避免旧旨意污染后续对话。
-     */
     @Volatile
     private var pendingClarification: PendingClarification? = null
 
@@ -166,6 +161,8 @@ private object OpenAiCompatibleEngine {
             require(model.isNotBlank()) { "$errorPrefix 模型名未配置" }
 
             val providerKey = "${baseUrl.trim()}|${model.trim()}"
+            // UI 已把“问政 / 闲聊 / 下旨”拆开。这个一次性路由只决定本轮类型，不写入玩家正文。
+            val forcedInteractionType = CourtInteractionRoute.consume()
             val pending = pendingClarification?.takeIf { it.providerKey == providerKey }
             val rememberedConversation = courtConversationMemory
                 ?.takeIf { it.providerKey == providerKey }
@@ -173,6 +170,9 @@ private object OpenAiCompatibleEngine {
                 .orEmpty()
 
             val modelUserPrompt = buildString {
+                if (!forcedInteractionType.isNullOrBlank()) {
+                    appendLine("本轮交互类型已由玩家在界面明确选择：$forcedInteractionType。禁止改判为其他类型。")
+                }
                 if (rememberedConversation.isNotBlank()) {
                     appendLine("御前此前连续对话（只作语境，不是新圣旨）：")
                     appendLine(rememberedConversation)
@@ -180,7 +180,9 @@ private object OpenAiCompatibleEngine {
                 if (pending != null) {
                     appendLine("上一道未完圣意（仅作后台上下文，禁止原样复述给玩家）：${pending.accumulatedEdict}")
                     appendLine("本次玩家原话：$edictText")
-                    append("请先判断本句是否确实是在补充上一道圣意；若明显是新话题、闲谈、问策或一条新的完整命令，就按新话语分类，不要强行续接旧旨意。")
+                    if (forcedInteractionType == null) {
+                        append("请先判断本句是否确实是在补充上一道圣意；若明显是新话题、闲谈、问策或一条新的完整命令，就按新话语分类，不要强行续接旧旨意。")
+                    }
                 } else {
                     append("玩家原话：$edictText")
                 }
@@ -222,7 +224,7 @@ private object OpenAiCompatibleEngine {
                     }
             }
 
-            val normalized = normalizeEdictResult(decoded, edictText, gameContext)
+            val normalized = normalizeEdictResult(decoded, edictText, gameContext, forcedInteractionType)
             updateClarificationMemory(providerKey, pending, edictText, normalized)
             updateConversationMemory(providerKey, edictText, normalized)
             normalized
@@ -255,7 +257,6 @@ private object OpenAiCompatibleEngine {
     ) {
         val type = result.interactionType.uppercase()
         if (type !in setOf("CHAT", "CONSULT")) {
-            // 一旦进入正式下旨，上一段闲聊不再无限污染后续命令。
             if (!result.clarificationNeeded) courtConversationMemory = null
             return
         }
@@ -306,13 +307,15 @@ private object OpenAiCompatibleEngine {
     private fun normalizeEdictResult(
         result: EdictResult,
         userText: String,
-        context: GameContext
+        context: GameContext,
+        forcedInteractionType: String?
     ): EdictResult {
         val validCommands = result.commands
             .filter { EdictCommand.isValid(it.type) }
             .take(8)
 
-        val normalizedType = result.interactionType.uppercase().let {
+        val forced = forcedInteractionType?.uppercase()?.takeIf { it in setOf("CHAT", "CONSULT", "ORDER") }
+        val normalizedType = forced ?: result.interactionType.uppercase().let {
             if (it in setOf("CHAT", "CONSULT", "ORDER", "CLARIFICATION")) it
             else when {
                 validCommands.isNotEmpty() -> "ORDER"
@@ -331,8 +334,7 @@ private object OpenAiCompatibleEngine {
             .take(4)
             .toMutableList()
 
-        // P0：皇帝明明在问话，殿里也明明站着官员，却因为小模型漏了 npcResponses 而全员装死。
-        // 本地世界必须兜底；AI 掉链子时至少让真实在殿人物据当前 GameContext 回一句。
+        // 皇帝明明在问话，殿里也明明站着官员，却因为小模型漏了 npcResponses 而全员装死：本地兜底。
         if (normalizedType in setOf("CHAT", "CONSULT") && validResponses.isEmpty()) {
             chooseFallbackCourtOfficer(userText, context)?.let { officer ->
                 validResponses += NpcResponse(
@@ -349,10 +351,17 @@ private object OpenAiCompatibleEngine {
             emptyList()
         }
 
+        val orderHasNoCommand = normalizedType == "ORDER" && commandsForType.isEmpty()
         val shouldClarify = when {
             normalizedType == "CHAT" || normalizedType == "CONSULT" -> false
-            commandsForType.isNotEmpty() -> result.clarificationNeeded
+            orderHasNoCommand -> true
             else -> result.clarificationNeeded
+        }
+        val clarification = when {
+            !shouldClarify -> ""
+            result.clarificationHint.isNotBlank() -> result.clarificationHint
+            orderHasNoCommand -> "这道旨意还没有形成可执行命令，请补充要办什么、由谁负责，以及必要的地点、兵力或数额。"
+            else -> "请再补充圣意。"
         }
 
         return result.copy(
@@ -361,7 +370,7 @@ private object OpenAiCompatibleEngine {
             npcResponses = validResponses,
             interactionType = normalizedType,
             clarificationNeeded = shouldClarify,
-            clarificationHint = if (shouldClarify) result.clarificationHint else ""
+            clarificationHint = clarification
         )
     }
 
