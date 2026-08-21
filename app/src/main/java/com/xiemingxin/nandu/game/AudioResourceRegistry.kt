@@ -3,19 +3,15 @@ package com.xiemingxin.nandu.game
 /**
  * 音频资源注册表。
  *
- * BGM 已于 2026-08-20 做“清仓重建”：旧 15 首全部退出运行时，
- * 新库只允许人工试听通过的纯器乐场景曲进入。
- *
- * 规则：
- * - 已验收场景曲使用稳定文件名；后续只替换音频，不乱改路由。
- * - 尚未制作/验收的用途使用 __pending_*.ogg，播放器找不到时静默，宁缺毋滥。
- * - SFX、环境声、语音继续沿用现有路径，不与本次 BGM 清仓混在一起。
+ * 规则：正式 BGM 只允许人工试听通过的纯器乐进入；未验收用途继续使用不存在的 pending 槽位，
+ * 宁可静默也不让提示词、人声或旧占位音频回流。
  */
 object AudioResourceRegistry {
     private const val BASE = "audio"
 
     object Bgm {
-        // === 已验收的新南宋场景音乐 ===
+        // 已验收并接入的正式场景音乐（V1.6.1）。
+        const val mainMenu = "$BASE/bgm/bgm_main_menu.ogg"
         const val chuigongEntry = "$BASE/bgm/bgm_chuigong_hall_entry.ogg"
         const val chuigongLoop = "$BASE/bgm/bgm_chuigong_hall_loop.ogg"
         const val garden = "$BASE/bgm/bgm_garden_loop.ogg"
@@ -24,8 +20,7 @@ object AudioResourceRegistry {
         const val linan = "$BASE/bgm/bgm_linan_loop.ogg"
         const val militaryCamp = "$BASE/bgm/bgm_military_camp_loop.ogg"
 
-        // === 尚待专门制作/试听的音乐：故意指向不存在文件，避免错曲顶包 ===
-        const val pendingMainMenu = "$BASE/bgm/__pending_main_menu.ogg"
+        // 尚未专门制作/试听的用途，故意保持不存在文件，禁止旧曲顶包。
         const val pendingPrologueCrisis = "$BASE/bgm/__pending_prologue_crisis.ogg"
         const val pendingPrologueSad = "$BASE/bgm/__pending_prologue_sad.ogg"
         const val pendingBattle = "$BASE/bgm/__pending_battle.ogg"
@@ -35,8 +30,6 @@ object AudioResourceRegistry {
         const val pendingRitual = "$BASE/bgm/__pending_ritual.ogg"
         const val pendingMarket = "$BASE/bgm/__pending_market.ogg"
 
-        // 兼容旧调用名，但全部映射到“新白名单/待制作槽位”。
-        const val mainMenu = pendingMainMenu
         const val court = chuigongLoop
         const val palace = chuigongLoop
         const val council = chuigongLoop
