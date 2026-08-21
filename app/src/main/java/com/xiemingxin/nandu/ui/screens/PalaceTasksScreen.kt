@@ -118,10 +118,18 @@ fun PalaceTasksScreen(
                 )
             } ?: run {
                 if (tasks.isEmpty()) {
-                    EmptyPalaceTaskCard(palace.name)
+                    Box(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyPalaceTaskCard(palace.name)
+                    }
                 } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
-                        items(tasks) { task ->
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        items(tasks, key = { it.id }) { task ->
                             PalaceTaskCard(
                                 task = task,
                                 state = state,
@@ -155,15 +163,18 @@ private fun FramedPanel(
         shape = RoundedCornerShape(15.dp)
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
+            // STAB-004: decorative layers must NOT participate in measuring the card.
+            // matchParentSize follows the content-determined Box after measurement; fillMaxSize here
+            // used to consume the entire screen height and push the actual task list off-screen.
             AssetImage(
                 path = ArtResourceRegistry.uiImage(frameId),
                 fallbackPath = ArtResourceRegistry.uiImage("dialog_frame"),
                 contentDescription = frameId,
                 contentScale = ContentScale.Crop,
                 placeholderText = "框",
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.matchParentSize()
             )
-            Box(modifier = Modifier.fillMaxSize().background(overlayColor))
+            Box(modifier = Modifier.matchParentSize().background(overlayColor))
             content()
         }
     }
@@ -172,9 +183,9 @@ private fun FramedPanel(
 @Composable
 private fun EmptyPalaceTaskCard(palaceName: String) {
     FramedPanel(frameId = "dialog_frame", borderColor = TaskGold.copy(alpha = 0.35f)) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("暂无急务", color = TaskGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Text("$palaceName 本旬无专属待办。可回皇宫查看其他宫殿，或进入垂拱殿主动下旨。", color = TaskCream, fontSize = 13.sp, lineHeight = 20.sp)
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("本旬暂无待办", color = TaskGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("$palaceName 当前没有由真实世界状态生成的专属事项。这不是加载失败；可返回皇宫查看其他宫殿，或主动下旨推进政务。", color = TaskCream, fontSize = 13.sp, lineHeight = 20.sp)
         }
     }
 }
@@ -257,7 +268,9 @@ private fun CouncilSceneCard(state: GameState, scene: CouncilScene, modifier: Mo
                 Text("陛下裁断", color = TaskGold, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
             }
         }
-        items(scene.choices) { choice -> CouncilChoiceCard(choice = choice, onChoiceSelected = { onChoiceSelected(choice) }) }
+        items(scene.choices, key = { it.id }) { choice ->
+            CouncilChoiceCard(choice = choice, onChoiceSelected = { onChoiceSelected(choice) })
+        }
     }
 }
 

@@ -1,11 +1,11 @@
 package com.xiemingxin.nandu.game
 
 /**
- * 大殿朝会 / 宫廷事件骨架。
+ * 大殿朝会 / 宫廷事件。
  *
- * V2.3：所有“谁能肉身说话”最终都经过 CharacterAppearanceSystem.filterCouncilLines。
- * 1127 开局不再预设赵鼎、秦桧、岳飞等后世核心人物已经站在行在；剧本只提供候选台词，
- * 人物状态与真实位置才是最终出席权威。
+ * 所有“谁能肉身说话”最终都经过 CharacterAppearanceSystem.filterCouncilLines；人物状态与
+ * 真实位置是最终出席权威。STAB-004 同时要求当前 UI choice id 与后果系统保持一致，
+ * 避免按钮看似可点却只落到通用占位结果。
  */
 data class CouncilLine(
     val speakerId: String,
@@ -60,9 +60,9 @@ object CourtCouncilSystem {
             line(state, "wang_boyan", "藩邸旧臣", "concerned", "敌骑去来无常，若久驻近河之地，恐仓卒再震。南幸之议不可尽废。")
         ),
         choices = listOf(
-            choice("restore", "经营中原", "传朕旨意：应天行在暂不轻徙。李纲会诸司整边备、钱粮与招抚，凡两河军民愿守者，朝廷皆为之援。", "主战与中原经营路线加强，行在安全压力上升。"),
+            choice("war", "经营中原", "传朕旨意：应天行在暂不轻徙。李纲会诸司整边备、钱粮与招抚，凡两河军民愿守者，朝廷皆为之援。", "主战与中原经营路线加强，行在安全压力上升。"),
             choice("balance", "守备兼筹退路", "传朕旨意：行在先修守备、清点钱粮，各路军民毋得自弃；同时勘验东南道路，以备非常。", "朝局较稳，但主战主和双方都不会完全满意。"),
-            choice("south", "准备南幸", "传朕旨意：有司暗备南行舟车钱粮，前线诸军仍守其地，不得因此先自溃散。", "行在风险下降，中原军民信心受压。")
+            choice("peace", "准备南幸", "传朕旨意：有司暗备南行舟车钱粮，前线诸军仍守其地，不得因此先自溃散。", "行在风险下降，中原军民信心受压。")
         )
     )
 
@@ -74,7 +74,6 @@ object CourtCouncilSystem {
         lines = listOf(
             line(state, "han_shizhong", "御营武臣", "support", "臣请先整宿卫与机动兵马。金骑若逼行在，须有一支能战之军护驾而不乱。"),
             line(state, "li_gang", "右相", "concerned", "将可用，亦须先明粮道与守土之责。诸军不可只知趋避，不知所守。"),
-            // 岳飞只有在后续真正被发现、擢用并抵达行在/军议场合后，这条才会通过物理在场过滤。
             line(state, "yue_fei", "新进武臣", "support", "臣愿受军令整伍练卒，先求兵可用，再言进取。")
         ),
         choices = listOf(
@@ -88,17 +87,29 @@ object CourtCouncilSystem {
         id = "council_${task.id}",
         palaceId = task.palaceId,
         title = if (task.source == TaskSource.TRADE) "政事堂商税议" else "政事堂钱粮议",
-        summary = "建炎初政先要养兵、安民、维持行在，不让后世名臣提前替朝廷理财。",
+        summary = if (task.source == TaskSource.TRADE) {
+            "外贸、港市与商税必须对应当前贸易路线和外交状态，不能只显示一张商税卡。"
+        } else {
+            "行在要养兵、安民、维持百司，钱粮选择会直接改变府库与民心。"
+        },
         lines = listOf(
             line(state, "li_gang", "右相", "support", "兵食皆出于民。今日之急，不在巧取，而在使转输不断、军民各得其食。"),
             line(state, "huang_qianshan", "执政文臣", "concerned", "行在百司初聚，用度纷繁。若无定额，未待敌至，府库先空。"),
             line(state, "wang_boyan", "执政文臣", "neutral", "东南财赋可为后援，但道路未定，不可把远方钱粮当作眼前已有。")
         ),
-        choices = listOf(
-            choice("grain", "先保军民口粮", "传朕旨意：诸路转运先核军粮民食，行在百司裁冗费，急处先给，不许层层侵耗。", "粮草压力缓解，其他工程放慢。"),
-            choice("audit", "清查行在用度", "传朕旨意：有司逐项核行在钱粮支出，军费、赈济不得混账，虚冒者具名奏闻。", "财政秩序改善，官僚阻力上升。"),
-            choice("light_tax", "安民轻敛", "传朕旨意：国用虽急，不得借军兴横征。州县先减浮费扰役，再议增收。", "民心提升，短期财政更紧。")
-        )
+        choices = if (task.source == TaskSource.TRADE) {
+            listOf(
+                choice("trade", "整顿市舶互市", "传朕旨意：核泉州、明州、广州诸港市舶与互市，许其通商，但税额、缉私与外商约束一并具奏。", "真实调整海贸路线、港市商业与外贸关系。"),
+                choice("audit", "先清查商税", "传朕旨意：先核市舶账册与港市税额，虚冒侵渔者具名奏闻。", "先整秩序，再求增收。"),
+                choice("light_tax", "减扰商民", "传朕旨意：商税须有定额，不许州县借市舶横加科敛。", "民心与商路风险改善，短期收入承压。")
+            )
+        } else {
+            listOf(
+                choice("grain", "先保军民口粮", "传朕旨意：诸路转运先核军粮民食，行在百司裁冗费，急处先给，不许层层侵耗。", "粮草压力缓解，其他工程放慢。"),
+                choice("audit", "清查行在用度", "传朕旨意：有司逐项核行在钱粮支出，军费、赈济不得混账，虚冒者具名奏闻。", "财政秩序改善，官僚阻力上升。"),
+                choice("light_tax", "安民轻敛", "传朕旨意：国用虽急，不得借军兴横征。州县先减浮费扰役，再议增收。", "民心提升，短期财政更紧。")
+            )
+        }
     )
 
     private fun talentScene(state: GameState, task: PalaceTask): CouncilScene = CouncilScene(
@@ -153,16 +164,16 @@ object CourtCouncilSystem {
         id = "council_${task.id}",
         palaceId = task.palaceId,
         title = "行在内廷问对",
-        summary = "内廷是皇帝生活与宫中秩序，不替代外朝军政。",
+        summary = task.description,
         lines = listOf(
             CouncilLine("empress", "皇后", "中宫", "support", "官家日夜忧勤，外朝诸事固重，亦当保养圣躬，使内外安心。"),
             CouncilLine("dowager", "太后", "宫中尊长", "concerned", "祖宗社稷在上，行在新立，内廷尤当节俭，不可使外朝有浮言。"),
-            CouncilLine("eunuch", "内侍押班", "内侍", "neutral", "宫中用度已经裁减，惟近来军报频至，人心难免惶惶。")
+            CouncilLine("eunuch", "内侍押班", "内侍", "neutral", "宫中只据眼前实情奏闻，不敢以固定时日无事生事。")
         ),
         choices = listOf(
             choice("frugal", "裁减内廷用度", "传朕旨意：内廷诸费从简，所省钱粮拨入军储，毋扰外朝。", "国库略稳，内廷满意下降。"),
             choice("comfort", "安抚宫中", "传朕旨意：宫中诸人各安其职，不得因军报自乱，更不得干预外朝。", "内廷稳定，财政影响小。"),
-            choice("advice", "听取内廷近事", "传朕旨意：宫中近事可密陈，凡涉外朝者由朕亲裁。", "开启内廷建议线。")
+            choice("queen_advice", "听取内廷近事", "传朕旨意：宫中近事可密陈，凡涉外朝者由朕亲裁。", "开启内廷建议线。")
         )
     )
 
@@ -178,7 +189,7 @@ object CourtCouncilSystem {
         ),
         choices = listOf(
             choice("simple_rite", "从简告祭", "传朕旨意：礼官议从简告祭之仪，以安军民；所费不得侵军粮民食。", "名望小升，耗费低。"),
-            choice("restore_oath", "申明恢复之志", "传朕旨意：告军民与诸路将士，朝廷不忘中原故土；但军令仍以实情进退，不许躁进邀功。", "军心提升，中原期待也随之提高。"),
+            choice("war_oath", "申明恢复之志", "传朕旨意：告军民与诸路将士，朝廷不忘中原故土；但军令仍以实情进退，不许躁进邀功。", "军心提升，中原期待也随之提高。"),
             choice("delay", "缓办大礼", "传朕旨意：大礼暂缓，小节不废，待钱粮与行在稍定再议。", "节省资源，名望无明显提升。")
         )
     )
