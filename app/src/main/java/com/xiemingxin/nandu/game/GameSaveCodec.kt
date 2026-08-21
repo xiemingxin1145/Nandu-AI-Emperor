@@ -40,6 +40,9 @@ object GameSaveCodec {
             // Stage 3 任职体系
             .put("cityGovernors", JSONObject().apply { state.cityGovernors.forEach { (k, v) -> put(k, v) } })
             .put("cityGarrisons", JSONObject().apply { state.cityGarrisons.forEach { (k, v) -> put(k, v) } })
+            // DELEGATION-001
+            .put("imperialMandates", JSONArray(state.imperialMandates.map { it.toJson() }))
+            .put("mandateExecutionLog", JSONArray(state.mandateExecutionLog.map { it.toJson() }))
         val encoded = Base64.getEncoder().encodeToString(root.toString().toByteArray(StandardCharsets.UTF_8))
         return PREFIX + encoded
     }
@@ -78,7 +81,10 @@ object GameSaveCodec {
             } ?: emptyMap(),
             cityGarrisons = root.optJSONObject("cityGarrisons")?.let { obj ->
                 obj.keys().asSequence().associateWith { obj.optString(it, "") }.filterValues { it.isNotBlank() }
-            } ?: emptyMap()
+            } ?: emptyMap(),
+            // DELEGATION-001（旧存档没有这两个字段，默认空，向后兼容）
+            imperialMandates = root.optJSONArray("imperialMandates").toListOrDefault(emptyList()) { it.toMandate() },
+            mandateExecutionLog = root.optJSONArray("mandateExecutionLog").toListOrDefault(emptyList()) { it.toExecutionRecord() }
         )
     }
 
@@ -299,6 +305,60 @@ object GameSaveCodec {
         sourceCityId = optString("sourceCityId"),
         turn = optInt("turn", 1),
         talentOfficerId = optString("talentOfficerId", "")
+    )
+
+    // ── DELEGATION-001 皇帝授权制序列化 ─────────────────────────────────────
+
+    private fun ImperialMandate.toJson(): JSONObject {
+        val obj = JSONObject()
+            .put("id", id).put("issuedTurn", issuedTurn)
+            .put("goal", goal).put("responsibleOfficerId", responsibleOfficerId)
+            .put("regionCityIds", JSONArray(regionCityIds.toList()))
+            .put("autonomyLevel", autonomyLevel.name)
+            .put("allowedActions", JSONArray(allowedActions.map { it.name }))
+            .put("budgetGold", budgetGold).put("budgetGrain", budgetGrain)
+            .put("spentGold", spentGold).put("spentGrain", spentGrain)
+            .put("allowMoveOtherArmies", allowMoveOtherArmies)
+            .put("prohibitedArmyIds", JSONArray(prohibitedArmyIds.toList()))
+            .put("prohibitedCityIds", JSONArray(prohibitedCityIds.toList()))
+            .put("isActive", isActive)
+        expiresTurn?.let { obj.put("expiresTurn", it) }
+        return obj
+    }
+
+    private fun JSONObject.toMandate(): ImperialMandate = ImperialMandate(
+        id = optString("id"),
+        issuedTurn = optInt("issuedTurn", 1),
+        expiresTurn = if (has("expiresTurn")) optInt("expiresTurn") else null,
+        goal = optString("goal"),
+        responsibleOfficerId = optString("responsibleOfficerId"),
+        regionCityIds = optJSONArray("regionCityIds").toStringList().toSet(),
+        autonomyLevel = enumValueOf(optString("autonomyLevel", MandateAutonomyLevel.IMPERIAL_DECREE.name)),
+        allowedActions = optJSONArray("allowedActions").toStringList()
+            .mapNotNull { runCatching { enumValueOf<MandateActionKind>(it) }.getOrNull() }.toSet(),
+        budgetGold = optInt("budgetGold", 0),
+        budgetGrain = optInt("budgetGrain", 0),
+        spentGold = optInt("spentGold", 0),
+        spentGrain = optInt("spentGrain", 0),
+        allowMoveOtherArmies = optBoolean("allowMoveOtherArmies", false),
+        prohibitedArmyIds = optJSONArray("prohibitedArmyIds").toStringList().toSet(),
+        prohibitedCityIds = optJSONArray("prohibitedCityIds").toStringList().toSet(),
+        isActive = optBoolean("isActive", true)
+    )
+
+    private fun MandateExecutionRecord.toJson() = JSONObject()
+        .put("turn", turn).put("mandateId", mandateId).put("responsibleOfficerId", responsibleOfficerId)
+        .put("actionKind", actionKind.name).put("description", description)
+        .put("success", success).put("failureReason", failureReason)
+
+    private fun JSONObject.toExecutionRecord() = MandateExecutionRecord(
+        turn = optInt("turn", 1),
+        mandateId = optString("mandateId"),
+        responsibleOfficerId = optString("responsibleOfficerId"),
+        actionKind = enumValueOf(optString("actionKind", MandateActionKind.RECRUIT.name)),
+        description = optString("description"),
+        success = optBoolean("success", false),
+        failureReason = optString("failureReason", "")
     )
 
     private inline fun <T> JSONArray?.toListOrDefault(default: List<T>, mapper: (JSONObject) -> T): List<T> {

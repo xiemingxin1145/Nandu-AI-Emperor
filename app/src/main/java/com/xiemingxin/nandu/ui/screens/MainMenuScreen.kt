@@ -1,5 +1,6 @@
 package com.xiemingxin.nandu.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -60,6 +61,10 @@ fun MainMenuScreen(
     onExit: () -> Unit
 ) {
     var showGallery by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showGallery) {
+        showGallery = false
+    }
 
     if (showGallery) {
         VideoGalleryOverlay(onBack = { showGallery = false })
@@ -175,7 +180,7 @@ fun MainMenuScreen(
 
             Spacer(Modifier.height(20.dp))
             Text(
-                text = "建炎元年  Demo 版",
+                text = "建炎元年 · 山河待兴",
                 color = Color(0xFF5A4A30),
                 fontSize = 9.sp,
                 letterSpacing = 1.sp

@@ -212,6 +212,21 @@ object CourtCouncilSystem {
     private fun line(state: GameState, officerId: String, role: String, attitude: String, fallbackText: String): CouncilLine {
         val officer = state.officers.firstOrNull { it.id == officerId }
         val appear = CharacterAppearanceSystem.infoFor(state, officerId, officer?.name ?: officerId)
+        // V1.1 历史 Canon 收尾：此历史人物此时尚未进入玩家视野（HIDDEN，如 NOT_YET_RELEVANT
+        // 的赵鼎），不能让他"隐身"却仍然顶着真实身份、发表实质政见——那等于变相剧透。
+        // 改由一名虚构的普通官员代为奏对，用 Nandu_Court_NPC_Art_V1 素材池配真实头像，
+        // 呼应最初任务书"改由中书舍人/给事中/御史等合适普通NPC奏报"的要求。
+        if (appear.visibility == CharacterVisibility.HIDDEN) {
+            val virtualId = ArtResourceRegistry.CourtNpc.officialIdBySeed(officerId)
+            val label = ArtResourceRegistry.CourtNpc.officialLabelForId(virtualId)
+            return CouncilLine(
+                speakerId = virtualId,
+                speakerName = label,
+                role = label,
+                attitude = attitude,
+                text = fallbackText
+            )
+        }
         return CouncilLine(
             speakerId = officerId,
             speakerName = appear.displayName,

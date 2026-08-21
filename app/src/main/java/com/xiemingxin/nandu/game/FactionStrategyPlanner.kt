@@ -20,7 +20,9 @@ enum class StrategicIntent(val label: String) {
     PRESS_ADVANTAGE("乘势进攻"),
     RAID("袭扰薄弱边城"),
     EXPAND("推进战线"),
-    CONSOLIDATE("休整集结")
+    CONSOLIDATE("休整集结"),
+    // DELEGATION-001：没有这一条，非玩家势力打残一次就再也缓不过来，世界会死掉。
+    REBUILD("募兵补员")
 }
 
 data class FactionThreatAssessment(
@@ -96,6 +98,7 @@ object FactionStrategyPlanner {
         buildResupplyCandidate(state, factionId, ownArmies, threat)?.let(result::add)
         buildContinuityCandidate(state, factionId, ownArmies)?.let(result::add)
         buildOpportunityCandidate(state, factionId, ownArmies)?.let(result::add)
+        buildRecruitCandidate(state, factionId, ownArmies)?.let(result::add)
         result += buildConsolidateCandidate(state, factionId, ownArmies, threat)
 
         return result
@@ -301,6 +304,54 @@ object FactionStrategyPlanner {
             score = score,
             summary = "${best.city.name}防线相对薄弱，以${best.army.name}施压",
             actions = listOf(WorldAction(actionType, factionId, best.army.id, best.city.id, "把握局部兵力优势"))
+        )
+    }
+
+    /**
+     * DELEGATION-001：没有这条，AI 势力只会一路消耗到全灭，"打几仗后世界会死掉"。
+     * 找一支兵力明显低于其主帅统兵上限、且驻地钱粮够用的军团，就地募兵补员。
+     * 走 recruit_troops，真实经过 ArmySystem.recruitOrReinforce 和城池 gold 校验，
+     * 不是凭空给数字。
+     */
+    private fun buildRecruitCandidate(
+        state: GameState,
+        factionId: String,
+        ownArmies: List<Army>
+    ): FactionStrategyCandidate? {
+        val underStrength = ownArmies
+            .filter { it.statusCode in setOf(ArmyStatus.GARRISONED, ArmyStatus.STANDBY) }
+            .mapNotNull { army ->
+                val commander = state.officers.firstOrNull { it.id == army.commanderId } ?: return@mapNotNull null
+                val gap = commander.commandLimit() - army.troops
+                if (gap < 1500) return@mapNotNull null
+                val city = state.cities.firstOrNull { it.id == army.currentCityId && it.owner == factionId }
+                    ?: return@mapNotNull null
+                if (city.gold < 500 || city.troops < 4000) return@mapNotNull null
+                Triple(army, city, gap)
+            }
+            .maxByOrNull { it.third }
+            ?: return null
+
+        val (army, city, gap) = underStrength
+        val recruitAmount = gap.coerceAtMost(3000)
+        val score = 108 + (gap / 500).coerceAtMost(30)
+        return FactionStrategyCandidate(
+            id = "$factionId:recruit:${army.id}",
+            factionId = factionId,
+            intent = StrategicIntent.REBUILD,
+            score = score,
+            summary = "${army.name}兵力未满，就地募兵补员",
+            actions = listOf(
+                WorldAction(
+                    type = "recruit_troops",
+                    factionId = factionId,
+                    armyId = army.id,
+                    targetCityId = city.id,
+                    officerId = army.commanderId,
+                    amount = recruitAmount,
+                    reason = "补充战损，恢复实力"
+                )
+            )
         )
     }
 

@@ -8,7 +8,7 @@ package com.xiemingxin.nandu.game
 enum class GameEnding(val title: String, val rank: String, val posthumous: String, val desc: String) {
     // 真结局——亡国（强制结束 + 恶号）
     CAPITAL_LOST("社稷倾覆", "亡", "亡国之君",
-        "临安陷落，宋室南奔无地。靖康之耻未雪，又添崖山之痛。后世史官记你为亡国之君，徽钦之后，再失半壁。"),
+        "行在失守，宋室南奔无地。靖康之耻未雪，社稷又遭倾覆。后世史官记你为亡国之君，徽钦之后，再失半壁。"),
     LAND_LOST("神州陆沉", "亡", "失土之主",
         "城池尽丧，王师溃散，宋祚名存实亡。你坐视祖宗基业沦于异族，史称失土之主，遗臭千年。"),
 
@@ -30,13 +30,26 @@ object VictoryJudge {
      * @return GameEnding，ONGOING表示游戏继续
      */
     fun judgeDefeat(state: GameState): GameEnding {
-        val linan = state.cities.firstOrNull { it.id == "linan" }
-        val songCities = state.cities.count { it.owner == "song" }
+        val playerFaction = state.factions.firstOrNull { it.isPlayable }
+            ?: state.factions.firstOrNull { it.id == "song" }
+        val playerFactionId = playerFaction?.id ?: "song"
+        val designatedCapital = playerFaction?.capitalCityId?.let { capitalId ->
+            state.cities.firstOrNull { it.id == capitalId }
+        }
+        val stateCapital = state.cities.firstOrNull { city ->
+            city.isCapital && (city.id == designatedCapital?.id || city.owner == playerFactionId)
+        }
+        val capital = when {
+            designatedCapital?.isCapital == true -> designatedCapital
+            stateCapital != null -> stateCapital
+            else -> designatedCapital
+        }
+        val playerCities = state.cities.count { it.owner == playerFactionId }
 
-        // 临安失守 → 亡国
-        if (linan != null && linan.owner == "jin") return GameEnding.CAPITAL_LOST
+        // 只以当前真实行在归属判定；杭州在 1127 年不是首都。
+        if (capital != null && capital.owner != playerFactionId) return GameEnding.CAPITAL_LOST
         // 控城跌破6 → 神州陆沉
-        if (songCities < 6) return GameEnding.LAND_LOST
+        if (playerCities < 6) return GameEnding.LAND_LOST
 
         return GameEnding.ONGOING
     }

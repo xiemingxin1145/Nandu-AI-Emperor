@@ -42,11 +42,17 @@ import com.xiemingxin.nandu.game.GameEnding
 import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.ImperialDecision
+import com.xiemingxin.nandu.game.ImperialMandatePolicy
+import com.xiemingxin.nandu.game.ImperialMandateSystem
 import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.TavernSystem
 import com.xiemingxin.nandu.game.VictoryJudge
+import com.xiemingxin.nandu.game.WeatherSystem
 import com.xiemingxin.nandu.game.WorldAiTurnExecutor
+import com.xiemingxin.nandu.game.WorldPresentationPolicy
+import com.xiemingxin.nandu.game.WorldTurnReplay
 import com.xiemingxin.nandu.game.withUpdatedFactionStatus
 import com.xiemingxin.nandu.story.EventDirector
 import com.xiemingxin.nandu.story.StoryEvent
@@ -79,7 +85,10 @@ data class UiState(
     val lastVisitNarration: String? = null,
     val lastBattleOutcome: com.xiemingxin.nandu.game.BattleOutcome? = null,  // Stage 5 战报
     // Stage 8 Agent 提案
-    val agentProposals: List<AgentProposal> = emptyList()
+    val agentProposals: List<AgentProposal> = emptyList(),
+    val imperialDecision: ImperialDecision = ImperialDecision(),
+    val activeWorldReplay: WorldTurnReplay? = null,
+    val lastWorldReplay: WorldTurnReplay? = null
 )
 
 enum class GamePhase { IDLE, AI_PROCESSING, AWAITING_CONFIRM, EXECUTING, SHOWING_RESULT }
@@ -131,7 +140,11 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             val result = currentProvider.parseEdict(edictText, context)
             result.fold(
                 onSuccess = { edictResult ->
-                    _uiState.value = _uiState.value.copy(phase = GamePhase.AWAITING_CONFIRM, lastEdictResult = edictResult)
+                    _uiState.value = _uiState.value.copy(
+                        phase = GamePhase.AWAITING_CONFIRM,
+                        lastEdictResult = edictResult,
+                        imperialDecision = ImperialDecision()
+                    )
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE, errorMessage = "圣旨传达失败：${error.message}")
@@ -141,12 +154,36 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun confirmEdict(edictText: String) {
-        val edictResult = _uiState.value.lastEdictResult ?: return
-        _uiState.value = _uiState.value.copy(phase = GamePhase.EXECUTING)
-        val executionResult = GameRuleEngine.executeEdict(_uiState.value.gameState, edictResult, edictText)
+        val current = _uiState.value
+        val edictResult = current.lastEdictResult ?: return
+        val mandate = ImperialMandatePolicy.draft(current.gameState, edictText, current.imperialDecision.selectedOfficerIds)
+        if (!current.imperialDecision.canExecute(edictResult, mandate != null)) {
+            _uiState.value = current.copy(
+                errorMessage = if (edictResult.clarificationNeeded) {
+                    "圣意尚待补充，请先明确旨意后再行朱批。"
+                } else {
+                    "请先择定所采纳的臣议，并核对可执行命令。"
+                }
+            )
+            return
+        }
+        val adoptedResult = edictResult.copy(
+            npcResponses = edictResult.npcResponses.filter {
+                it.officerId in current.imperialDecision.selectedOfficerIds
+            }
+        )
+        _uiState.value = current.copy(phase = GamePhase.EXECUTING, errorMessage = null)
+        val (imperialState, overrides) = ImperialMandatePolicy.prioritizeManualCommands(current.gameState, adoptedResult.commands)
+        val executionResult = GameRuleEngine.executeEdict(imperialState, adoptedResult, edictText)
+        val finalState = if (mandate != null) ImperialMandateSystem.issue(executionResult.newState, mandate) else executionResult.newState
+        val mandateOutcome = mandate?.let {
+            val name = finalState.officers.firstOrNull { officer -> officer.id == it.responsibleOfficerId }?.name ?: "受命之臣"
+            "【长期授权】${name}${it.autonomyLevel.label}，可${it.allowedActions.joinToString("、") { action -> action.label }}；" +
+                "军费上限${it.budgetGold}贯，${ImperialMandatePolicy.describeRestrictions(finalState, it)}。"
+        }
         _uiState.value = _uiState.value.copy(
-            gameState = executionResult.newState,
-            lastOutcomes = executionResult.outcomes,
+            gameState = finalState,
+            lastOutcomes = overrides + listOfNotNull(mandateOutcome) + executionResult.outcomes,
             lastRejected = executionResult.rejectedCommands,
             phase = GamePhase.SHOWING_RESULT
         )
@@ -165,7 +202,48 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun cancelEdict() {
-        _uiState.value = _uiState.value.copy(phase = GamePhase.IDLE, lastEdictResult = null)
+        _uiState.value = _uiState.value.copy(
+            phase = GamePhase.IDLE,
+            lastEdictResult = null,
+            imperialDecision = ImperialDecision(),
+            errorMessage = null
+        )
+    }
+
+    fun revokeImperialMandate(mandateId: String) {
+        val current = _uiState.value
+        val mandate = current.gameState.imperialMandates.firstOrNull { it.id == mandateId && it.isActive } ?: return
+        val name = current.gameState.officers.firstOrNull { it.id == mandate.responsibleOfficerId }?.name ?: "受命之臣"
+        _uiState.value = current.copy(
+            gameState = ImperialMandateSystem.revoke(current.gameState, mandateId),
+            saveMessage = "已收回${name}的${mandate.autonomyLevel.label}授权。"
+        )
+    }
+
+    fun toggleCouncilOpinion(officerId: String) {
+        val current = _uiState.value
+        val responseExists = current.lastEdictResult?.npcResponses?.any { it.officerId == officerId } == true
+        if (responseExists) {
+            _uiState.value = current.copy(
+                imperialDecision = current.imperialDecision.toggleOfficer(officerId),
+                errorMessage = null
+            )
+        }
+    }
+
+    fun synthesizeCouncilOpinions() {
+        val current = _uiState.value
+        val result = current.lastEdictResult ?: return
+        _uiState.value = current.copy(imperialDecision = current.imperialDecision.synthesize(result), errorMessage = null)
+    }
+
+    fun amendEdict() {
+        val current = _uiState.value
+        _uiState.value = current.copy(
+            phase = GamePhase.IDLE,
+            imperialDecision = current.imperialDecision.requestAmendment(),
+            errorMessage = null
+        )
     }
 
     fun dismissResult() {
@@ -421,9 +499,13 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             val supplyReports = supplyResult.second
 
             val clearedFlags = working.storyFlags - "sieged_this_turn"
+            val nextCalendar = working.calendar.advance()
             val advancedState = working.copy(
                 turn = working.turn + 1,
-                calendar = working.calendar.advance(),
+                era = nextCalendar.eraName,
+                calendar = nextCalendar,
+                season = nextCalendar.season(),
+                weather = WeatherSystem.generate(nextCalendar, working.turn + 1),
                 storyFlags = clearedFlags,
                 cityActionPoints = TavernSystem.MAX_ACTION_POINTS
             ).withUpdatedFactionStatus()
@@ -448,13 +530,19 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             val earned = _uiState.value.earnedAchievements
             val newAch = AchievementSystem.checkNewAchievements(nextState, earned)
 
+            val reports = (worldReports + marchReports + supplyReports + travelReports + scheduledReports)
+                .map { WorldPresentationPolicy.humanizeReport(nextState, it) }
+            val replay = WorldPresentationPolicy.replay(state, nextState, reports)
+
             _uiState.value = _uiState.value.copy(
                 gameState = nextState,
                 phase = GamePhase.IDLE,
                 lastOutcomes = emptyList(),
                 lastRejected = emptyList(),
                 currentStoryEvent = event,
-                storyOutcomes = worldReports + marchReports + supplyReports + travelReports + scheduledReports,
+                storyOutcomes = reports,
+                activeWorldReplay = replay,
+                lastWorldReplay = replay,
                 ending = ending,
                 earnedAchievements = earned + newAch,
                 newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement,
@@ -511,6 +599,15 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
 
     fun dismissStoryOutcome() {
         _uiState.value = _uiState.value.copy(storyOutcomes = emptyList())
+    }
+
+    fun dismissWorldReplay() {
+        _uiState.value = _uiState.value.copy(activeWorldReplay = null, storyOutcomes = emptyList())
+    }
+
+    fun reopenWorldReplay() {
+        val current = _uiState.value
+        current.lastWorldReplay?.let { _uiState.value = current.copy(activeWorldReplay = it) }
     }
 
     fun exportSaveCode() {

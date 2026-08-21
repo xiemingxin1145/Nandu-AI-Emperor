@@ -3,6 +3,7 @@ package com.xiemingxin.nandu
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Card
@@ -33,6 +34,8 @@ import com.xiemingxin.nandu.game.HistoricalBattleAvailability
 import com.xiemingxin.nandu.game.AchievementSystem
 import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.game.AudioResourceRegistry
+import com.xiemingxin.nandu.ui.AppBackTarget
+import com.xiemingxin.nandu.ui.AppNavigationPolicy
 import com.xiemingxin.nandu.ui.EmperorViewModel
 import com.xiemingxin.nandu.ui.components.BattleReportPanel
 import com.xiemingxin.nandu.ui.components.rememberGameAudioPlayer
@@ -145,6 +148,13 @@ fun NanduApp() {
     var bgmVolume by remember { mutableStateOf(audioPrefs.getFloat(BGM_VOLUME_KEY, 0.7f).coerceIn(0f, 1f)) }
     var sfxVolume by remember { mutableStateOf(audioPrefs.getFloat(SFX_VOLUME_KEY, 0.74f).coerceIn(0f, 1f)) }
 
+    LaunchedEffect(uiState.activeWorldReplay?.turn) {
+        if (uiState.activeWorldReplay != null) {
+            activePalaceId = null
+            currentTab = 2
+        }
+    }
+
     fun saveAudioSettings(enabled: Boolean, bgm: Float, sfx: Float) {
         audioPrefs.edit()
             .putBoolean(AUDIO_ENABLED_KEY, enabled)
@@ -155,6 +165,35 @@ fun NanduApp() {
 
     fun playSfx(event: String) {
         sfxSignal = "$event:${System.nanoTime()}"
+    }
+
+    val backTarget = AppNavigationPolicy.backTarget(
+        showSettings = showSettings,
+        showPrologue = showPrologue,
+        interiorCityId = interiorCityId,
+        activePalaceId = activePalaceId,
+        showOfficerList = showOfficerList,
+        showShunchangBattle = showShunchangBattle,
+        currentTab = currentTab
+    )
+    BackHandler(enabled = uiState.ending == GameEnding.ONGOING && backTarget != null) {
+        playSfx("close_panel")
+        when (backTarget) {
+            AppBackTarget.SETTINGS -> showSettings = false
+            AppBackTarget.PROLOGUE -> {
+                showPrologue = false
+                showIntro = true
+            }
+            AppBackTarget.CITY_INTERIOR -> {
+                interiorCityId = null
+                viewModel.dismissVisitNarration()
+            }
+            AppBackTarget.PALACE -> activePalaceId = null
+            AppBackTarget.BATTLE -> showShunchangBattle = false
+            AppBackTarget.OFFICERS -> showOfficerList = false
+            AppBackTarget.PRIMARY_TAB -> currentTab = 0
+            null -> Unit
+        }
     }
 
     // 序章拥有独占音频控制权，避免主菜单 BGM 和序章 BGM/旁白同时抢播放器。
@@ -193,7 +232,7 @@ fun NanduApp() {
     }
 
     // ── 主菜单 ──────────────────────────────────────────
-    if (showIntro && !showPrologue) {
+    if (AppNavigationPolicy.shouldShowMainMenu(showIntro, showPrologue, showSettings)) {
         MainMenuScreen(
             onNewGame = {
                 playSfx("confirm")
@@ -349,13 +388,24 @@ fun NanduApp() {
                     onSubmitEdict = { text -> playSfx("edict_submitted"); edictText = text; viewModel.submitEdict(text) },
                     onConfirmEdict = { playSfx("edict_confirmed"); viewModel.confirmEdict(edictText) },
                     onCancelEdict = { playSfx("edict_cancelled"); viewModel.cancelEdict() },
+                    onAmendEdict = { revised -> edictText = revised; playSfx("open_panel"); viewModel.amendEdict() },
+                    onToggleCouncilOpinion = { officerId -> playSfx("council_choice"); viewModel.toggleCouncilOpinion(officerId) },
+                    onSynthesizeCouncilOpinions = { playSfx("council_choice"); viewModel.synthesizeCouncilOpinions() },
+                    onRevokeMandate = { mandateId -> playSfx("edict_cancelled"); viewModel.revokeImperialMandate(mandateId) },
                     onDismissResult = { playSfx("turn_advance"); viewModel.dismissResult() },
                     onAdvanceTurn = { playSfx("turn_advance"); viewModel.advanceTurn() },
                     onStoryChoice = { choiceId -> playSfx("story_event"); viewModel.chooseStoryOption(choiceId) },
                     onDismissStoryOutcome = { playSfx("story_outcome"); viewModel.dismissStoryOutcome() },
                     onOpenSettings = { playSfx("open_panel"); showSettings = true }
                 )
-                2 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
+                2 -> MapScreen(
+                    gameState = uiState.gameState,
+                    replay = uiState.activeWorldReplay,
+                    lastReplay = uiState.lastWorldReplay,
+                    onDismissReplay = { playSfx("close_panel"); viewModel.dismissWorldReplay() },
+                    onReopenReplay = { playSfx("open_panel"); viewModel.reopenWorldReplay() },
+                    onCitySelected = { payload -> draftFromCity(payload) }
+                )
                 3 -> StateScreen(gameState = uiState.gameState)
                 4 -> if (showOfficerList) {
                     OfficerListScreen(
@@ -366,7 +416,7 @@ fun NanduApp() {
                 } else {
                     MilitaryScreenV4(
                         gameState = uiState.gameState,
-                        onBack = {},
+                        onBack = { playSfx("close_panel"); currentTab = 0 },
                         onOpenOfficerList = { showOfficerList = true },
                         onAttackArmy = { armyId, cityId -> viewModel.executeAttackCity(armyId, cityId) },
                         onRetreatArmy = { armyId -> viewModel.executeRetreatArmy(armyId) }

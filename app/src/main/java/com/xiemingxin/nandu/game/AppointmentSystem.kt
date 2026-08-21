@@ -20,6 +20,25 @@ object AppointmentSystem {
         data class Failure(val reason: String) : AppointResult()
     }
 
+    /**
+     * DELEGATION-001：剧情事件效果里带的"人物忠诚度调整"此前一直卡在
+     * StoryEventEffectApplier.pendingEffects 里，从不真正生效。这里给它一个
+     * 正式、有校验的入口——不是让 story 逻辑直接摸 Officer.loyalty。
+     */
+    fun adjustLoyalty(state: GameState, officerId: String, amount: Int): AppointResult {
+        val officer = state.officers.find { it.id == officerId }
+            ?: return AppointResult.Failure("找不到此人物。")
+        if (!CharacterStateSource.isAlive(officer))
+            return AppointResult.Failure("${officer.name}已不在人世，忠诚无从谈起。")
+        val newLoyalty = (officer.loyalty + amount).coerceIn(0, 100)
+        val newOfficers = state.officers.map { if (it.id == officerId) it.copy(loyalty = newLoyalty) else it }
+        val sign = if (amount >= 0) "+" else ""
+        return AppointResult.Success(
+            "${officer.name}忠诚度$sign$amount，现为$newLoyalty。",
+            state.copy(officers = newOfficers)
+        )
+    }
+
     fun appointGovernor(
         state: GameState,
         officerId: String,

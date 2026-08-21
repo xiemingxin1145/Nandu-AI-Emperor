@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,14 +58,19 @@ import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.CityVisualRegistry
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
+import com.xiemingxin.nandu.game.MapDecorationRegistry
 import com.xiemingxin.nandu.game.MapLayerMode
 import com.xiemingxin.nandu.game.MapNode
 import com.xiemingxin.nandu.game.RoadType
 import com.xiemingxin.nandu.game.TerrainFeatures
+import com.xiemingxin.nandu.game.WorldTurnAction
+import com.xiemingxin.nandu.game.WorldTurnReplay
 import com.xiemingxin.nandu.ui.components.AssetImage
 import com.xiemingxin.nandu.game.RecruitmentSystem
 import com.xiemingxin.nandu.ui.components.CityManagePanel
 import com.xiemingxin.nandu.ui.components.RecruitPanel
+import com.xiemingxin.nandu.ui.components.SeasonalTransitionOverlay
+import com.xiemingxin.nandu.ui.components.WorldTurnReplayOverlay
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.JinRed
 import com.xiemingxin.nandu.ui.theme.MapBg
@@ -72,6 +78,7 @@ import com.xiemingxin.nandu.ui.theme.SongBright
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlinx.coroutines.delay
 
 private data class MapFocusRegion(val name: String, val x: Float, val y: Float, val zoom: Float, val color: Color)
 
@@ -93,7 +100,14 @@ private val TradeRouteIds = setOf(
 )
 
 @Composable
-fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
+fun MapScreen(
+    gameState: GameState,
+    replay: WorldTurnReplay? = null,
+    lastReplay: WorldTurnReplay? = null,
+    onDismissReplay: () -> Unit = {},
+    onReopenReplay: () -> Unit = {},
+    onCitySelected: (String) -> Unit = {}
+) {
     var cameraX by remember { mutableStateOf(7200f) }
     var cameraY by remember { mutableStateOf(7350f) }
     var zoom by remember { mutableStateOf(0.082f) }
@@ -101,6 +115,8 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
     var manageCityId by remember { mutableStateOf<String?>(null) }
     var recruitCityId by remember { mutableStateOf<String?>(null) }
     var activeLayer by remember { mutableStateOf(MapLayerMode.MILITARY) }
+    var replayIndex by remember(replay?.turn) { mutableStateOf(-1) }
+    var showSeasonTransition by remember(replay?.turn) { mutableStateOf(replay?.seasonalTransition != null) }
     val cityMap = gameState.cities.associateBy { it.id }
     val armiesByCity = gameState.armies.groupBy { it.currentCityId }
     val officerNames = gameState.officers.associate { it.id to it.name }
@@ -117,6 +133,31 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
         cameraY = region.y
         zoom = region.zoom
         selectedId = null
+    }
+
+    LaunchedEffect(replay?.turn) {
+        val current = replay ?: return@LaunchedEffect
+        if (current.seasonalTransition != null) {
+            delay(3400)
+            showSeasonTransition = false
+        }
+        current.actions.indices.forEach { index ->
+            replayIndex = index
+            delay(1350)
+        }
+        replayIndex = current.actions.size
+    }
+
+    val currentReplayAction = replay?.actions?.getOrNull(replayIndex)
+    LaunchedEffect(replay?.turn, replayIndex, showSeasonTransition) {
+        if (showSeasonTransition) return@LaunchedEffect
+        val action = currentReplayAction ?: return@LaunchedEffect
+        val node = MapData.nodeMap[action.targetCityId.ifBlank { action.originCityId }] ?: return@LaunchedEffect
+        cameraX = node.worldX
+        cameraY = node.worldY
+        zoom = 0.094f
+        selectedId = node.id
+        activeLayer = MapLayerMode.MILITARY
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MapBg)) {
@@ -162,6 +203,7 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             if (activeLayer == MapLayerMode.TRADE) drawTradeLines(cameraX, cameraY, zoom)
             if (activeLayer == MapLayerMode.ECONOMY) drawEconomicHalos(gameState, cameraX, cameraY, zoom)
             if (activeLayer == MapLayerMode.MILITARY) drawArmyRoutes(gameState, cameraX, cameraY, zoom)
+            currentReplayAction?.let { drawReplayAction(it, cameraX, cameraY, zoom) }
 
             MapData.nodes.forEach { node ->
                 val city = cityMap[node.id]
@@ -184,13 +226,22 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             zoom = zoom,
             selectedId = selectedId,
             activeLayer = activeLayer,
-            cityMap = cityMap
+            cityMap = cityMap,
+            armiesByCity = armiesByCity
         )
 
         MapStatusChip(gameState, activeLayer, Modifier.align(Alignment.TopStart).padding(8.dp))
         CompactFocusBar(Modifier.align(Alignment.TopCenter).padding(top = 50.dp, start = 6.dp, end = 6.dp), ::focus)
         CompactLayerBar(activeLayer, Modifier.align(Alignment.TopCenter).padding(top = 88.dp, start = 6.dp, end = 6.dp)) { activeLayer = it; selectedId = null }
         MapLegend(activeLayer, Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 72.dp))
+
+        if (replay == null && lastReplay != null && selectedId == null) {
+            OutlinedButton(
+                onClick = onReopenReplay,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 76.dp),
+                border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.7f))
+            ) { Text("本旬天下纪要", color = ImperialGold, fontSize = 11.sp) }
+        }
 
         selectedId?.let { id ->
             MapData.nodeMap[id]?.let { node ->
@@ -225,6 +276,46 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             }
         }
         recruitCityId?.let { id -> cityMap[id]?.let { Dialog(onDismissRequest = { recruitCityId = null }) { RecruitPanel(it, { unitId -> onCitySelected("$id|recruit:$unitId") }, { recruitCityId = null }) } } }
+
+        if (replay != null && !showSeasonTransition) {
+            WorldTurnReplayOverlay(
+                replay = replay,
+                currentAction = currentReplayAction,
+                currentActionNumber = (replayIndex + 1).coerceAtLeast(0),
+                onSkip = { selectedId = null; onDismissReplay() },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 10.dp, vertical = 12.dp)
+            )
+        }
+        if (showSeasonTransition) {
+            replay?.seasonalTransition?.let { transition ->
+                SeasonalTransitionOverlay(transition = transition, onDismiss = { showSeasonTransition = false })
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawReplayAction(action: WorldTurnAction, cameraX: Float, cameraY: Float, zoom: Float) {
+    val color = when (action.factionId) {
+        "song" -> SongBright
+        "jin" -> JinRed
+        else -> ImperialGold
+    }
+    action.routeNodeIds.zipWithNext().forEach { (fromId, toId) ->
+        val from = MapData.nodeMap[fromId] ?: return@forEach
+        val to = MapData.nodeMap[toId] ?: return@forEach
+        drawLine(
+            color = color.copy(alpha = 0.95f),
+            start = w2s(from.worldX, from.worldY, cameraX, cameraY, zoom),
+            end = w2s(to.worldX, to.worldY, cameraX, cameraY, zoom),
+            strokeWidth = 6f,
+            cap = StrokeCap.Round
+        )
+    }
+    listOf(action.originCityId, action.targetCityId).distinct().forEach { cityId ->
+        val node = MapData.nodeMap[cityId] ?: return@forEach
+        val point = w2s(node.worldX, node.worldY, cameraX, cameraY, zoom)
+        drawCircle(color.copy(alpha = 0.32f), 26f, point)
+        drawCircle(color, 19f, point, style = Stroke(width = 3f))
     }
 }
 
@@ -235,7 +326,8 @@ private fun MapIconOverlay(
     zoom: Float,
     selectedId: String?,
     activeLayer: MapLayerMode,
-    cityMap: Map<String, City>
+    cityMap: Map<String, City>,
+    armiesByCity: Map<String, List<Army>>
 ) {
     val density = LocalDensity.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -254,10 +346,32 @@ private fun MapIconOverlay(
                     .offset { IntOffset((sx - iconPx / 2f).roundToInt(), (sy - iconPx / 2f).roundToInt()) }
                     .size(iconDp)
             ) {
+                val isFrontline = city?.controlState == "FRONTLINE" || city?.controlState == "CONTESTED"
+                val isTradeNode = node.id in TradeRouteIds || node.nodeType == "trade" || city?.terrain == "coast"
+                if (activeLayer == MapLayerMode.MILITARY && isFrontline) {
+                    AssetImage(
+                        path = MapDecorationRegistry.frontlineWarning,
+                        fallbackPath = visual.mapIconPath,
+                        contentDescription = "${node.name}前线预警",
+                        contentScale = ContentScale.Fit,
+                        placeholderText = "",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                if (activeLayer == MapLayerMode.TRADE && isTradeNode) {
+                    AssetImage(
+                        path = MapDecorationRegistry.tradeRouteGlow,
+                        fallbackPath = visual.mapIconPath,
+                        contentDescription = "${node.name}商路节点",
+                        contentScale = ContentScale.Fit,
+                        placeholderText = "",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 if (selectedId == node.id) {
                     AssetImage(
-                        path = "images/map/decorations/selected_ring.webp",
-                        fallbackPath = ArtResourceRegistry.mapIcon(visual.iconKey),
+                        path = MapDecorationRegistry.selectedRing,
+                        fallbackPath = visual.mapIconPath,
                         contentDescription = "选中 ${node.name}",
                         contentScale = ContentScale.Fit,
                         placeholderText = "◎",
@@ -265,13 +379,27 @@ private fun MapIconOverlay(
                     )
                 }
                 AssetImage(
-                    path = ArtResourceRegistry.mapIcon(visual.iconKey),
-                    fallbackPath = ArtResourceRegistry.mapIcon(if (activeLayer == MapLayerMode.TRADE) "trade" else "county"),
+                    path = visual.mapIconPath,
+                    fallbackPath = ArtResourceRegistry.mapIcon(visual.iconKey),
                     contentDescription = node.name,
                     contentScale = ContentScale.Fit,
                     placeholderText = node.name.take(1),
                     modifier = Modifier.fillMaxSize()
                 )
+                if (activeLayer == MapLayerMode.MILITARY) {
+                    val army = armiesByCity[node.id].orEmpty().firstOrNull()
+                    val bannerPath = army?.ownerFactionId?.let(MapDecorationRegistry::armyBannerFor)
+                    if (bannerPath != null) {
+                        AssetImage(
+                            path = bannerPath,
+                            fallbackPath = visual.mapIconPath,
+                            contentDescription = "${node.name}驻军旗帜",
+                            contentScale = ContentScale.Fit,
+                            placeholderText = "",
+                            modifier = Modifier.align(Alignment.TopEnd).size(iconDp * 0.58f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -302,7 +430,7 @@ private fun MapStatusChip(gameState: GameState, layer: MapLayerMode, modifier: M
     Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color(0xC9090806)), border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.35f)), shape = RoundedCornerShape(10.dp)) {
         Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)) {
             Text(gameState.calendar.displayText(), color = ImperialGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text("${gameState.season.label} · ${gameState.weather.label} · V2.4 · ${layer.label}", color = Color(0xFFC6A96C), fontSize = 9.sp)
+            Text("${gameState.season.label} · ${gameState.weather.label} · ${layer.label}", color = Color(0xFFC6A96C), fontSize = 9.sp)
         }
     }
 }

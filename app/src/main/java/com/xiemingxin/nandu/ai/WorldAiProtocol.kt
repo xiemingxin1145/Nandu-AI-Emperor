@@ -27,14 +27,22 @@ data class WorldAction(
     val factionId: String = "",
     val armyId: String = "",
     val targetCityId: String = "",
-    val reason: String = ""
+    val reason: String = "",
+    // DELEGATION-001：募兵/调粮/修城防都需要一个数量；主帅任命需要 officerId。
+    // 沿用旧字段而不是给每种新动作单独造字段，保持协议简洁、向后兼容。
+    val amount: Int = 0,
+    val officerId: String = ""
 ) {
     companion object {
         val ALLOWED_TYPES = setOf(
             "move_army",
             "attack_city",
             "resupply_army",
-            "hold_army"
+            "hold_army",
+            // DELEGATION-001 新增：全部要求有真实权威系统承接，见 WorldAiTurnExecutor。
+            "recruit_troops",
+            "repair_defense",
+            "assign_commander"
         )
 
         fun isValid(type: String): Boolean = type in ALLOWED_TYPES
