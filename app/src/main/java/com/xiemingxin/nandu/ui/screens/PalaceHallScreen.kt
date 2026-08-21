@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.HistoricalBattleAvailability
 import com.xiemingxin.nandu.game.PalaceIds
 import com.xiemingxin.nandu.game.PalaceRegistry
 import com.xiemingxin.nandu.game.PalaceTaskSystem
@@ -161,9 +162,14 @@ fun PalaceHallScreen(
                 PalaceWing(PalaceIds.TAIMIAO, "祭祀、威望、功业传承", taskBadge(taskCounts, PalaceIds.TAIMIAO, "名望 ${state.prestige}"), Modifier.weight(1f), onOpenPalace)
             }
             Spacer(Modifier.height(12.dp))
-            // ── 顺昌战役·战前军议 入口（美术资产实装测试）──
-            ShunchangEntryCard(onClick = onOpenShunchang)
-            Spacer(Modifier.height(12.dp))
+            // STAB-001：顺昌战役入口不再永久显示——只有 HistoricalBattleAvailability
+            // 判断当前世界状态确实构成候选（年份窗口/金军威胁/顺昌归属/刘锜状态）才出现，
+            // 不满足时这里不渲染任何东西，也不留一个不可用的灰色占位按钮。
+            val shunchangAvailability = HistoricalBattleAvailability.forShunchang(state)
+            if (shunchangAvailability.available) {
+                ShunchangEntryCard(onClick = onOpenShunchang)
+                Spacer(Modifier.height(12.dp))
+            }
 
             Text(
                 "山河 / 国政 / 军务旧入口仍保留；宫殿卡优先进入专属待办页。",
@@ -295,7 +301,8 @@ private fun DrawScope.drawPalaceAtmosphere() {
 
 /**
  * 顺昌战役·战前军议 入口卡片
- * 美术资产实装能力测试场景入口
+ * STAB-001：仅在 HistoricalBattleAvailability.forShunchang(state).available 时才会被渲染，
+ * 调用方（PalaceHallScreen）已经做了门控，这里不重复判断。
  */
 @Composable
 private fun ShunchangEntryCard(onClick: () -> Unit) {
