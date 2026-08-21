@@ -8,7 +8,7 @@
 当前可测试版本：**V1.6.1 RC / versionCode 28**  
 当前主开发分支：`release/v1.6.1`  
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
-当前下一任务：**STAB-001 移除/门控顺昌测试入口，禁止历史战役无条件出现**  
+当前下一任务：**STAB-001~007 均已进入 Draft PR（#50/#53/#55/#56/#58/#59/#60/#63/#64），当前工作为验收与合流；STAB-008 未开始**  
 当前里程碑进度：**0 / 8**
 
 ---
@@ -165,7 +165,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-001 — 顺昌测试入口退出正式流程
 
-状态：`NEXT`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #53（integration/v1.6.2-stab-001-002），已选择性合入 PR #59。
 
 工作：
 
@@ -184,7 +186,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-002 — 清理战役 UI 硬编码人物与年份
 
-状态：`TODO`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #53（与 STAB-001 同一集成线），已选择性合入 PR #59。
 
 工作：
 
@@ -202,7 +206,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-003 — 战役选择真实回写 GameState
 
-状态：`TODO`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #55（fix/stab-003-persistent-battle-directives），已选择性合入 PR #59。
 
 工作：
 
@@ -220,7 +226,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-004 — 修复宫殿待办空白/空壳页面
 
-状态：`TODO`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #56（fix/stab-004-palace-task-empty-states），已选择性合入 PR #59。
 
 工作：
 
@@ -238,7 +246,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-005 — 视频播放器兼容性修复
 
-状态：`TODO`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #58（fix/stab-005-video-player-compat），已选择性合入 PR #59。
 
 工作：
 
@@ -257,7 +267,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-006 — 全仓历史硬编码审计
 
-状态：`TODO`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #60（fix/stab-006-historical-hardcode-audit，分支侧自报 DONE 待验收），已选择性合入 PR #59。
 
 工作：
 
@@ -281,7 +293,9 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-007 — 正式入口 Smoke Test
 
-状态：`TODO`
+状态：`IN_PROGRESS`
+
+进行中记录：Draft PR #59（integration/v1.6.2-preacceptance，含 STAB-007 device gates）。
 
 工作：
 
@@ -639,3 +653,11 @@ APK/真机结果：
 - 将后续开发拆为 V1.6.2 / V1.7 / V1.8 / V1.9 / V2.0 五个里程碑，共 37 项；
 - 规定任何 AI / 开发者完成任务后必须更新本路线图；
 - 当前下一任务定为 `STAB-001`。
+
+## 2026-08-21 — REPO-GOVERNANCE-001 状态同步
+
+- 由仓库治理任务 REPO-GOVERNANCE-001 执行（分支 `docs/repo-governance-v1`）。
+- 审计 23 个 Open Draft PR 后确认：STAB-001~007 均已有对应 Draft PR 在施工，状态由 `NEXT`/`TODO` 同步为 `IN_PROGRESS`，并补记 PR 编号。
+- 里程碑完成数维持 0/8 不变：所有 PR 均未合并，无任何任务达到 DONE 标准。
+- 新建 `docs/README.md`（统一文档索引）与 `docs/REPO_GOVERNANCE_001_REPORT.md`（PR 审计、治理一致性检查、仓库卫生清单）。
+- 未改动任何功能规划、任务定义与完成标准。
