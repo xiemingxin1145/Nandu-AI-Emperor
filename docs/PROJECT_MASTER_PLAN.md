@@ -8,8 +8,8 @@
 当前可测试版本：**V1.6.1 RC / versionCode 28**  
 当前主开发分支：`release/v1.6.1`  
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
-当前下一任务：**STAB-002 清理战役 UI 硬编码人物与年份**  
-当前里程碑进度：**1 / 8**
+当前下一任务：**STAB-003 战役选择真实回写 GameState**  
+当前里程碑进度：**2 / 8**
 
 ---
 
@@ -129,12 +129,10 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## 当前明确未成熟部分
 
-- 历史战役仍存在 Demo/硬编码；
-- 人物官职/战役角色仍有 UI 写死；
+- 战役选择还没有全部回写世界；
 - 宫殿待办没有完整持久化、完成、逾期、连锁后果；
 - 部分正式入口为空壳；
 - 视频播放兼容性与错误诊断不足；
-- 战役选择还没有全部回写世界；
 - 历史偏离后的替代事件体系尚未建立；
 - 大规模人物与多势力世界仍未完全接入主循环；
 - 经济、外交、情报、地方势力仍缺深度联动；
@@ -146,14 +144,14 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 | 版本 | 主题 | 任务数 | 当前进度 | 完成目标 |
 | --- | --- | ---: | ---: | --- |
-| V1.6.2 | 稳定化 / 去 Demo 化 | 8 | 0/8 | 所有入口可用，历史不再明显穿帮 |
+| V1.6.2 | 稳定化 / 去 Demo 化 | 8 | 2/8 | 所有入口可用，历史不再明显穿帮 |
 | V1.7.0 | 动态历史核心 | 8 | 0/8 | 历史由条件生成，可被玩家改变 |
 | V1.8.0 | 活世界与人物社会 | 8 | 0/8 | 人物、派系、国家持续自主行动 |
 | V1.9.0 | 战略深度与国家治理 | 7 | 0/7 | 战争、财政、外交、地方形成闭环 |
 | V2.0.0 | 完整体验与长期可玩 | 6 | 0/6 | 新玩家可连续玩数小时而非 Demo |
 
 当前规划总任务：**37 项**  
-当前完成：**0 / 37（以下路线从当前审计后的新阶段开始统计）**
+当前完成：**2 / 37（以下路线从当前审计后的新阶段开始统计）**
 
 ---
 
@@ -161,7 +159,7 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 目标：先把现在“一脚一个坑”的地方全部封住。这个版本不追求大幅增加新系统，优先保证现有入口真实、可用、不穿帮。
 
-本里程碑：**8 项，已完成 0 项，剩余 8 项。**
+本里程碑：**8 项，已完成 2 项，剩余 6 项。**
 
 ## STAB-001 — 顺昌测试入口退出正式流程
 
@@ -185,38 +183,22 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 - 日期：2026-08-21
 - 分支：`fix/stab-001-shunchang-gating`（从 `release/v1.6.1` 切出）
 - 提交：`d5ff4232d83f6cfe8c030bf4a18abbd61849664a`
-- PR：#52 → `release/v1.6.1`（未合并，等待人工/后续审阅）
+- PR：#52 → `release/v1.6.1`（未合并，后由 #53 集成）
 - 改动：
-  - 新增 `game/BattleOpportunitySystem.kt`：`HistoricalBattleAvailability.forShunchang(state)`，
-    检查历史窗口（游戏内年数 10~20）、金国是否灭亡/无城池、`jinThreat` 是否≥25、
-    宋金关系是否≤-20、顺昌一带（代理城池"寿春"）归属、刘锜存活与在场状态；
-  - `PalaceHallScreen.kt`：入口卡片改为只在 `available=true` 时才渲染，不满足时不留占位；
-  - `MainActivity.kt`：`onOpenShunchang` 回调加二次校验，防止入口卡片以外的路径绕过门控；
+  - 新增 `game/BattleOpportunitySystem.kt`：`HistoricalBattleAvailability.forShunchang(state)`，检查历史窗口、金国南侵能力、宋金敌对状态、顺昌一带归属、刘锜存活/位置/旅行状态；
+  - `PalaceHallScreen.kt`：入口卡片只在 `available=true` 时渲染；
+  - `MainActivity.kt`：`onOpenShunchang` 再做一次门控，防止绕过；
   - 新增 `BattleOpportunitySystemTest.kt`，11 个用例。
-- 测试结果：本地在真实 JVM（`apt` 装的 `junit4.jar` + 项目 `game`/`agent` 全部源码一起
-  编译成同一编译单元，避免 `internal` 可见性误报）上跑通整个 `game`+`agent` 测试套件，
-  **87 个测试全部通过**（含新增 11 个）。CI（`android-build.yml`，`workflow_dispatch`
-  跑在本分支）：`Enforce Android release version and stable debug signing` /
-  `Run unit tests` / `Build debug APK` / `Verify stable debug signing certificate` /
-  `Upload debug APK` 全部 `success`。
-- APK/真机结果：CI 产出 Debug APK（artifact `nandu-v1.6.1-debug-apk`），签名指纹校验通过；
-  未做真机安装验收（本任务范围内无 UI 视觉/交互变化需要真机确认，两处改动均为条件门控逻辑）。
+- 测试结果：Claude 本地 JVM 全套 87 个测试通过；集成 PR #53 的 Android Build #214 与 Debug APK #728 进一步验证通过。
+- APK/真机结果：CI APK 与固定测试签名校验通过；本轮未做真机专项验收。
 - 遗留问题：
-  1. `GameCalendar.advance()` 尚未实现“建炎→绍兴”年号切换，`calendar.year` 只是从开局
-     累计的年号内年数，不是公历数字——本次窗口判断按这个口径给了游戏内年数区间，
-     不是精确年号切换后的产物。这是独立的既有缺陷，建议后续任务（HIST-001 或专项）修正
-     年号切换后，回头把这里的窗口常量换算方式一并复核。
-  2. 地图数据里没有独立的"顺昌"城池实体，本任务用刘锜初始所在的"寿春"作为代理城池
-     判断归属；若未来地图拆出独立顺昌城池 id，需要同步更新
-     `SHUNCHANG_PROXY_CITY_ID` 常量。
-  3. 本任务只做“入口是否出现”的门控，`ShunchangBattleScreen.kt` 内部仍是硬编码的
-     战报文案（如"完颜宗弼十万铁骑南下"）和固定演出内容，未做真实数据回填——这正是
-     STAB-002/STAB-003 的范畴，本任务有意不越界处理。
-  4. PR #52 未合并 `release/v1.6.1`，按任务要求停在这里等待验收。
+  1. `GameCalendar.advance()` 尚未实现“建炎→绍兴”年号切换，后续 HIST-001/专项需修正；
+  2. 当前地图没有独立“顺昌”城池实体，仍以寿春作为代理节点；
+  3. #52 未直接合入 `release/v1.6.1`，由集成 PR #53 承接。
 
 ## STAB-002 — 清理战役 UI 硬编码人物与年份
 
-状态：`NEXT`
+状态：`DONE`
 
 工作：
 
@@ -230,11 +212,32 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 - 同一人物在不同年份/任命路径下显示不同真实官职；
 - 历史人物死亡/调任后不再出现在不合理战役画面。
 
-完成记录：待填写。
+完成记录：
+
+- 日期：2026-08-21
+- 独立实现分支：`fix/stab-002-dynamic-battle-roster`，PR #51；
+- 集成分支：`integration/v1.6.2-stab-001-002`，PR #53；
+- 关键提交：
+  - `5617c5cad0dd03bac422e2f46dbd3d7826f7bb07`：在 STAB-001 基线上加入动态展示系统/页面/回归测试；
+  - `e1fcc6a84f594da72aa9b10692e6a876a8e67a03`：将原 900+ 行写死顺昌 Demo 替换为读取同一 `EmperorViewModel` 实时状态的薄兼容入口；
+  - `7afcdc6c0df8077499676b3b1a323672778526b1`：同步 Claude 的 STAB-001 完成记录并形成双线集成头。
+- 改动：
+  - 新增 `BattleScenePresentationSystem`，日期来自 `GameCalendar`；
+  - 战区人物从真实军团、驻防任命、人物位置/状态筛选，死亡、俘虏、在途、异地、尚未入局人物不能上镜；
+  - 官阶来自 `Officer.profile().rank`，职责来自 Army / cityGarrisons / cityGovernors / AppointmentSystem；
+  - 兵力、粮草、士气、敌情全部从 `GameState` 派生，不再写死“宋军 18,000 / 金军 100,000”；
+  - 新增 `DynamicShunchangBriefingScreen`；
+  - STAB-003 前移除只修改 Compose 临时变量的假“固守/驰援/再议”结果。
+- 测试结果：STAB-002 独立 PR 已通过 Android Build #212、Debug APK #727；与 STAB-001 集成后再次通过 Android Build #214、Debug APK #728，全量 unit tests、APK 构建、固定测试签名与 artifact 上传均成功。
+- APK/真机结果：CI 已产出可安装 Debug APK；动态页面仍需在 STAB-008 做最终真机视觉/交互验收。
+- 遗留问题：
+  1. 顺昌仍使用寿春代理节点，待未来地图拆出真实顺昌节点后统一替换；
+  2. 历史年号推进仍需 HIST-001/专项修正；
+  3. 战役决策真实回写世界状态属于下一任务 STAB-003，本任务不伪造局部结果。
 
 ## STAB-003 — 战役选择真实回写 GameState
 
-状态：`TODO`
+状态：`NEXT`
 
 工作：
 
@@ -663,6 +666,14 @@ APK/真机结果：
 ---
 
 # 十一、变更日志
+
+## 2026-08-21 — STAB-001 / STAB-002 第一段稳定化闭环
+
+- Claude 完成 STAB-001：顺昌入口改为条件门控；
+- ChatGPT 完成 STAB-002：战役日期、人物、官职、兵力、粮草、敌情改为实时世界状态；
+- 删除正式路径中的旧顺昌硬编码 Demo 与局部假决策；
+- 集成 PR #53 通过 Android Build #214、Debug APK #728 与固定签名验证；
+- 当前下一任务推进到 `STAB-003`。
 
 ## 2026-08-21 — 建立统一主路线图
 
