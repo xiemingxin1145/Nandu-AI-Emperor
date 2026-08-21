@@ -5,6 +5,9 @@ package com.xiemingxin.nandu.game
  *
  * 作用：让“入殿听奏”的皇帝裁断不再只是生成圣旨草稿，
  * 而是立即对朝局、钱粮、军心、名望、人物态度产生轻量影响。
+ *
+ * STAB-003：顺昌战役军令复用现有 ViewModel 的 applyCouncilChoice 状态入口，
+ * 但实际世界变更全部委托 BattleDirectiveSystem，避免 UI 自己改数值。
  */
 data class CouncilConsequenceResult(
     val newState: GameState,
@@ -13,7 +16,23 @@ data class CouncilConsequenceResult(
 
 object CouncilConsequenceSystem {
 
+    const val SHUNCHANG_BATTLE_COUNCIL_ID = "battle_shunchang"
+
     fun apply(state: GameState, scene: CouncilScene, choice: CouncilChoice): CouncilConsequenceResult {
+        if (scene.palaceId == SHUNCHANG_BATTLE_COUNCIL_ID) {
+            val directive = when (choice.id) {
+                "hold" -> ShunchangDirective.HOLD
+                "reinforce" -> ShunchangDirective.REINFORCE
+                "deliberate" -> ShunchangDirective.DELIBERATE
+                else -> null
+            }
+            if (directive == null) {
+                return CouncilConsequenceResult(state, listOf("【军令未发】无法识别的顺昌军令：${choice.id}"))
+            }
+            val result = BattleDirectiveSystem.applyShunchang(state, directive)
+            return CouncilConsequenceResult(result.newState, listOf(result.message))
+        }
+
         var current = state
         val outcomes = mutableListOf<String>()
 
