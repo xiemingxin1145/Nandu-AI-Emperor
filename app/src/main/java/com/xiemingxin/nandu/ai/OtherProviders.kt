@@ -14,6 +14,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 /** OpenAI 官方通道。默认用小模型，玩家可以在设置页改成任意可用模型名。 */
@@ -224,7 +227,6 @@ private object OpenAiCompatibleEngine {
             }
             pendingClarification = PendingClarification(providerKey, accumulated.takeLast(1800))
         } else {
-            // 新话题、问策、闲谈或一条已经完整的正式命令都会终止旧追问链。
             pendingClarification = null
         }
     }
@@ -341,15 +343,34 @@ private object OpenAiCompatibleEngine {
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()
 
-        client.newCall(request).execute().use { response ->
-            val responseText = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw IllegalStateException("$errorPrefix API错误 ${response.code}: ${responseText.take(800)}")
+        val response = try {
+            client.newCall(request).execute()
+        } catch (_: UnknownHostException) {
+            throw IllegalStateException("$errorPrefix 无法连接服务地址，请检查 Base URL 与网络。")
+        } catch (_: SocketTimeoutException) {
+            throw IllegalStateException("$errorPrefix 响应超时，请稍后重试或换一个更快的模型。")
+        } catch (_: IOException) {
+            throw IllegalStateException("$errorPrefix 网络通信失败，请检查网络与接口地址。")
+        }
+
+        response.use {
+            val responseText = it.body?.string().orEmpty()
+            if (!it.isSuccessful) {
+                val message = when (it.code) {
+                    401, 403 -> "$errorPrefix 鉴权失败，请检查 API Key。"
+                    404 -> "$errorPrefix 未找到模型或接口路径，请检查模型名与 Base URL。"
+                    408 -> "$errorPrefix 请求超时，请稍后重试。"
+                    429 -> "$errorPrefix 请求过于频繁或额度不足，请稍后再试。"
+                    in 500..599 -> "$errorPrefix 服务端暂时不可用，请稍后重试。"
+                    else -> "$errorPrefix 请求失败（${it.code}），请检查接口配置。"
+                }
+                throw IllegalStateException(message)
             }
-            val parsed = json.parseToJsonElement(responseText) as? JsonObject
-                ?: throw IllegalStateException("$errorPrefix 返回不是OpenAI-compatible JSON对象")
+            val parsed = runCatching { json.parseToJsonElement(responseText) as? JsonObject }
+                .getOrNull()
+                ?: throw IllegalStateException("$errorPrefix 已响应，但接口返回格式不兼容 OpenAI /chat/completions。")
             return extractAssistantText(parsed)
-                ?: throw IllegalStateException("$errorPrefix 已响应，但无法提取模型文本")
+                ?: throw IllegalStateException("$errorPrefix 已响应，但没有找到模型正文。")
         }
     }
 
