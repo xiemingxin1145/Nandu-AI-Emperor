@@ -79,8 +79,8 @@ data class EdictCommand(
             val civilKeywords = listOf("主官", "知府", "知州", "知县", "通判", "转运", "漕运", "府尹", "太守")
             val militaryKeywords = listOf("守将", "留守", "都统", "统制", "都督", "制置", "经略", "镇守", "防御", "兵马", "军")
             return when {
-                civilKeywords.any(role::contains) -> "appoint_governor"
-                militaryKeywords.any(role::contains) -> "appoint_garrison"
+                civilKeywords.any { keyword -> role.contains(keyword) } -> "appoint_governor"
+                militaryKeywords.any { keyword -> role.contains(keyword) } -> "appoint_garrison"
                 else -> rawType
             }
         }
@@ -163,8 +163,6 @@ enum class AiProviderType(val displayName: String) {
     CLAUDE("Claude (Anthropic)"),
     OPENAI("OpenAI"),
     GEMINI("Google Gemini"),
-    GROK("xAI Grok"),
-    DEEPSEEK("DeepSeek"),
     OPENROUTER("OpenRouter"),
     CUSTOM("自定义中转"),
     MOCK("离线 Mock")
