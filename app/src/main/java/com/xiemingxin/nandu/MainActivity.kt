@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xiemingxin.nandu.audio.GameAudioPlayer
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameEnding
+import com.xiemingxin.nandu.game.HistoricalBattleAvailability
 import com.xiemingxin.nandu.game.AchievementSystem
 import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.game.AudioResourceRegistry
@@ -333,7 +334,14 @@ fun NanduApp() {
                     onOpenSettings = { playSfx("open_panel"); showSettings = true },
                     onOpenPalace = { palaceId -> playSfx("council_open"); activePalaceId = palaceId },
                     onNavigate = { tab -> playSfx("switch_tab"); currentTab = tab + 1 },
-                    onOpenShunchang = { playSfx("military_start"); showShunchangBattle = true }
+                    onOpenShunchang = {
+                        // STAB-001：二次校验，防止入口卡片以外的任何调用路径绕过门控条件。
+                        // PalaceHallScreen 已经只在满足条件时才渲染这个回调，这里是最后一道保险。
+                        if (HistoricalBattleAvailability.forShunchang(uiState.gameState).available) {
+                            playSfx("military_start")
+                            showShunchangBattle = true
+                        }
+                    }
                 )
                 1 -> EmperorMainScreen(
                     uiState = uiState,
