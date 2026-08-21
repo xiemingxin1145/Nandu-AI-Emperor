@@ -28,6 +28,7 @@ import com.xiemingxin.nandu.game.WarSystem
 import com.xiemingxin.nandu.agent.CharacterAgentSystem
 import com.xiemingxin.nandu.agent.AgentProposal
 import com.xiemingxin.nandu.game.ArmyStatus
+import com.xiemingxin.nandu.game.CharacterTravelSystem
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.AchievementSystem
 import com.xiemingxin.nandu.game.BattleResolver
@@ -333,6 +334,22 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    /** V1.0 活朝堂：召回外任/领军人物回京。真实赶路，不瞬移，见 AppointmentSystem.recallToCourt。 */
+    fun recallOfficer(officerId: String) {
+        val state = _uiState.value.gameState
+        when (val result = AppointmentSystem.recallToCourt(state, officerId)) {
+            is AppointmentSystem.AppointResult.Success -> {
+                _uiState.value = _uiState.value.copy(
+                    gameState = result.newState,
+                    lastOutcomes = listOf(result.message)
+                )
+            }
+            is AppointmentSystem.AppointResult.Failure -> {
+                _uiState.value = _uiState.value.copy(lastRejected = listOf(result.reason))
+            }
+        }
+    }
+
     fun dismissBattleReport() {
         _uiState.value = _uiState.value.copy(lastBattleOutcome = null, battleReport = null)
     }
@@ -404,12 +421,22 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             val supplyReports = supplyResult.second
 
             val clearedFlags = working.storyFlags - "sieged_this_turn"
-            val nextState = working.copy(
+            val advancedState = working.copy(
                 turn = working.turn + 1,
                 calendar = working.calendar.advance(),
                 storyFlags = clearedFlags,
                 cityActionPoints = TavernSystem.MAX_ACTION_POINTS
             ).withUpdatedFactionStatus()
+
+            // 活朝堂：召回入朝的人物在此检查是否已抵达临安，抵达才真正转 IN_COURT，不瞬移。
+            val travelResult = CharacterTravelSystem.tickArrivals(advancedState)
+            val stateAfterTravel = travelResult.first
+            val travelReports = travelResult.second
+
+            // V1.1 历史 Canon：处理预定状态迁移（如宗泽开局入对、随后外任转东京留守）。
+            val scheduledResult = CharacterTravelSystem.tickScheduledTransitions(stateAfterTravel)
+            val nextState = scheduledResult.first
+            val scheduledReports = scheduledResult.second
 
             val event = EventDirector.selectForTurn(
                 state = nextState,
@@ -427,7 +454,7 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
                 lastOutcomes = emptyList(),
                 lastRejected = emptyList(),
                 currentStoryEvent = event,
-                storyOutcomes = worldReports + marchReports + supplyReports,
+                storyOutcomes = worldReports + marchReports + supplyReports + travelReports + scheduledReports,
                 ending = ending,
                 earnedAchievements = earned + newAch,
                 newAchievement = newAch.firstOrNull() ?: _uiState.value.newAchievement,

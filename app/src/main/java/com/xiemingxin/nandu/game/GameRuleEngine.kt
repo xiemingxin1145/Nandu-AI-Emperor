@@ -23,10 +23,26 @@ data class Officer(
     val merit: Int = 0,                   // 军功值
     val origin: String = "",              // 出身：寒门/军户/士族/豪强/义军/归正人
     val skills: List<String> = emptyList(), // 技能标签
-    val bio: String = ""                  // 简介
+    val bio: String = "",                 // 简介
+    // V1.0 人物真实移动（活朝堂）：奉诏回京等场景不能瞬移，需先记录在途状态。
+    // 两个字段同时非空 = 正在赶路；抵达前 status 维持原值（如 DEPLOYED），
+    // 不允许在此期间被判定为"在朝"。见 CharacterStateSource / CharacterTravelSystem。
+    val travelDestinationCityId: String? = null, // 目的地城市id（null=未在赶路）
+    val travelArrivalTurn: Int? = null,           // 预计抵达的旬数（state.turn 达到此值即抵达）
+    // V1.1 历史 Canon：人物"当前在场，但已知会在某旬后转为另一状态/地点"（如宗泽开局入对、随后外任）。
+    // 与上面的召回赶路字段语义不同：这里人物在转场前一直正常在场/在朝，不受 isTraveling 影响；
+    // 到达 scheduledTurn 才一次性切换，不经历"途中不可见"的过程。见 CharacterTravelSystem.tickScheduledTransitions。
+    val scheduledStatus: OfficerStatus? = null,
+    val scheduledCityId: String? = null,
+    val scheduledTurn: Int? = null
 )
 
-enum class OfficerStatus { HIDDEN, SOLDIER, WANDERING, IN_COURT, DEPLOYED, DISMISSED, DECEASED }
+// V1.1 历史 Canon：新增三个状态。
+// CAPTIVE       = 身陷敌营/被俘，锁定至特定历史事件前不可入朝、不可征辟（如建炎元年的秦桧）。
+// IN_CAPITAL    = 人在京城，但只在军务等特定场合出席，不进入常朝文班固定名单（如开局初期的韩世忠）。
+// NOT_YET_RELEVANT = 此时间点尚未进入本局叙事视野，比 HIDDEN 更彻底：不参与寻访/线索发现，
+//                    避免玩家因人物后世名气而在其历史上尚未登场前就摸到他（如开局的赵鼎、吴玠、刘锜）。
+enum class OfficerStatus { HIDDEN, SOLDIER, WANDERING, IN_COURT, DEPLOYED, DISMISSED, DECEASED, CAPTIVE, IN_CAPITAL, NOT_YET_RELEVANT }
 
 data class City(
     val id: String,
@@ -132,7 +148,7 @@ enum class WeatherType(val label: String, val effectText: String) {
 data class GameCalendar(
     val eraName: String = "建炎元年",
     val year: Int = 1,
-    val month: Int = 1,
+    val month: Int = 6,
     val tenDay: Int = 1
 ) {
     fun monthName(): String = listOf(
@@ -208,7 +224,7 @@ data class GameState(
     val turn: Int = 1,
     val era: String = "建炎元年",
     val calendar: GameCalendar = GameCalendar(),
-    val season: Season = Season.SPRING,
+    val season: Season = Season.SUMMER,
     val weather: WeatherType = WeatherType.RAIN,
     val gold: Int = 50000,
     val grain: Int = 200000,

@@ -1,10 +1,10 @@
 package com.xiemingxin.nandu.ai
 
 import com.xiemingxin.nandu.game.ArmyStatus
+import com.xiemingxin.nandu.game.CharacterStateSource
 import com.xiemingxin.nandu.game.FactionStrategyPlanner
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
-import com.xiemingxin.nandu.game.OfficerStatus
 import kotlinx.serialization.Serializable
 
 /**
@@ -175,9 +175,10 @@ object WorldContextFactory {
                 )
             }
 
-        // 为省 token，不把隐藏人物和死人交给世界模型。
+        // 世界模型只能看到“已经进入当前世界视野”的人物。
+        // 可见性统一交给 CharacterStateSource，避免不同AI入口各写一套状态判断。
         val officerContexts = state.officers
-            .filter { it.status != OfficerStatus.HIDDEN && it.status != OfficerStatus.DECEASED }
+            .filter { CharacterStateSource.visibleToWorldAi(state, it) }
             .map { officer ->
                 WorldOfficerContext(
                     id = officer.id,

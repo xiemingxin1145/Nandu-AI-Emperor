@@ -33,6 +33,7 @@ import com.xiemingxin.nandu.agent.CharacterAgentState
 import com.xiemingxin.nandu.agent.EmperorAttitude
 import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.ArtResourceRegistry
+import com.xiemingxin.nandu.game.CharacterStateSource
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerIntel
@@ -82,6 +83,8 @@ fun CharacterDetailPanelWithState(
             currentRole = currentRole,
             loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
             agentState = gameState.agentStates[officer.id],
+            statusHint = CharacterStateSource.statusHint(gameState, officer),
+            armyName = CharacterStateSource.armyOf(gameState, officer.id)?.name,
             onDismiss = onDismiss,
             modifier = modifier
         )
@@ -131,7 +134,9 @@ fun CharacterDetailPanel(
     modifier: Modifier = Modifier,
     currentRole: String = "",
     loyaltyRisk: String? = null,
-    agentState: CharacterAgentState? = null
+    agentState: CharacterAgentState? = null,
+    statusHint: String = "",
+    armyName: String? = null
 ) {
     val p = officer.profile()
     val signatureProps = PropResourceRegistry.signaturePropsForOfficer(officer.id)
@@ -175,6 +180,8 @@ fun CharacterDetailPanel(
                     if (currentRole.isNotBlank()) {
                         Text("职务：$currentRole", color = Color(0xFF8FB573), fontSize = 11.sp)
                     }
+                    Text("动向：$statusHint", color = PanelSub, fontSize = 11.sp)
+                    armyName?.let { Text("所属：$it", color = PanelSub, fontSize = 11.sp) }
                     Spacer(Modifier.height(5.dp))
                     Text("忠：${OfficerIntel.loyaltyLabel(officer.loyalty)}", color = PanelSub, fontSize = 11.sp)
                     Text("志：${OfficerIntel.ambitionLabel(p.ambition)}", color = PanelSub, fontSize = 11.sp)

@@ -12,14 +12,36 @@ android {
         applicationId = "com.xiemingxin.nandu"
         minSdk = 26
         targetSdk = 34
-        versionCode = 26
-        versionName = "V1.5.0"
+        versionCode = 28
+        versionName = "V1.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
 
+    // Stable DEVELOPMENT signing key only. It is intentionally public so every CI debug APK can update
+    // the previous debug APK in place. Never reuse this key for a Play Store / production release.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("tools/signing/nandu-dev-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
+    // V3 generated art library lives at repository-root /assets.
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs("src/main/assets", "../assets")
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
+            // Production signing must come from a private keystore/CI secret later; never use the public dev key.
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -30,21 +52,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-
-    buildFeatures {
-        compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
-    }
-
-    packaging {
-        resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
-    }
+    kotlinOptions { jvmTarget = "1.8" }
+    buildFeatures { compose = true }
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.10" }
+    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
 dependencies {

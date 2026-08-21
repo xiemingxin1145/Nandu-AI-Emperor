@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.*
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.AssetVideoSurface
 import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
 
 private val BgDark    = Color(0xFF0E0A05)
@@ -32,12 +33,13 @@ private val RedSoft   = Color(0xFFE57373)
 
 /**
  * Stage 3 人才总览页面。
- * Visual Integration V3：可识别人物在列表内直接显示头像；隐藏人物仍只显示剪影，避免信息泄露。
+ * Visual Integration V3：可识别人物显示头像；有 V3 char_live 视频的人物在展开详情时自动播放动态立绘。
  */
 @Composable
 fun OfficerListScreen(
     gameState: GameState,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRecallOfficer: (String) -> Unit = {}
 ) {
     val tabs = listOf("朝廷", "已任职", "待征辟", "在野", "隐藏线索")
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -78,9 +80,7 @@ fun OfficerListScreen(
             Text("人才总览", color = Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             Text(
-                "共 ${gameState.officers.filter {
-                    it.status in setOf(OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED)
-                }.size} 人在朝",
+                "共 ${gameState.officers.count { it.status in setOf(OfficerStatus.IN_COURT, OfficerStatus.DEPLOYED) }} 人在朝/任职",
                 color = Sub,
                 fontSize = 12.sp
             )
@@ -165,14 +165,123 @@ fun OfficerListScreen(
                         val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name
                             ?: officer.currentCityId
                         val role = AppointmentSystem.currentRole(gameState, officer.id)
+
+                        if (selectedTab != 4) {
+                            OfficerLivePortrait(officer = officer, cityName = cityName, role = role)
+                        }
+
+                        if (selectedTab == 1) {
+                            RecallOfficerButton(
+                                officer = officer,
+                                traveling = officer.travelArrivalTurn != null,
+                                onRecall = { onRecallOfficer(officer.id) }
+                            )
+                        }
+
                         CharacterDetailPanel(
                             officer = officer,
                             cityName = cityName,
                             onDismiss = { selectedOfficer = null },
                             currentRole = role,
-                            loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer)
+                            loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
+                            statusHint = CharacterStateSource.statusHint(gameState, officer),
+                            armyName = CharacterStateSource.armyOf(gameState, officer.id)?.name
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OfficerLivePortrait(officer: Officer, cityName: String, role: String) {
+    val liveClip = VideoResourceRegistry.characterLiveFor(officer.id) ?: return
+
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF120D08)),
+        border = BorderStroke(1.dp, Gold.copy(alpha = 0.45f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(116.dp)
+                    .aspectRatio(3f / 4f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black)
+            ) {
+                // 静态立绘垫底，HEVC 不兼容时视频自动消失并露出静态图。
+                AssetImage(
+                    path = VisualAssetV3.halfbodyForOfficer(officer.id),
+                    fallbackPath = ArtResourceRegistry.portraitForOfficer(officer.id),
+                    contentDescription = officer.name,
+                    contentScale = ContentScale.Crop,
+                    placeholderText = officer.name.take(1),
+                    modifier = Modifier.fillMaxSize()
+                )
+                AssetVideoSurface(
+                    path = liveClip.path,
+                    loop = true,
+                    muted = true,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text("动态觐见 · ${officer.name}", color = Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text("现驻：$cityName", color = Cream, fontSize = 11.sp)
+                Text("职务：${role.ifBlank { "御前待命" }}", color = GreenSoft, fontSize = 11.sp)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "人物动态素材已进入实际人物页；后续这里还会接固定音色、点击问候与朝议奏对。",
+                    color = Sub,
+                    fontSize = 9.sp,
+                    lineHeight = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecallOfficerButton(officer: Officer, traveling: Boolean, onRecall: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1508)),
+        border = BorderStroke(1.dp, Gold.copy(alpha = 0.4f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (traveling) "已遣使召回，途中" else "召回入朝",
+                    color = if (traveling) Sub else Gold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (traveling) "尚未抵达临安，暂不能列班奏对。" else "奉诏还朝需要赶路时间，不会立即出现在朝会。",
+                    color = Sub,
+                    fontSize = 10.sp
+                )
+            }
+            if (!traveling) {
+                Button(
+                    onClick = onRecall,
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold)
+                ) {
+                    Text("发诏召回", color = BgDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

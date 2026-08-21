@@ -54,10 +54,16 @@ class FactionStrategyPlannerTest {
     fun `weak adjacent enemy city creates expansion opportunity`() {
         val base = GameState()
         val jinArmy = base.armies.first { it.ownerFactionId == "jin" }
-        val neighborId = MapData.neighborsOf(jinArmy.currentCityId).first()
+        val targetCityId = "xinyang"
+
+        // 固定使用 InitialData 中真实存在、且与开封直接有道路相连的信阳，
+        // 避免 Set.first() 落到只有 MapNode、没有 City 实体的节点，使测试受集合顺序影响。
+        assertTrue(targetCityId in MapData.neighborsOf(jinArmy.currentCityId))
+        assertTrue(base.cities.any { it.id == targetCityId })
+
         val state = base.copy(
             cities = base.cities.map { city ->
-                if (city.id == neighborId) city.copy(
+                if (city.id == targetCityId) city.copy(
                     owner = "song",
                     troops = 300,
                     defense = 5,
@@ -65,22 +71,28 @@ class FactionStrategyPlannerTest {
                     controlState = "FRONTLINE"
                 ) else city
             },
-            armies = base.armies.map {
-                if (it.id == jinArmy.id) it.copy(
-                    troops = 18000,
-                    morale = 80,
-                    supplyLevel = 90,
-                    statusCode = ArmyStatus.GARRISONED,
-                    status = ArmyStatus.GARRISONED.label,
-                    targetCityId = ""
-                ) else it
+            armies = base.armies.map { army ->
+                when {
+                    army.id == jinArmy.id -> army.copy(
+                        troops = 18000,
+                        morale = 80,
+                        supplyLevel = 90,
+                        statusCode = ArmyStatus.GARRISONED,
+                        status = ArmyStatus.GARRISONED.label,
+                        targetCityId = ""
+                    )
+                    // 这个测试只验证“弱小相邻敌城会形成扩张机会”，不把额外野战守军混进城防比值。
+                    army.ownerFactionId == "song" && army.currentCityId == targetCityId ->
+                        army.copy(currentCityId = "yingtianfu", targetCityId = "")
+                    else -> army
+                }
             }
         )
 
         val candidates = FactionStrategyPlanner.candidates(state, "jin")
         assertTrue(candidates.any {
             it.intent in setOf(StrategicIntent.EXPAND, StrategicIntent.PRESS_ADVANTAGE, StrategicIntent.RAID) &&
-                it.actions.any { action -> action.targetCityId == neighborId }
+                it.actions.any { action -> action.targetCityId == targetCityId }
         })
     }
 
