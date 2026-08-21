@@ -41,10 +41,7 @@ jobs:
       - name: Enforce Android release version and stable debug signing
         run: ./scripts/check_android_release_policy.sh
 
-      - name: Audit integrated court art, capital and formal video routes
-        run: python3 ./scripts/check_v162_preacceptance.py
-
-      - name: Ensure ffmpeg/ffprobe for video preparation and QA
+      - name: Ensure ffmpeg/ffprobe for preacceptance, video preparation and QA
         shell: bash
         run: |
           if ! command -v ffprobe >/dev/null 2>&1 || ! command -v ffmpeg >/dev/null 2>&1; then
@@ -52,6 +49,9 @@ jobs:
             sudo apt-get install -y -qq ffmpeg
           fi
           ffprobe -version | head -1
+
+      - name: Audit integrated court art, capital and formal video routes
+        run: python3 ./scripts/check_v162_preacceptance.py
 
       - name: Prepare Android-compatible MP4s
         run: ./scripts/prepare_android_video_assets.sh
