@@ -16,6 +16,7 @@ on:
       - feature/living-world-court-v1
       - ci/living-world-canon-base
       - fix/stab-005-video-player-compat
+      - integration/v1.6.2-preacceptance
   workflow_dispatch:
 
 jobs:

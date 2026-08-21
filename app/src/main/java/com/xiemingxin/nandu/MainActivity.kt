@@ -34,6 +34,7 @@ import com.xiemingxin.nandu.game.HistoricalBattleAvailability
 import com.xiemingxin.nandu.game.AchievementSystem
 import androidx.compose.ui.platform.LocalContext
 import com.xiemingxin.nandu.game.AudioResourceRegistry
+import com.xiemingxin.nandu.prototype.mapglobe.GlobeMapPrototypeScreen
 import com.xiemingxin.nandu.ui.AppBackTarget
 import com.xiemingxin.nandu.ui.AppNavigationPolicy
 import com.xiemingxin.nandu.ui.EmperorViewModel
@@ -142,6 +143,7 @@ fun NanduApp() {
     var currentTab by remember { mutableStateOf(0) }
     var showOfficerList by remember { mutableStateOf(false) }
     var showShunchangBattle by remember { mutableStateOf(false) }
+    var showGlobePreview by remember { mutableStateOf(false) }
     var edictText by remember { mutableStateOf("") }
     var sfxSignal by remember { mutableStateOf<String?>(null) }
     var audioEnabled by remember { mutableStateOf(audioPrefs.getBoolean(AUDIO_ENABLED_KEY, true)) }
@@ -398,14 +400,36 @@ fun NanduApp() {
                     onDismissStoryOutcome = { playSfx("story_outcome"); viewModel.dismissStoryOutcome() },
                     onOpenSettings = { playSfx("open_panel"); showSettings = true }
                 )
-                2 -> MapScreen(
-                    gameState = uiState.gameState,
-                    replay = uiState.activeWorldReplay,
-                    lastReplay = uiState.lastWorldReplay,
-                    onDismissReplay = { playSfx("close_panel"); viewModel.dismissWorldReplay() },
-                    onReopenReplay = { playSfx("open_panel"); viewModel.reopenWorldReplay() },
-                    onCitySelected = { payload -> draftFromCity(payload) }
-                )
+                2 -> if (showGlobePreview) {
+                    GlobeMapPrototypeScreen(
+                        gameState = uiState.gameState,
+                        onExit = { playSfx("close_panel"); showGlobePreview = false }
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        MapScreen(
+                            gameState = uiState.gameState,
+                            replay = uiState.activeWorldReplay,
+                            lastReplay = uiState.lastWorldReplay,
+                            onDismissReplay = { playSfx("close_panel"); viewModel.dismissWorldReplay() },
+                            onReopenReplay = { playSfx("open_panel"); viewModel.reopenWorldReplay() },
+                            onCitySelected = { payload -> draftFromCity(payload) }
+                        )
+                        if (uiState.activeWorldReplay == null) {
+                            OutlinedButton(
+                                onClick = { playSfx("open_panel"); showGlobePreview = true },
+                                modifier = Modifier
+                                    .align(androidx.compose.ui.Alignment.TopEnd)
+                                    .padding(top = 8.dp, end = 8.dp),
+                                border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.85f)),
+                                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xD914100C)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 5.dp)
+                            ) {
+                                Text("寰宇试览", color = ImperialGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
                 3 -> StateScreen(gameState = uiState.gameState)
                 4 -> if (showOfficerList) {
                     OfficerListScreen(
@@ -429,7 +453,7 @@ fun NanduApp() {
             listOf("皇宫" to 0, "朝议" to 1, "山河" to 2, "国政" to 3, "军务" to 4).forEach { (label, idx) ->
                 NavigationBarItem(
                     selected = currentTab == idx,
-                    onClick = { playSfx("switch_tab"); activePalaceId = null; currentTab = idx; showOfficerList = false },
+                    onClick = { playSfx("switch_tab"); activePalaceId = null; currentTab = idx; showOfficerList = false; showGlobePreview = false },
                     icon = {},
                     label = { Text(label, fontSize = 12.sp, fontWeight = if (currentTab == idx) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(
