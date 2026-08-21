@@ -1,7 +1,5 @@
 package com.xiemingxin.nandu.ui.screens
 
-import android.net.Uri
-import android.widget.VideoView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -45,9 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.xiemingxin.nandu.audio.GameAudioPlayer
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.AssetVideoSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -59,6 +57,10 @@ import kotlinx.coroutines.launch
  * 2. 自动播放节奏缩短；玩家可随时点“下一幕”或左滑快进。
  * 3. 右滑可回看上一幕；“跳过序章”才会直接进入游戏。
  * 4. 旁白、BGM、环境声分层播放；生成视频内嵌音轨永远静音。
+ *
+ * STAB-005：序章不再维护独立 VideoView/file:///android_asset 播放链，
+ * 与全游戏统一走 AssetVideoSurface(Media3)。静态 CG 永远先铺在底层，
+ * 视频资源缺失/读取/格式/解码失败时播放器自动退场，CG 无缝兜底。
  */
 private enum class PrologueAct { ACT_1, ACT_2, ACT_3, ACT_4, ACT_5, ACT_6, DONE }
 
@@ -463,43 +465,22 @@ private fun PrologueAssetVideo(
     contentDescription: String,
     modifier: Modifier = Modifier
 ) {
-    var failed by remember(path) { mutableStateOf(false) }
-    var videoView by remember(path) { mutableStateOf<VideoView?>(null) }
-
-    DisposableEffect(path) {
-        onDispose {
-            videoView?.stopPlayback()
-            videoView = null
-        }
-    }
-
-    if (failed) {
+    // Static CG is always rendered first. AssetVideoSurface disappears on any structured
+    // Media3 failure, so the player never leaves a black/error-only prologue frame.
+    Box(modifier = modifier.background(Color.Black)) {
         AssetImage(
             path = fallbackPath,
             fallbackPath = secondFallbackPath,
             contentDescription = contentDescription,
             contentScale = ContentScale.Crop,
             placeholderText = contentDescription.take(2),
-            modifier = modifier
+            modifier = Modifier.fillMaxSize()
         )
-    } else {
-        AndroidView(
-            factory = { context ->
-                VideoView(context).also { view ->
-                    videoView = view
-                    view.setVideoURI(Uri.parse("file:///android_asset/$path"))
-                    view.setOnPreparedListener { player ->
-                        player.isLooping = false
-                        player.setVolume(0f, 0f)
-                        view.start()
-                    }
-                    view.setOnErrorListener { _, _, _ ->
-                        failed = true
-                        true
-                    }
-                }
-            },
-            modifier = modifier.background(Color.Black)
+        AssetVideoSurface(
+            path = path,
+            modifier = Modifier.fillMaxSize(),
+            loop = false,
+            muted = true
         )
     }
 }
