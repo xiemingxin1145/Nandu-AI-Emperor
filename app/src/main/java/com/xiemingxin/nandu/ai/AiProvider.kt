@@ -20,8 +20,10 @@ data class EdictResult(
 
 @Serializable
 data class EdictCommand(
-    val type: String,           // 命令类型（白名单见下）
-    val officerId: String = "", // 武将ID
+    // WORLD-CORE 合流兼容：小模型仍可能把“赴某城任某职”吐成旧 assign_officer。
+    // type 改为 var 仅用于 init 中一次性归一化；之后游戏仍按普通命令字段读取。
+    var type: String,           // 命令类型（白名单见下）
+    val officerId: String = "", // 武将/官员ID
     val fromCityId: String = "",
     val toCityId: String = "",
     val cityId: String = "",
@@ -32,11 +34,15 @@ data class EdictCommand(
     val amount: Int = 0,
     val deadlineTurns: Int = 0
 ) {
+    init {
+        type = normalizeLegacyAssignment(type, cityId, role)
+    }
+
     companion object {
         // ⚠️ 命令白名单 — 不在此列的一律丢弃
         val ALLOWED_TYPES = setOf(
             "dispatch_army",      // 调兵
-            "assign_officer",     // 任命
+            "assign_officer",     // 旧兼容：泛化任命；明确城池+职务会在本地自动归一
             "repair_city",        // 修城
             "raise_grain",        // 筹粮
             "suppress_officer",   // 压制大臣
@@ -61,6 +67,23 @@ data class EdictCommand(
         )
 
         fun isValid(type: String) = type in ALLOWED_TYPES
+
+        /**
+         * 兼容便宜模型/旧 Prompt：
+         * - “赵鼎赴开封任主官/知府/通判/转运”等 → appoint_governor
+         * - “宗泽赴东京任留守/守将/都统/统制/镇守”等 → appoint_garrison
+         * 没有明确城池或职务时保持 assign_officer，让上层继续澄清，绝不猜地点。
+         */
+        private fun normalizeLegacyAssignment(rawType: String, cityId: String, role: String): String {
+            if (rawType != "assign_officer" || cityId.isBlank() || role.isBlank()) return rawType
+            val civilKeywords = listOf("主官", "知府", "知州", "知县", "通判", "转运", "漕运", "府尹", "太守")
+            val militaryKeywords = listOf("守将", "留守", "都统", "统制", "都督", "制置", "经略", "镇守", "防御", "兵马", "军")
+            return when {
+                civilKeywords.any(role::contains) -> "appoint_governor"
+                militaryKeywords.any(role::contains) -> "appoint_garrison"
+                else -> rawType
+            }
+        }
     }
 }
 
@@ -138,9 +161,11 @@ data class OfficerContext(
 
 enum class AiProviderType(val displayName: String) {
     CLAUDE("Claude (Anthropic)"),
-    OPENAI("OpenAI GPT"),
+    OPENAI("OpenAI"),
     GEMINI("Google Gemini"),
+    GROK("xAI Grok"),
+    DEEPSEEK("DeepSeek"),
     OPENROUTER("OpenRouter"),
-    CUSTOM("自定义API"),
-    MOCK("本地离线模拟")
+    CUSTOM("自定义中转"),
+    MOCK("离线 Mock")
 }
