@@ -11,7 +11,7 @@
 并行已验证分支：`feat/court-001-crowd-wiring`（PR #54，尚未并入主集成线）  
 并行审计分支：`docs/roster-001-expansion-audit`（Claude，ROSTER-001）  
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
-当前下一任务：**STAB-006 全仓历史硬编码审计**  
+当前下一任务：**STAB-006 全仓历史硬编码审计（进行中，分支 fix/stab-006-historical-hardcode-audit，当前会话）**  
 当前里程碑进度：**5 / 8**  
 当前总进度：**5 / 37**
 
@@ -240,11 +240,27 @@ AI 可生成建议、奏议、计划、外交措辞和候选行动；最终数�
 
 ## STAB-006 — 全仓历史硬编码审计
 
-状态：`NEXT`
+状态：`IN_PROGRESS`（分支 `fix/stab-006-historical-hardcode-audit`，当前会话）
 
 审计并处理：固定年份、固定官职、固定位置、固定城市归属、固定历史结果、正式流程中的 UI 假数据。
 
 完成标准：输出审计清单，高危正式流程硬编码清零。
+
+进行中记录（未完成，Draft PR 尚未建立/CI 未跑完前不得标 DONE）：
+
+- 已有提交（基于 `release/v1.6.1`，含 STAB-004/STAB-005 已完成内容）：
+  - `3245825` STAB-006: enforce declared story trigger guards
+  - `284ae4d` STAB-006: preserve structured trigger fields from event packs
+  - `8ea6412` STAB-006: make declared story effects mutate real world state
+  - `b929b26` STAB-006: add story trigger guard regressions
+  - `df096c2` STAB-006: add story effect writeback regressions
+  - `7502462` STAB-006: fix era name never advancing past Jianyan + audit checklist
+- `7502462` 修了三处高危正式流程穿帮（`GameCalendar` 年号永不切换 / `IntroScreen`
+  硬编码"临安行在" / `MockProvider` 硬编码"垂拱殿"摘要），新增
+  `docs/STAB006_HARDCODE_AUDIT.md` 审计清单，新增 `GameCalendarEraTest.kt`。
+- 待办：建 Draft PR（基线接 STAB-005，不合 main）→ 跑完整 unit tests / Android
+  Build / Debug APK CI → CI 全绿后再做最后一轮穿帮核查、确认审计文档完整 →
+  再标 DONE、推进里程碑进度、把 STAB-007 改为 NEXT。
 
 ## STAB-007 — 正式入口 Smoke Test
 
