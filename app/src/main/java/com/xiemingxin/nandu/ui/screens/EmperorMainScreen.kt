@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.xiemingxin.nandu.ai.CourtInteractionRoute
 import com.xiemingxin.nandu.ai.EdictResult
 import com.xiemingxin.nandu.ai.NpcResponse
 import com.xiemingxin.nandu.game.ArtResourceRegistry
@@ -49,6 +50,36 @@ private val CourtRed = Color(0xFF7D1D16)
 private val CourtGreen = Color(0xFF78B56A)
 private val CourtBlue = Color(0xFF4DA3E6)
 
+private enum class CourtInputMode(
+    val route: String,
+    val tabLabel: String,
+    val title: String,
+    val helper: String,
+    val actionLabel: String
+) {
+    CONSULT(
+        route = "CONSULT",
+        tabLabel = "问政",
+        title = "御前问政",
+        helper = "问局势、问钱粮、问军情，或直接点名一位在殿大臣。问政只产生奏对，不会自行改动天下。",
+        actionLabel = "问政"
+    ),
+    CHAT(
+        route = "CHAT",
+        tabLabel = "闲聊",
+        title = "殿中闲谈",
+        helper = "可以感叹、追问人物、聊眼下见闻。只要是在对殿中人说话，就应有人接话。",
+        actionLabel = "开口闲谈"
+    ),
+    ORDER(
+        route = "ORDER",
+        tabLabel = "下旨",
+        title = "御笔下诏",
+        helper = "只有这里才把话当作正式军政命令。命令会先核人物、兵力、钱粮与地点，再进入朱批。",
+        actionLabel = "呈旨"
+    )
+}
+
 @Composable
 fun EmperorMainScreen(
     uiState: UiState,
@@ -67,9 +98,13 @@ fun EmperorMainScreen(
     onOpenSettings: () -> Unit
 ) {
     var edictText by remember { mutableStateOf(draftEdictText) }
+    var inputMode by remember { mutableStateOf(CourtInputMode.CONSULT) }
 
     LaunchedEffect(draftEdictText) {
-        if (draftEdictText.isNotBlank()) edictText = draftEdictText
+        if (draftEdictText.isNotBlank()) {
+            edictText = draftEdictText
+            inputMode = CourtInputMode.ORDER
+        }
     }
 
     Box(
@@ -90,20 +125,26 @@ fun EmperorMainScreen(
                         IdleView(
                             state = uiState.gameState,
                             edictText = edictText,
+                            inputMode = inputMode,
+                            onInputModeChange = { inputMode = it },
                             onEdictChange = { edictText = it },
-                            onSubmit = { onSubmitEdict(edictText) },
+                            onSubmit = {
+                                CourtInteractionRoute.select(inputMode.route)
+                                onSubmitEdict(edictText)
+                            },
                             onRevokeMandate = onRevokeMandate,
                             isLoading = uiState.phase == GamePhase.EXECUTING
                         )
                     }
-                    GamePhase.AI_PROCESSING -> LoadingView()
+                    GamePhase.AI_PROCESSING -> LoadingView(inputMode)
                     GamePhase.AWAITING_CONFIRM -> {
                         uiState.lastEdictResult?.let { result ->
                             when (result.interactionType.uppercase()) {
                                 "CHAT", "CONSULT" -> ConversationResponseView(
                                     state = uiState.gameState,
                                     result = result,
-                                    onContinue = {
+                                    onContinue = { nextMode ->
+                                        inputMode = nextMode
                                         edictText = ""
                                         onCancelEdict()
                                     }
@@ -116,6 +157,7 @@ fun EmperorMainScreen(
                                     onConfirm = { onConfirmEdict(edictText) },
                                     onCancel = onCancelEdict,
                                     onAmend = {
+                                        inputMode = CourtInputMode.ORDER
                                         // 玩家输入框只属于玩家。原旨、臣议和追问由状态层暗中保存，
                                         // 绝不再把“参酌前议 / 待补圣意”塞进玩家正文。
                                         edictText = ""
@@ -133,6 +175,7 @@ fun EmperorMainScreen(
                             rejected = uiState.lastRejected,
                             onDismiss = {
                                 edictText = ""
+                                inputMode = CourtInputMode.CONSULT
                                 onAdvanceTurn()
                             }
                         )
@@ -247,19 +290,22 @@ fun HudStat(icon: String, value: String, valueColor: Color = Color.White) {
 fun IdleView(
     state: GameState,
     edictText: String,
+    inputMode: CourtInputMode,
+    onInputModeChange: (CourtInputMode) -> Unit,
     onEdictChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onRevokeMandate: (String) -> Unit,
     isLoading: Boolean
 ) {
     val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
+    val hints = courtConversationHints(state, inputMode)
     Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "可闲谈 · 可问策 · 可下旨") }
+            item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "问政、闲聊、正式下旨各走各的路，不再让模型猜。") }
             item { CourtOfficerRow(state = state) }
             val activeMandates = state.imperialMandates.filter { it.isActive && !it.isExpired(state.turn) }
             if (activeMandates.isNotEmpty()) {
@@ -271,22 +317,25 @@ fun IdleView(
                 }
             }
             item {
+                CourtModeSelector(selected = inputMode, onSelected = onInputModeChange)
+            }
+            item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)),
-                    border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.55f))
+                    border = BorderStroke(1.dp, if (inputMode == CourtInputMode.ORDER) CourtRed.copy(alpha = 0.75f) else CourtGold.copy(alpha = 0.55f))
                 ) {
                     Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("御前开口", color = CourtGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text("像真正坐在朝堂上一样说话。感叹、问臣、问策不会被强行当成圣旨；只有明确命令才进入朱批。", color = CourtSub, fontSize = 11.sp, lineHeight = 16.sp)
+                        Text(inputMode.title, color = CourtGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(inputMode.helper, color = CourtSub, fontSize = 11.sp, lineHeight = 16.sp)
                         OutlinedTextField(
                             value = edictText,
                             onValueChange = onEdictChange,
                             modifier = Modifier.fillMaxWidth().height(170.dp),
                             placeholder = {
                                 Text(
-                                    "例如：\n“天下大乱啊。”\n“宗泽，你怎么看河北局势？”\n“传旨：命枢密院调两万兵增援前线。”",
+                                    courtPlaceholder(inputMode),
                                     color = Color(0xFF8B7355),
                                     fontSize = 13.sp
                                 )
@@ -303,15 +352,17 @@ fun IdleView(
                     }
                 }
             }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(courtConversationHints(state)) { hint ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { onEdictChange(hint) },
-                            label = { Text(hint, fontSize = 11.sp) },
-                            colors = FilterChipDefaults.filterChipColors(containerColor = Color(0xFF2A1F12), labelColor = CourtGold)
-                        )
+            if (hints.isNotEmpty()) {
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(hints) { hint ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { onEdictChange(hint) },
+                                label = { Text(hint, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(containerColor = Color(0xFF2A1F12), labelColor = CourtGold)
+                            )
+                        }
                     }
                 }
             }
@@ -321,16 +372,16 @@ fun IdleView(
                     enabled = edictText.isNotBlank() && !isLoading,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ImperialRed,
+                        containerColor = if (inputMode == CourtInputMode.ORDER) ImperialRed else CourtGold,
                         disabledContainerColor = Color(0xFF4A1A1A)
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        if (isLoading) "传达中…" else "开口",
+                        if (isLoading) "传达中…" else inputMode.actionLabel,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = CourtCream
+                        color = if (inputMode == CourtInputMode.ORDER) CourtCream else CourtInk
                     )
                 }
             }
@@ -339,15 +390,53 @@ fun IdleView(
 }
 
 @Composable
-fun LoadingView() {
+private fun CourtModeSelector(selected: CourtInputMode, onSelected: (CourtInputMode) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        CourtInputMode.entries.forEach { mode ->
+            FilterChip(
+                selected = selected == mode,
+                onClick = { onSelected(mode) },
+                label = {
+                    Text(
+                        mode.tabLabel,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                        fontWeight = if (selected == mode) FontWeight.Bold else FontWeight.Medium
+                    )
+                },
+                modifier = Modifier.weight(1f),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Color(0xC51A1208),
+                    selectedContainerColor = if (mode == CourtInputMode.ORDER) CourtRed else CourtGold,
+                    labelColor = CourtCream,
+                    selectedLabelColor = if (mode == CourtInputMode.ORDER) CourtCream else CourtInk
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = selected == mode,
+                    borderColor = CourtGold.copy(alpha = 0.5f),
+                    selectedBorderColor = CourtGold
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun LoadingView(inputMode: CourtInputMode) {
     val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
+    val detail = when (inputMode) {
+        CourtInputMode.CONSULT -> "群臣正在据当前军政实情奏对…"
+        CourtInputMode.CHAT -> "殿中正在应声，不会把闲话当成圣旨…"
+        CourtInputMode.ORDER -> "中书正在核旨，确认人物、兵力、钱粮与地点…"
+    }
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = CourtGold)
             Spacer(Modifier.height(16.dp))
-            Text("$courtName 中，群臣听候…", color = CourtGold)
-            Text("AI 正在判断这是闲谈、问策，还是一道正式旨意", color = CourtSub, fontSize = 11.sp)
+            Text("$courtName 中，${inputMode.tabLabel}传达中…", color = CourtGold)
+            Text(detail, color = CourtSub, fontSize = 11.sp)
         }
     }
 }
@@ -356,9 +445,11 @@ fun LoadingView() {
 private fun ConversationResponseView(
     state: GameState,
     result: EdictResult,
-    onContinue: () -> Unit
+    onContinue: (CourtInputMode) -> Unit
 ) {
-    val title = if (result.interactionType.equals("CONSULT", ignoreCase = true)) "御前问策" else "殿中闲谈"
+    val isConsult = result.interactionType.equals("CONSULT", ignoreCase = true)
+    val currentMode = if (isConsult) CourtInputMode.CONSULT else CourtInputMode.CHAT
+    val title = if (isConsult) "御前问策" else "殿中闲谈"
     Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         LazyColumn(
@@ -377,20 +468,30 @@ private fun ConversationResponseView(
             }
             item {
                 Text(
-                    "这一轮只是对话，不会修改兵力、国库、官职或世界状态。等陛下明确下令时，才会进入朱批确认。",
+                    "这一轮只是对话，不会修改兵力、国库、官职或世界状态。可以继续追问；真要执行时再切到“下旨”。",
                     color = CourtSub,
                     fontSize = 11.sp,
                     lineHeight = 16.sp
                 )
             }
             item {
-                Button(
-                    onClick = onContinue,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CourtGold),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("继续问政", color = CourtInk, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { onContinue(currentMode) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CourtGold),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(if (isConsult) "继续问政" else "继续闲聊", color = CourtInk, fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(
+                        onClick = { onContinue(CourtInputMode.ORDER) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        border = BorderStroke(1.dp, CourtRed.copy(alpha = 0.75f)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("据此下旨", color = CourtCream, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -669,7 +770,7 @@ private fun CourtDebatePanel(
                 }
             }
             if (inCourtResponses.isEmpty()) {
-                Text("本轮暂无在殿官员出班。", color = CourtSub, fontSize = 12.sp)
+                Text("殿中一时无人出班奏对。", color = CourtSub, fontSize = 12.sp)
             } else {
                 Text("【当殿】", color = CourtGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 inCourtResponses.forEach { response ->
@@ -823,13 +924,23 @@ fun ResultView(outcomes: List<String>, rejected: List<String>, onDismiss: () -> 
     }
 }
 
-private fun courtConversationHints(state: GameState): List<String> {
-    val hints = mutableListOf("诸卿怎么看如今局势？")
-    if (state.jinThreat >= 60) hints += "枢密院，说说前线军情。"
-    if (state.gold < 80_000) hints += "国库还能支应多久？"
-    if (state.armies.isNotEmpty()) hints += "诸军现在各在何处？"
-    if (hints.size < 3) hints += "眼下最急的一件事是什么？"
-    return hints.take(4)
+private fun courtPlaceholder(mode: CourtInputMode): String = when (mode) {
+    CourtInputMode.CONSULT -> "例如：\n“国库还能支应多久？”\n“李纲，你怎么看河北局势？”\n“诸卿认为眼下最急的是什么？”"
+    CourtInputMode.CHAT -> "例如：\n“朕问你们话呢。”\n“宗泽，今日气色如何？”\n“唉，这天下什么时候才能安稳。”"
+    CourtInputMode.ORDER -> "例如：\n“传旨：命枢密院调两万兵增援前线。”\n“拨三万贯军费，准宗泽便宜从事。”"
+}
+
+private fun courtConversationHints(state: GameState, mode: CourtInputMode): List<String> = when (mode) {
+    CourtInputMode.CONSULT -> {
+        val hints = mutableListOf("诸卿怎么看如今局势？")
+        if (state.jinThreat >= 60) hints += "枢密院，说说前线军情。"
+        if (state.gold < 80_000) hints += "国库还能支应多久？"
+        if (state.armies.isNotEmpty()) hints += "诸军现在各在何处？"
+        if (hints.size < 3) hints += "眼下最急的一件事是什么？"
+        hints.take(4)
+    }
+    CourtInputMode.CHAT -> listOf("诸卿今日可还安好？", "朕问你们话呢。")
+    CourtInputMode.ORDER -> emptyList()
 }
 
 private fun attitudeColor(attitude: String): Color = when (attitude.lowercase()) {
