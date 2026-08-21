@@ -178,22 +178,37 @@ data class GameCalendar(
             copy(month = month + 1, tenDay = 1)
         } else {
             val nextYear = year + 1
-            GameCalendar("建炎${chineseYear(nextYear)}年", nextYear, 1, 1)
+            GameCalendar(eraNameFor(nextYear), nextYear, 1, 1)
         }
     }
 
-    private fun chineseYear(value: Int): String = when (value) {
-        1 -> "元"
-        2 -> "二"
-        3 -> "三"
-        4 -> "四"
-        5 -> "五"
-        6 -> "六"
-        7 -> "七"
-        8 -> "八"
-        9 -> "九"
-        10 -> "十"
-        else -> value.toString()
+    companion object {
+        // STAB-006：建炎年号只用了四年（1127-1130），绍兴元年起于1131年。
+        // 之前 advance() 无论推进多少年都硬编码"建炎"前缀，玩家推进十几二十年
+        // 后界面上仍然显示"建炎十五年"这种史书上不存在的年号，是正式流程里
+        // 会被玩家直接看到的历史穿帮。这里只处理这一次切换：当前游戏设计范围内
+        // 高宗一直在位，不模拟绍兴之后的禅位改元（隆兴等），那已经超出本任务范围。
+        private const val JIANYAN_LAST_GAME_YEAR = 4
+
+        fun eraNameFor(gameYear: Int): String =
+            if (gameYear <= JIANYAN_LAST_GAME_YEAR) "建炎${chineseYearWord(gameYear)}年"
+            else "绍兴${chineseYearWord(gameYear - JIANYAN_LAST_GAME_YEAR)}年"
+
+        private fun chineseYearWord(value: Int): String {
+            if (value == 1) return "元" // 年号第一年惯例称"元年"，不是"一年"
+            if (value <= 0) return value.toString()
+            if (value < 10) return DIGITS[value]
+            if (value == 10) return "十"
+            if (value < 20) return "十" + DIGITS[value - 10]
+            if (value < 100) {
+                val tens = value / 10
+                val ones = value % 10
+                return DIGITS[tens] + "十" + (if (ones == 0) "" else DIGITS[ones])
+            }
+            return value.toString()
+        }
+
+        private val DIGITS = arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")
     }
 }
 

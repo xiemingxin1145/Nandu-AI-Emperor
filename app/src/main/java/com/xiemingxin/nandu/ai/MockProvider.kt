@@ -132,7 +132,7 @@ class MockProvider : AiProvider {
         }
 
         return Result.success(EdictResult(
-            summary = "垂拱殿已议定圣旨，共${commands.size}项命令待陛下朱批",
+            summary = "朝廷已议定圣旨，共${commands.size}项命令待陛下朱批",
             commands = commands,
             npcResponses = responses.distinctBy { it.officerId + it.text }.take(4),
             riskTags = risks.distinct(),
