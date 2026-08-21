@@ -66,14 +66,20 @@ class GameAudioPlayer(private val context: Context) {
         )
 
         /**
-         * STAB-007 真机反馈：开头四幕的这一批预生成旁白被听到不符合目标的女声音色。
-         * 暂时只保留字幕+BGM；第五幕主角内心声和第六幕内侍声不在此隔离名单。
+         * 前四幕旧预生成旁白的音色曾被真机判定不合格。
+         * 旧实现直接把它们静音，导致“资源6/6存在但玩家听不到”。
+         * 现在不再静音：在正式重配音替换前，这四幕自动走设备中文 TTS，
+         * 第五幕主角内心声与第六幕内侍仍播放打包人声。
          */
-        private val DEVICE_REJECTED_OPENING_NARRATION = setOf(
-            "audio/voice/prologue/prologue_act1_shanhejiangqing.m4a",
-            "audio/voice/prologue/prologue_act2_jingkang.m4a",
-            "audio/voice/prologue/prologue_act3_nandu.m4a",
-            "audio/voice/prologue/prologue_act4_lishipianzhuan.m4a"
+        private val OPENING_TTS_FALLBACK = mapOf(
+            "audio/voice/prologue/prologue_act1_shanhejiangqing.m4a" to
+                "大宋靖康年间，金军铁骑再度南下。汴京以北，烽火连天，山河将倾。",
+            "audio/voice/prologue/prologue_act2_jingkang.m4a" to
+                "汴京陷落，二帝北狩。百余年东京繁华，一夕倾覆。宗室百官，尽被掳北去。",
+            "audio/voice/prologue/prologue_act3_nandu.m4a" to
+                "康王赵构即位于南京应天府，改元建炎。然而江山未稳，金兵已经渡河而来。",
+            "audio/voice/prologue/prologue_act4_lishipianzhuan.m4a" to
+                "靖康已成旧史，山河却仍在烽火之中。从这一刻起，未来不再只有一条路。"
         )
     }
 
@@ -197,13 +203,19 @@ class GameAudioPlayer(private val context: Context) {
     }
 
     /**
-     * 播放正式人声文件。保留给角色配音和后续正式旁白使用。
+     * 播放正式人声文件。前四幕旧旁白若尚未替换，会自动转为 TTS，绝不再静默。
      */
     fun playVoice(path: String, voiceVolume: Float? = null, onComplete: (() -> Unit)? = null) {
-        if (!masterEnabled || !voiceEnabled || path in DEVICE_REJECTED_OPENING_NARRATION) {
+        if (!masterEnabled || !voiceEnabled) {
             onComplete?.invoke()
             return
         }
+
+        OPENING_TTS_FALLBACK[path]?.let { narration ->
+            speakNarration(narration)
+            return
+        }
+
         stopVoice()
         val file = materializeAsset(path) ?: run {
             onComplete?.invoke()
@@ -236,10 +248,8 @@ class GameAudioPlayer(private val context: Context) {
     }
 
     /**
-     * 测试/兜底旁白：直接调用设备中文 TTS。
-     *
-     * 当前仓库虽然已有四个 WAV，但真机反馈为“无声”。在正式可验证的配音文件替换前，
-     * 序章先用这个通道确保玩家一定听得到文字内容。正式音频到位后可切回 playVoice()。
+     * 序章兜底旁白：直接调用设备中文 TTS。
+     * 正式可验证的配音文件替换后，只需从 OPENING_TTS_FALLBACK 移除对应路径即可切回真人/AI配音。
      */
     fun speakNarration(text: String) {
         if (!masterEnabled || !voiceEnabled || text.isBlank()) return
