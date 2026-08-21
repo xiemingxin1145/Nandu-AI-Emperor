@@ -152,10 +152,30 @@ def source_audit() -> None:
     require("AssetVideoSurface(" in world_overlay and "fallbackPath =" in world_overlay, "seasonal presentation does not preserve Media3 and static CG fallback")
     require("if (before.season == after.season) return null" in world_policy, "seasonal video can replay without an actual season transition")
     require("season = nextCalendar.season()" in view_model, "world turn does not synchronize actual season with its calendar")
-    require("decision.canExecute(result)" in court_screen and "current.imperialDecision.canExecute(edictResult)" in view_model, "court decision has no UI and execution-level approval guard")
+    require(re.search(r"decision\.canExecute\(result(?:,\s*mandate\s*!=\s*null)?\)", court_screen) is not None and
+            re.search(r"current\.imperialDecision\.canExecute\(edictResult(?:,\s*mandate\s*!=\s*null)?\)", view_model) is not None,
+            "court decision has no UI and execution-level approval guard")
     require("综合诸议" in court_screen and "朱批准行" in court_screen and "补充圣意" in court_screen, "formal court decision actions are missing")
     require("WorldPresentationPolicy.commandDescription(state, cmd)" in court_screen, "court command preview may expose raw internal identifiers")
     require("WorldTurnReplayOverlay(" in map_screen and "SeasonalTransitionOverlay(" in map_screen, "formal map does not show actual turn replay and season transition")
+    mandate_policy = (JAVA_ROOT / "com/xiemingxin/nandu/game/ImperialMandatePolicy.kt").read_text(encoding="utf-8")
+    mandate_system = (JAVA_ROOT / "com/xiemingxin/nandu/game/ImperialMandate.kt").read_text(encoding="utf-8")
+    world_executor = (JAVA_ROOT / "com/xiemingxin/nandu/game/WorldAiTurnExecutor.kt").read_text(encoding="utf-8")
+    save_codec = (JAVA_ROOT / "com/xiemingxin/nandu/game/GameSaveCodec.kt").read_text(encoding="utf-8")
+    require("ImperialMandatePolicy.draft(" in view_model and "ImperialMandateSystem.issue(" in view_model,
+            "approved continuing imperial orders do not create actual mandates")
+    require("收回授权" in court_screen and "revokeImperialMandate" in view_model,
+            "the emperor cannot inspect or revoke existing imperial authority")
+    require("prioritizeManualCommands" in mandate_policy and "prioritizeManualCommands" in view_model,
+            "a direct imperial order does not override conflicting automatic authority")
+    require("mandateExecutionLog = newState.mandateExecutionLog + record" in world_executor,
+            "delegated world actions are not written into the authoritative execution log")
+    require('put("imperialMandates"' in save_codec and 'put("mandateExecutionLog"' in save_codec,
+            "imperial mandates and accountable execution records are not saved")
+    require("scheduledTurn = null" in mandate_system,
+            "an explicit imperial mandate does not override an obsolete scripted officer teleport")
+    require("WorldTurnActionKind.RECRUIT" in world_policy and "WorldTurnActionKind.REPAIR_DEFENSE" in world_policy,
+            "actual delegated recruitment and defense repairs do not enter world replay")
 
     main_activity = (JAVA_ROOT / "com/xiemingxin/nandu/MainActivity.kt").read_text(encoding="utf-8")
     main_menu = (JAVA_ROOT / "com/xiemingxin/nandu/ui/screens/MainMenuScreen.kt").read_text(encoding="utf-8")
@@ -225,6 +245,7 @@ def source_audit() -> None:
     print(f"MAP_BACKGROUNDS: {len(background_files)}/{EXPECTED_MAP_BACKGROUNDS}; CITY_BACKGROUNDS: {len(city_backgrounds)}/{EXPECTED_REGISTERED_CITY_BACKGROUNDS}")
     print("FORMAL_VIDEO: one Media3 implementation; story CG shares AssetVideoSurface; VideoView=0")
     print(f"WORLD_PRESENTATION: council_selection=guarded; state_backed_replay=enabled; seasonal_video={len(seasonal_videos)}/{EXPECTED_SEASONAL_PRESENTATIONS}; seasonal_cg={len(seasonal_videos)}/{EXPECTED_SEASONAL_PRESENTATIONS}")
+    print("IMPERIAL_MANDATES: issued_from_court=1; revocable=1; persistent=1; execution_log=1; state_backed_replay=1")
     print("FORMAL_ROUTES: main-menu settings, military return, system back and state-derived capital verified")
     print(f"V3_SOURCE_VIDEOS: {len(videos)}")
     print(f"PROLOGUE_NARRATION: {len(voices)}/{EXPECTED_PROLOGUE_VOICES}")

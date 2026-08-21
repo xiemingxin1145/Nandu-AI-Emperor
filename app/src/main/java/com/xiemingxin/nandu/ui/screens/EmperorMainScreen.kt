@@ -25,6 +25,8 @@ import com.xiemingxin.nandu.game.CharacterAppearanceSystem
 import com.xiemingxin.nandu.game.CharacterStateSource
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.ImperialDecision
+import com.xiemingxin.nandu.game.ImperialMandate
+import com.xiemingxin.nandu.game.ImperialMandatePolicy
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.PalaceIds
 import com.xiemingxin.nandu.game.PalaceRegistry
@@ -57,6 +59,7 @@ fun EmperorMainScreen(
     onAmendEdict: (String) -> Unit,
     onToggleCouncilOpinion: (String) -> Unit,
     onSynthesizeCouncilOpinions: () -> Unit,
+    onRevokeMandate: (String) -> Unit,
     onDismissResult: () -> Unit,
     onAdvanceTurn: () -> Unit,
     onStoryChoice: (String) -> Unit,
@@ -89,6 +92,7 @@ fun EmperorMainScreen(
                             edictText = edictText,
                             onEdictChange = { edictText = it },
                             onSubmit = { onSubmitEdict(edictText) },
+                            onRevokeMandate = onRevokeMandate,
                             isLoading = uiState.phase == GamePhase.EXECUTING
                         )
                     }
@@ -99,6 +103,7 @@ fun EmperorMainScreen(
                                 state = uiState.gameState,
                                 result = result,
                                 decision = uiState.imperialDecision,
+                                edictText = edictText,
                                 onConfirm = { onConfirmEdict(edictText) },
                                 onCancel = onCancelEdict,
                                 onAmend = {
@@ -244,6 +249,7 @@ fun IdleView(
     edictText: String,
     onEdictChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onRevokeMandate: (String) -> Unit,
     isLoading: Boolean
 ) {
     val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
@@ -255,6 +261,15 @@ fun IdleView(
         ) {
             item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "群臣列班 · 御笔候旨") }
             item { CourtOfficerRow(state = state) }
+            val activeMandates = state.imperialMandates.filter { it.isActive && !it.isExpired(state.turn) }
+            if (activeMandates.isNotEmpty()) {
+                item {
+                    Text("在行圣旨 · ${activeMandates.size}道", color = CourtGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+                items(activeMandates, key = { it.id }) { mandate ->
+                    ImperialMandateCard(state = state, mandate = mandate, onRevoke = { onRevokeMandate(mandate.id) })
+                }
+            }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -290,7 +305,7 @@ fun IdleView(
             }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val hints = listOf("调兵出征", "任命守将", "修缮城防", "筹粮备战", "召臣奏对", "赏罚官员")
+                    val hints = listOf("便宜从事", "募兵修城", "军费三万贯", "不得主动交战", "调兵出征", "任命守将", "筹粮备战")
                     items(hints) { hint ->
                         FilterChip(
                             selected = false,
@@ -343,12 +358,16 @@ fun ConfirmEdictView(
     state: GameState,
     result: EdictResult,
     decision: ImperialDecision,
+    edictText: String,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     onAmend: () -> Unit,
     onToggleOpinion: (String) -> Unit,
     onSynthesize: () -> Unit
 ) {
+    val mandate = remember(state, edictText, decision.selectedOfficerIds) {
+        ImperialMandatePolicy.draft(state, edictText, decision.selectedOfficerIds)
+    }
     Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         LazyColumn(
@@ -366,13 +385,14 @@ fun ConfirmEdictView(
                 )
             }
             item { ImperialDecisionPreview(state, result, decision) }
+            if (mandate != null) item { ImperialMandateCard(state = state, mandate = mandate, onRevoke = null) }
             item { CommandPanel(state, result) }
             if (result.riskTags.isNotEmpty() || result.clarificationNeeded) item { RiskPanel(result) }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Button(
                         onClick = onConfirm,
-                        enabled = decision.canExecute(result),
+                        enabled = decision.canExecute(result, mandate != null),
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ImperialRed),
                         shape = RoundedCornerShape(8.dp)
@@ -391,6 +411,31 @@ fun ConfirmEdictView(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ImperialMandateCard(state: GameState, mandate: ImperialMandate, onRevoke: (() -> Unit)?) {
+    val officer = state.officers.firstOrNull { it.id == mandate.responsibleOfficerId }?.name ?: "受命之臣"
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xE31B160B)),
+        border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.55f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("${officer} · ${mandate.autonomyLevel.label}", color = CourtGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                if (onRevoke != null) TextButton(onClick = onRevoke) { Text("收回授权", color = CourtRed, fontSize = 11.sp) }
+            }
+            Text("辖区：${ImperialMandatePolicy.describeTerritory(state, mandate)}", color = CourtCream, fontSize = 11.sp)
+            Text("准行：${mandate.allowedActions.joinToString("、") { it.label }.ifBlank { "需逐事请旨" }}", color = CourtGreen, fontSize = 11.sp)
+            Text("军费：${mandate.remainingGold()} / ${mandate.budgetGold}贯；粮草：${mandate.remainingGrain()} / ${mandate.budgetGrain}石",
+                color = CourtCream, fontSize = 11.sp)
+            Text("底线：${ImperialMandatePolicy.describeRestrictions(state, mandate)}", color = CourtSub, fontSize = 11.sp)
+            if (onRevoke == null) Text("朱批后持续有效，直至收回。", color = CourtBlue, fontSize = 10.sp)
         }
     }
 }

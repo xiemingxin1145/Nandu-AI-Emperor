@@ -30,13 +30,41 @@ object WorldAiTurnExecutor {
             .take(MAX_ACTIONS_PER_TURN)
 
         for (action in actions) {
+            // DELEGATION-001：先判断这个动作到底是提给谁的——不能只看 armyId
+            // （募兵等新动作类型可能压根还没有军团，只有 officerId/targetCityId）。
+            val targetFactionId = action.factionId.ifBlank {
+                working.armies.firstOrNull { it.id == action.armyId }?.ownerFactionId ?: ""
+            }
+
+            if (targetFactionId == playerFactionId) {
+                // 玩家（宋）势力：一律走授权校验——包括原有的 move/attack/resupply，
+                // 不再无条件驳回，也不允许绕开圣旨直接执行。
+                when (val v = DelegatedActionValidator.validate(working, action, playerFactionId)) {
+                    is DelegatedActionValidator.ValidationResult.Rejected -> {
+                        reports += "【AI军议驳回】${v.reason}"
+                    }
+                    is DelegatedActionValidator.ValidationResult.Approved -> {
+                        val (newState, record) = DelegatedActionValidator.execute(working, action, v.mandate, playerFactionId)
+                        working = newState.copy(mandateExecutionLog = newState.mandateExecutionLog + record)
+                        reports += if (record.success) "【奉旨】${record.description}"
+                        else "【奉旨未成】${record.description}${if (record.failureReason.isNotBlank()) "：${record.failureReason}" else ""}"
+                    }
+                }
+                continue
+            }
+
+            // 非玩家势力（金/西夏/义军等）：不受宋廷圣旨约束，新增的委任类动作
+            // （募兵/修防/任将）直接自主执行，走同样的权威系统但跳过 Mandate 校验。
+            if (action.type in setOf("recruit_troops", "repair_defense", "assign_commander")) {
+                val (newState, msg) = executeNonPlayerDelegatedAction(working, action, targetFactionId)
+                working = newState
+                reports += msg
+                continue
+            }
+
             val army = working.armies.firstOrNull { it.id == action.armyId }
             if (army == null) {
                 reports += "【AI军议驳回】找不到军团 ${action.armyId}。"
-                continue
-            }
-            if (army.ownerFactionId == playerFactionId) {
-                reports += "【AI军议驳回】世界AI不得越俎代庖控制玩家军团「${army.name}」。"
                 continue
             }
             if (action.factionId.isNotBlank() && action.factionId != army.ownerFactionId) {
@@ -102,6 +130,14 @@ object WorldAiTurnExecutor {
         val supply = tickNonPlayerSupply(working, playerFactionId)
         working = supply.first
         reports += supply.second
+
+        // DELEGATION-001：便宜从事的负责人不需要等 AI 模型"想起"授权范围内的事——
+        // 这是确定性的委托代理，不是博弈选择。AI 模型若已经在 plan.actions 里主动
+        // 提议了同一件事，上面的循环已经处理过；这里只补"AI 没提但明显该做"的部分，
+        // 目前只做募兵这一项（任务书里"自行募义勇补军"的原始示例），其余仍要 AI 提议。
+        val autoDelegated = autoExecuteMandates(working, playerFactionId)
+        working = autoDelegated.first
+        reports += autoDelegated.second
 
         val initiatives = plan.npcInitiatives
             .asSequence()
@@ -348,6 +384,126 @@ object WorldAiTurnExecutor {
         }
         return state.copy(cities = newCities, armies = newArmies) to
             "【敌情】${army.name}自${city.name}补充粮秣，补给升至${(army.supplyLevel + gain).coerceAtMost(100)}%。"
+    }
+
+    /**
+     * DELEGATION-001 第三部分：非玩家势力（金/西夏等）自主执行募兵/修防/任将，
+     * 不受宋廷圣旨约束，不查 Mandate——但同样必须走真实权威系统，不能直接改数值。
+     * 预算从该势力自己的城池财政（City.gold/grain）出，因为非玩家势力没有
+     * 统一的"中央国库"概念（那是 GameState.gold/grain，专属玩家）。
+     */
+    private fun executeNonPlayerDelegatedAction(
+        state: GameState,
+        action: WorldAction,
+        factionId: String
+    ): Pair<GameState, String> {
+        return when (action.type) {
+            "recruit_troops" -> {
+                val cityId = action.targetCityId
+                val city = state.cities.firstOrNull { it.id == cityId && it.owner == factionId }
+                    ?: return state to "【敌情】募兵未行：目标城池不在其治下。"
+                val commanderId = action.officerId.ifBlank {
+                    state.armies.firstOrNull { it.id == action.armyId }?.commanderId ?: ""
+                }
+                if (commanderId.isBlank()) return state to "【敌情】募兵未行：未指明领兵之人。"
+                val troopsWanted = action.amount.coerceIn(0, 20000)
+                if (troopsWanted <= 0) return state to "【敌情】募兵未行：未明确实际人数。"
+                val goldCost = ((troopsWanted + 999) / 1000) * 100
+                val grainCost = troopsWanted * 2
+                if (city.gold < goldCost || city.grain < grainCost)
+                    return state to "【敌情】${city.name}钱粮不足，募兵未成。"
+                when (val result = ArmySystem.recruitOrReinforce(state, factionId, cityId, commanderId, troopsWanted, "infantry")) {
+                    is ArmySystem.ArmyResult.Success -> {
+                        val actual = city.troops - (result.newState.cities.firstOrNull { it.id == cityId }?.troops ?: city.troops)
+                        val actualGold = ((actual + 999) / 1000) * 100
+                        val actualGrain = actual * 2
+                        val newCities = result.newState.cities.map {
+                            if (it.id == cityId) it.copy(gold = it.gold - actualGold, grain = it.grain - actualGrain) else it
+                        }
+                        result.newState.copy(cities = newCities) to "【敌情】${city.name}方向：${result.message}"
+                    }
+                    is ArmySystem.ArmyResult.Failure -> state to "【敌情】募兵未行：${result.reason}"
+                }
+            }
+            "repair_defense" -> {
+                val city = state.cities.firstOrNull { it.id == action.targetCityId && it.owner == factionId }
+                    ?: return state to "【敌情】修防未行：目标城池不在其治下。"
+                if (city.defense >= 100) return state to "【敌情】${city.name}城防已固。"
+                val raise = action.amount.coerceIn(1, 100 - city.defense)
+                val goldCost = raise * 80
+                if (city.gold < goldCost) return state to "【敌情】${city.name}钱粮不足，修防未成。"
+                val newCities = state.cities.map {
+                    if (it.id == city.id) it.copy(defense = (it.defense + raise).coerceAtMost(100), gold = (it.gold - goldCost).coerceAtLeast(0)) else it
+                }
+                state.copy(cities = newCities) to "【敌情】${city.name}加固城防+$raise。"
+            }
+            "assign_commander" -> {
+                if (action.armyId.isBlank() || action.officerId.isBlank())
+                    return state to "【敌情】任将未行：未指明军团或人选。"
+                when (val result = ArmySystem.changeCommander(state, action.armyId, action.officerId)) {
+                    is ArmySystem.ArmyResult.Success -> result.newState to "【敌情】${result.message}"
+                    is ArmySystem.ArmyResult.Failure -> state to "【敌情】任将未行：${result.reason}"
+                }
+            }
+            else -> state to "【AI军议驳回】未知委任动作：${action.type}"
+        }
+    }
+
+    /**
+     * DELEGATION-001：便宜从事级别的授权，负责人在预算/范围内自主判断该不该做。
+     * 只使用负责人本人所在、仍归本方控制的真实城池；既可补既有军团，也可依法
+     * 募兵成军或修缮城防。一旬最多一件，所有动作仍先经过正式授权 validator。
+     */
+    private fun autoExecuteMandates(
+        state: GameState,
+        playerFactionId: String
+    ): Pair<GameState, List<String>> {
+        val candidate = state.imperialMandates.asSequence()
+            .filter {
+                it.isActive && !it.isExpired(state.turn) &&
+                    it.autonomyLevel in setOf(MandateAutonomyLevel.BY_THE_BOOK, MandateAutonomyLevel.DISCRETIONARY) &&
+                    state.mandateExecutionLog.none { record -> record.turn == state.turn && record.mandateId == it.id }
+            }
+            .mapNotNull { mandate ->
+                val commander = state.officers.firstOrNull { it.id == mandate.responsibleOfficerId }
+                    ?: return@mapNotNull null
+                val city = state.cities.firstOrNull { it.id == commander.currentCityId && it.owner == playerFactionId }
+                    ?: return@mapNotNull null
+                if (mandate.regionCityIds.isNotEmpty() && city.id !in mandate.regionCityIds) return@mapNotNull null
+                val army = state.armies.firstOrNull {
+                    it.commanderId == commander.id && it.ownerFactionId == playerFactionId &&
+                        it.currentCityId == city.id && it.statusCode in setOf(ArmyStatus.GARRISONED, ArmyStatus.STANDBY)
+                }
+                val recruit = if (MandateActionKind.RECRUIT in mandate.allowedActions) {
+                    val gap = commander.commandLimit() - (army?.troops ?: 0)
+                    val amount = minOf(gap, 3000, (city.troops - 2000).coerceAtLeast(0), city.population)
+                    val goldCost = ((amount + 999) / 1000) * 100
+                    val grainCost = amount * 2
+                    if (amount >= 1000 && mandate.remainingGold() >= goldCost && mandate.remainingGrain() >= grainCost &&
+                        state.gold >= goldCost && state.grain >= grainCost) {
+                        WorldAction("recruit_troops", playerFactionId, army?.id.orEmpty(), city.id,
+                            "便宜从事：依据实际兵源与预算就地募兵", amount, commander.id)
+                    } else null
+                } else null
+                val repair = if (MandateActionKind.REPAIR_DEFENSE in mandate.allowedActions && city.defense < 90) {
+                    val raise = minOf(5, 100 - city.defense, mandate.remainingGold() / 80, state.gold / 80)
+                    if (raise > 0) WorldAction("repair_defense", playerFactionId, "", city.id,
+                        "便宜从事：加固实际驻地城防", raise, commander.id) else null
+                } else null
+                val action = if (army == null) recruit ?: repair
+                    else if (state.turn % 2 == 0 && mandate.autonomyLevel == MandateAutonomyLevel.DISCRETIONARY) repair ?: recruit
+                    else recruit ?: repair
+                action?.let { mandate to it }
+            }.firstOrNull() ?: return state to emptyList()
+
+        val (_, action) = candidate
+        val approved = DelegatedActionValidator.validate(state, action, playerFactionId)
+        if (approved !is DelegatedActionValidator.ValidationResult.Approved) return state to emptyList()
+        val (newState, record) = DelegatedActionValidator.execute(state, action, approved.mandate, playerFactionId)
+        val label = approved.mandate.autonomyLevel.label
+        val message = if (record.success) "【$label】${record.description}"
+        else "【${label}未成】${record.description}${if (record.failureReason.isNotBlank()) "：${record.failureReason}" else ""}"
+        return newState.copy(mandateExecutionLog = newState.mandateExecutionLog + record) to listOf(message)
     }
 
     private fun decorateReason(message: String, reason: String): String =

@@ -43,6 +43,8 @@ import com.xiemingxin.nandu.game.GameRuleEngine
 import com.xiemingxin.nandu.game.GameSaveCodec
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.ImperialDecision
+import com.xiemingxin.nandu.game.ImperialMandatePolicy
+import com.xiemingxin.nandu.game.ImperialMandateSystem
 import com.xiemingxin.nandu.game.LegacySystem
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.TavernSystem
@@ -154,7 +156,8 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
     fun confirmEdict(edictText: String) {
         val current = _uiState.value
         val edictResult = current.lastEdictResult ?: return
-        if (!current.imperialDecision.canExecute(edictResult)) {
+        val mandate = ImperialMandatePolicy.draft(current.gameState, edictText, current.imperialDecision.selectedOfficerIds)
+        if (!current.imperialDecision.canExecute(edictResult, mandate != null)) {
             _uiState.value = current.copy(
                 errorMessage = if (edictResult.clarificationNeeded) {
                     "圣意尚待补充，请先明确旨意后再行朱批。"
@@ -170,10 +173,17 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             }
         )
         _uiState.value = current.copy(phase = GamePhase.EXECUTING, errorMessage = null)
-        val executionResult = GameRuleEngine.executeEdict(current.gameState, adoptedResult, edictText)
+        val (imperialState, overrides) = ImperialMandatePolicy.prioritizeManualCommands(current.gameState, adoptedResult.commands)
+        val executionResult = GameRuleEngine.executeEdict(imperialState, adoptedResult, edictText)
+        val finalState = if (mandate != null) ImperialMandateSystem.issue(executionResult.newState, mandate) else executionResult.newState
+        val mandateOutcome = mandate?.let {
+            val name = finalState.officers.firstOrNull { officer -> officer.id == it.responsibleOfficerId }?.name ?: "受命之臣"
+            "【长期授权】${name}${it.autonomyLevel.label}，可${it.allowedActions.joinToString("、") { action -> action.label }}；" +
+                "军费上限${it.budgetGold}贯，${ImperialMandatePolicy.describeRestrictions(finalState, it)}。"
+        }
         _uiState.value = _uiState.value.copy(
-            gameState = executionResult.newState,
-            lastOutcomes = executionResult.outcomes,
+            gameState = finalState,
+            lastOutcomes = overrides + listOfNotNull(mandateOutcome) + executionResult.outcomes,
             lastRejected = executionResult.rejectedCommands,
             phase = GamePhase.SHOWING_RESULT
         )
@@ -197,6 +207,16 @@ class EmperorViewModel(application: Application) : AndroidViewModel(application)
             lastEdictResult = null,
             imperialDecision = ImperialDecision(),
             errorMessage = null
+        )
+    }
+
+    fun revokeImperialMandate(mandateId: String) {
+        val current = _uiState.value
+        val mandate = current.gameState.imperialMandates.firstOrNull { it.id == mandateId && it.isActive } ?: return
+        val name = current.gameState.officers.firstOrNull { it.id == mandate.responsibleOfficerId }?.name ?: "受命之臣"
+        _uiState.value = current.copy(
+            gameState = ImperialMandateSystem.revoke(current.gameState, mandateId),
+            saveMessage = "已收回${name}的${mandate.autonomyLevel.label}授权。"
         )
     }
 

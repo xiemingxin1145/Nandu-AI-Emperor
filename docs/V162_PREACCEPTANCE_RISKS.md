@@ -26,7 +26,8 @@
 | RISK-012 | P2 / FOLLOW-UP | 地图旧素材池与专属城池图 | 10 张地图装饰实际是半透明方框标记，不能把 `fog_overlay` 当真实全屏雾层；开局 36 座实际城市中另有 18 座尚无正式专属背景。 | 已安全接入选中框、前线预警、商路标记、宋军旗和金军旗；雾层、山河标签、区域牌、路线箭头暂缓，未注册城市保留既有通用背景，等待后续专项处理。 |
 | RISK-013 | P1 / RESOLVED BY WORLD-UX-001 | `EmperorMainScreen.kt` / `EmperorViewModel.kt` | 群臣奏议此前只能浏览，玩家不知道实际采纳谁；需要澄清时仍可直接执行，命令预览还直接显示人物/城池内部 ID。 | 已接入臣议单选、多选、综合、保留上下文补充圣意和朱批双重门控；人物、军团、城市与命令全部转换为玩家可读中文。实际点击仍需真机。 |
 | RISK-014 | P1 / RESOLVED BY WORLD-UX-001 | 世界回合状态 / `MapScreen.kt` / 四季演出 | 天下回合此前只给文字报告，独立推进历法时没有同步刷新季节，导致已存在的 4 组四季视频/CG 无法可靠进入正式流程。 | 已基于回合前后真实军团、补给、城池变化生成可跳过地图推演；仅实际季节切换时播放静音 Media3 视频，四张静态季节 CG 保底，不伪造不存在路线。 |
-| RISK-015 | P1 / WAITING FOR DELEGATION-001 | 宋军 AI 授权执行 | 本轮只建立皇帝裁决和天下推演的展示层；宋军在没有底层 `Imperial Mandate` 授权执行器之前仍不会自动募兵、筹粮或奉旨调动。 | 等待 Claude 独立 `DELEGATION-001` 分支交付后，由集成负责人对接真实授权、预算、执行结果与回放；不得在 UI 中编造自动治理结果。 |
+| RISK-015 | P1 / RESOLVED BY DELEGATION-INTEGRATION-001; DEVICE_REQUIRED | 宋军 AI 授权执行与朝议朱批 | Claude PR #64 已按 12 个实际后端/测试变更选择性接入 #59；长期圣旨会创建可保存、可撤销授权，按真实人物位置、地域、人口、守军、钱粮和禁战边界执行，并将实际募兵/修防/任将写入世界推演。 | 自动回归覆盖三档自治、无直属军团募兵、预算枯竭、禁止交战、撤销、亲令覆盖、执行日志和存档往返；完整朝议输入与多旬实际效果仍需手机验收。 |
+| RISK-016 | P2 / LIMITED SCOPE | `WorldContextFactory` / 授权行动候选 | 当前世界模型上下文尚未把全部宋廷授权事项整理进同一次 `strategyCandidates`；本轮不擅自扩大模型协议。 | `奉旨而行` / `便宜从事` 对已有正式入口的募兵、修防和模型实际提交的任将、补给、调兵、交战进行本地裁决；复杂跨区域长期战略、多轮调运和外交后续专项迭代。 |
 
 ## BGM 待真机试听清单
 
@@ -45,12 +46,11 @@ audio/bgm/bgm_military_camp_loop.ogg
 
 ## 本分支保护边界
 
-Claude 原始实现仅允许通过 PR #60 合流；本次最终集成不额外改写：
+Claude 历史事件原始实现仅允许通过 PR #60 合流；本轮另外只接受 PR #64 对 `StoryEventEffectApplier.kt` 已审查的人物忠诚度正规任命系统接线，不额外重写：
 
 ```text
 app/src/main/java/com/xiemingxin/nandu/story/EventDirector.kt
 app/src/main/java/com/xiemingxin/nandu/story/StoryEventLoader.kt
-app/src/main/java/com/xiemingxin/nandu/story/StoryEventEffectApplier.kt
 app/src/test/java/com/xiemingxin/nandu/story/StoryEventTriggerGuardTest.kt
 app/src/test/java/com/xiemingxin/nandu/story/StoryEventEffectApplierTest.kt
 建炎事件 JSON 的历史门控逻辑
@@ -67,6 +67,7 @@ app/build.gradle.kts 中的 versionCode / versionName / signingConfigs
 - `docs/V162_SMOKE_TEST_MATRIX.md` 中的正式入口逐项检查表。
 - 主菜单设置、真实首都亡国判定、军务返回、系统返回、绘卷返回和 Demo 文案修复。
 - `ART-HOTFIX-001`：15 条重点城市图标路径 + 1 条动态规则修复；16 张图标 / 24 个注册别名、31 张城市背景与 5 个真实状态驱动地图装饰接线。
+- `WORLD-UX-001` + `DELEGATION-INTEGRATION-001`：真实臣议裁决、三档皇帝授权、预算/禁战/人物位置门控、自动募兵与修防、亲令覆盖、可追责持久化记录和实际世界行动回放。
 
 ## STAB-008 之前仍需完成
 

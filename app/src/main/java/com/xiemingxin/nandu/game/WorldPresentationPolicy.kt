@@ -25,8 +25,8 @@ data class ImperialDecision(
 
     fun requestAmendment(): ImperialDecision = copy(amendmentRequested = true)
 
-    fun canExecute(result: EdictResult): Boolean =
-        !result.clarificationNeeded && result.commands.isNotEmpty() &&
+    fun canExecute(result: EdictResult, hasLongTermMandate: Boolean = false): Boolean =
+        !result.clarificationNeeded && (result.commands.isNotEmpty() || hasLongTermMandate) &&
             (result.npcResponses.isEmpty() || selectedOfficerIds.isNotEmpty())
 }
 
@@ -36,7 +36,10 @@ enum class WorldTurnActionKind(val label: String) {
     RESUPPLY("补给"),
     RETREAT("退兵"),
     CITY_CAPTURE("城池易手"),
-    ARMY_DESTROYED("军团覆灭")
+    ARMY_DESTROYED("军团覆灭"),
+    RECRUIT("募兵"),
+    REPAIR_DEFENSE("修缮城防"),
+    ASSIGN_COMMANDER("任将")
 }
 
 data class WorldTurnAction(
@@ -98,8 +101,10 @@ object WorldPresentationPolicy {
     fun replay(before: GameState, after: GameState, reports: List<String> = emptyList()): WorldTurnReplay {
         val beforeCities = before.cities.associateBy { it.id }
         val afterCities = after.cities.associateBy { it.id }
+        val beforeArmies = before.armies.associateBy { it.id }
         val afterArmies = after.armies.associateBy { it.id }
         val factionNames = (before.factions + after.factions).associate { it.id to it.name }
+        val newMandateRecords = after.mandateExecutionLog.drop(before.mandateExecutionLog.size)
         val actions = mutableListOf<WorldTurnAction>()
 
         fun cityName(id: String): String =
@@ -157,6 +162,42 @@ object WorldPresentationPolicy {
                     detail = "${current.name}于${cityName(current.currentCityId)}完成补给"
                 )
             }
+
+            if (current.commanderId != previous.commanderId && current.commanderId.isNotBlank()) {
+                val commander = after.officers.firstOrNull { it.id == current.commanderId }?.name ?: "新任主帅"
+                val record = newMandateRecords.firstOrNull {
+                    it.success && it.actionKind == MandateActionKind.ASSIGN_COMMANDER &&
+                        it.responsibleOfficerId == current.commanderId
+                }
+                actions += WorldTurnAction(
+                    WorldTurnActionKind.ASSIGN_COMMANDER, current.ownerFactionId, faction,
+                    armyName = current.name, targetCityId = current.currentCityId,
+                    targetCityName = cityName(current.currentCityId),
+                    detail = record?.description?.let { humanizeReport(after, it) }
+                        ?: "${commander}于${cityName(current.currentCityId)}接掌${current.name}"
+                )
+            }
+        }
+
+        after.armies.forEach { army ->
+            val previous = beforeArmies[army.id]
+            val gained = army.troops - (previous?.troops ?: 0)
+            if (gained <= 0 || army.statusCode == ArmyStatus.DISBANDED) return@forEach
+            val cityBefore = beforeCities[army.currentCityId] ?: return@forEach
+            val cityAfter = afterCities[army.currentCityId] ?: return@forEach
+            if (cityAfter.troops >= cityBefore.troops && cityAfter.population >= cityBefore.population) return@forEach
+            val record = newMandateRecords.firstOrNull {
+                it.success && it.actionKind == MandateActionKind.RECRUIT &&
+                    it.responsibleOfficerId == army.commanderId
+            }
+            val faction = factionNames[army.ownerFactionId] ?: "所属军府"
+            actions += WorldTurnAction(
+                WorldTurnActionKind.RECRUIT, army.ownerFactionId, faction,
+                armyName = army.name, targetCityId = army.currentCityId,
+                targetCityName = cityAfter.name,
+                detail = record?.description?.let { humanizeReport(after, it) }
+                    ?: "${army.name}于${cityAfter.name}实际募兵${gained}人"
+            )
         }
 
         after.cities.forEach { city ->
@@ -168,6 +209,20 @@ object WorldPresentationPolicy {
                     targetCityId = city.id,
                     targetCityName = city.name,
                     detail = "${city.name}易手，现归${faction}控制"
+                )
+            }
+            if (city.owner == previous.owner && city.defense > previous.defense &&
+                (after.gold < before.gold || city.gold < previous.gold)) {
+                val faction = factionNames[city.owner] ?: "所属势力"
+                val record = newMandateRecords.firstOrNull {
+                    it.success && it.actionKind == MandateActionKind.REPAIR_DEFENSE &&
+                        after.officers.firstOrNull { officer -> officer.id == it.responsibleOfficerId }?.currentCityId == city.id
+                }
+                actions += WorldTurnAction(
+                    WorldTurnActionKind.REPAIR_DEFENSE, city.owner, faction,
+                    targetCityId = city.id, targetCityName = city.name,
+                    detail = record?.description?.let { humanizeReport(after, it) }
+                        ?: "${city.name}实际加固城防${city.defense - previous.defense}点"
                 )
             }
         }

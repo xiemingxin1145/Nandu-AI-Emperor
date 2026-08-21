@@ -33,7 +33,10 @@ class WorldAiTurnExecutorTest {
 
         assertEquals(before.currentCityId, after.currentCityId)
         assertEquals(before.statusCode, after.statusCode)
-        assertTrue(result.reports.any { it.contains("不得越俎代庖") })
+        // DELEGATION-001：驳回理由从"一律不得越俎代庖"改成"没有有效圣旨授权"——
+        // 核心安全边界没变（没有 mandate 时，玩家军团依然不会被 AI 移动/交战），
+        // 只是措辞更精确，能说清楚"为什么"驳回。
+        assertTrue(result.reports.any { it.contains("驳回") })
     }
 
     @Test

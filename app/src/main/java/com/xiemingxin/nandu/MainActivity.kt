@@ -391,6 +391,7 @@ fun NanduApp() {
                     onAmendEdict = { revised -> edictText = revised; playSfx("open_panel"); viewModel.amendEdict() },
                     onToggleCouncilOpinion = { officerId -> playSfx("council_choice"); viewModel.toggleCouncilOpinion(officerId) },
                     onSynthesizeCouncilOpinions = { playSfx("council_choice"); viewModel.synthesizeCouncilOpinions() },
+                    onRevokeMandate = { mandateId -> playSfx("edict_cancelled"); viewModel.revokeImperialMandate(mandateId) },
                     onDismissResult = { playSfx("turn_advance"); viewModel.dismissResult() },
                     onAdvanceTurn = { playSfx("turn_advance"); viewModel.advanceTurn() },
                     onStoryChoice = { choiceId -> playSfx("story_event"); viewModel.chooseStoryOption(choiceId) },
