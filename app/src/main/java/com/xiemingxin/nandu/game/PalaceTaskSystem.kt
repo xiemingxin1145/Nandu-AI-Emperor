@@ -1,16 +1,11 @@
 package com.xiemingxin.nandu.game
 
 /**
- * V1.5+ 宫殿待办系统骨架。
+ * V1.6.2 宫殿待办派生系统。
  *
- * 设计原则：
- * - 暂不改存档结构，先从 GameState 派生每旬待办，避免破坏旧存档。
- * - 每个宫殿都有可显示的待办和推荐处理入口。
- * - V1.6 接入天下战略：外交、外贸、西夏、大理、海贸等先以派生待办出现。
- * - 后续版本再把 PalaceTask 持久化进 GameState，并加入完成/逾期/连锁后果。
- *
- * 历史 Canon v1.1：1127 正式开局位于南京应天府，内部 id 为兼容旧存档仍保留
- * chuigongdian，但 UI 不再把开局主场景称为后世临安“垂拱殿”。
+ * 待办目前从 GameState 派生，以兼容既有存档；但每一条正式待办必须能解释为当前世界
+ * 状态的结果，不能仅因 turn % N 到点就伪造“有事待闻”。持久化、逾期和连锁后果仍留
+ * 给后续版本深化。
  */
 data class PalaceTask(
     val id: String,
@@ -26,26 +21,15 @@ data class PalaceTask(
 )
 
 enum class TaskSeverity(val label: String) {
-    LOW("寻常"),
-    MEDIUM("要务"),
-    HIGH("急务"),
-    URGENT("火急")
+    LOW("寻常"), MEDIUM("要务"), HIGH("急务"), URGENT("火急")
 }
 
 enum class TaskSource(val label: String) {
-    COURT("朝议"),
-    WAR_REPORT("军报"),
-    FISCAL("钱粮"),
-    TALENT("人才"),
-    RUMOR("密折"),
-    DIPLOMACY("外交"),
-    TRADE("外贸"),
-    PALACE("内廷"),
-    RITUAL("礼制")
+    COURT("朝议"), WAR_REPORT("军报"), FISCAL("钱粮"), TALENT("人才"), RUMOR("密折"),
+    DIPLOMACY("外交"), TRADE("外贸"), PALACE("内廷"), RITUAL("礼制")
 }
 
 object PalaceIds {
-    // 兼容 id：名称沿用历史旧代码，UI 展示统一由 PalaceRegistry.name 决定。
     const val CHUIGONG = "chuigongdian"
     const val WENDE = "wendedian"
     const val SHUMI = "shumiyuan"
@@ -124,7 +108,8 @@ object PalaceTaskSystem {
                 id = "war_${state.turn}_${city?.id ?: "front"}",
                 palaceId = PalaceIds.SHUMI,
                 title = if (state.jinThreat >= 85) "金军压境，边报火急" else "中原防线需整备",
-                description = city?.let { "${it.name}防御${it.defense}、守军${it.troops}，需议调兵、修城或筹粮。" } ?: "金国威胁升高，枢密院请定防线。",
+                description = city?.let { "${it.name}防御${it.defense}、守军${it.troops}，需议调兵、修城或筹粮。" }
+                    ?: "金国威胁升高，枢密院请定防线。",
                 severity = if (state.jinThreat >= 85) TaskSeverity.URGENT else TaskSeverity.HIGH,
                 source = TaskSource.WAR_REPORT,
                 relatedOfficerIds = state.officers
@@ -236,18 +221,42 @@ object PalaceTaskSystem {
             )
         }
 
-        if (state.turn % 4 == 1) {
-            tasks += PalaceTask(
-                id = "inner_${state.turn}",
+        // STAB-004：内廷不再按 turn % 4 机械制造“有事待闻”。
+        // 只有当前世界确实存在内廷能感知的压力时才生成，且文案直接展示触发数据。
+        val innerPalaceTask = when {
+            state.jinThreat >= 85 -> PalaceTask(
+                id = "inner_war_pressure_${state.turn}",
                 palaceId = PalaceIds.HOUYUAN,
-                title = "内廷有事待闻",
-                description = "行在内廷呈上近况，事关皇帝声望与朝臣观感。",
-                severity = TaskSeverity.LOW,
+                title = "军报频至，内廷人心不安",
+                description = "金军威胁已达${state.jinThreat}。行在内廷因前线急报接连入宫而人心浮动，需决定节用、安抚或听取近事。",
+                severity = TaskSeverity.MEDIUM,
                 source = TaskSource.PALACE,
                 recommendedTab = 1,
-                edictDraft = "传朕旨意：内廷诸事以节俭安静为先，不得干预外朝军政。"
+                edictDraft = "传朕旨意：军国虽急，内廷各安其职，不得因边报自乱，更不得干预外朝军政。"
             )
+            state.gold < 40000 -> PalaceTask(
+                id = "inner_budget_${state.turn}",
+                palaceId = PalaceIds.HOUYUAN,
+                title = "行在内廷请议减省",
+                description = "国库仅余${state.gold}贯。内廷请官家裁定宫中用度是否继续裁减，以免与军粮民食争用。",
+                severity = TaskSeverity.MEDIUM,
+                source = TaskSource.PALACE,
+                recommendedTab = 1,
+                edictDraft = "传朕旨意：内廷诸费从简，先保军粮与民食，不得借行在草创妄增供给。"
+            )
+            state.courtStability < 40 -> PalaceTask(
+                id = "inner_court_unrest_${state.turn}",
+                palaceId = PalaceIds.HOUYUAN,
+                title = "朝局震荡波及宫中",
+                description = "朝局稳定仅${state.courtStability}。外朝争议已传入宫禁，内廷请示是否安抚众人并严禁私议军政。",
+                severity = TaskSeverity.MEDIUM,
+                source = TaskSource.PALACE,
+                recommendedTab = 1,
+                edictDraft = "传朕旨意：宫中各安职守，外朝争议不得传抄煽动；确有近事可密陈朕前。"
+            )
+            else -> null
         }
+        innerPalaceTask?.let(tasks::add)
 
         return tasks
             .distinctBy { it.id }
