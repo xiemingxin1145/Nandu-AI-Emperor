@@ -21,10 +21,31 @@ data class AiEngineConfig(
             AiProviderType.MOCK -> false
             AiProviderType.CUSTOM -> {
                 val parts = customModel.split("|", limit = 2)
-                parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()
+                parts.size == 2 && isUsableCustomBaseUrl(parts[0]) && parts[1].isNotBlank()
             }
             else -> apiKey.isNotBlank()
         }
+
+    fun sanitized(): AiEngineConfig {
+        if (providerType != AiProviderType.CUSTOM) return copy(
+            apiKey = apiKey.trim(),
+            customModel = customModel.trim()
+        )
+        val parts = customModel.split("|", limit = 2)
+        val base = parts.getOrNull(0).orEmpty().trim()
+        val model = parts.getOrNull(1).orEmpty().trim()
+        val safeBase = base.takeIf(::isUsableCustomBaseUrl).orEmpty()
+        return copy(apiKey = apiKey.trim(), customModel = "$safeBase|$model")
+    }
+}
+
+internal fun isUsableCustomBaseUrl(value: String): Boolean {
+    val url = value.trim()
+    if (url.isBlank()) return false
+    if (!url.startsWith("https://", ignoreCase = true) && !url.startsWith("http://", ignoreCase = true)) return false
+    val lowered = url.lowercase()
+    if (url.contains("你的中转站域名") || lowered.contains("example.com")) return false
+    return true
 }
 
 class AiSettingsStore(context: Context) {
@@ -55,18 +76,22 @@ class AiSettingsStore(context: Context) {
                     ?: AiProviderType.MOCK.name
             )
         }.getOrDefault(AiProviderType.MOCK)
-        return AiEngineConfig(
+        val loaded = AiEngineConfig(
             providerType = provider,
             apiKey = prefs.getString(KEY_API_KEY, "").orEmpty(),
             customModel = prefs.getString(KEY_MODEL, "").orEmpty()
         )
+        // 旧版本可能把“你的中转站域名”当成真实值保存下来；加载时直接清掉该地址，
+        // 保留模型名，避免再发起 DNS 请求。
+        return loaded.sanitized()
     }
 
     fun save(config: AiEngineConfig) {
+        val safe = config.sanitized()
         prefs.edit()
-            .putString(KEY_PROVIDER, config.providerType.name)
-            .putString(KEY_API_KEY, config.apiKey)
-            .putString(KEY_MODEL, config.customModel)
+            .putString(KEY_PROVIDER, safe.providerType.name)
+            .putString(KEY_API_KEY, safe.apiKey)
+            .putString(KEY_MODEL, safe.customModel)
             .apply()
     }
 
