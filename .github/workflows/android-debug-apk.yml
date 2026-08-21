@@ -56,6 +56,17 @@ jobs:
           EXPECTED='ec1b19d8ffe51983a1b33bbedc7724d9d441218b7edd6c6e2062cf97d3843875'
           test "$ACTUAL" = "$EXPECTED" || { echo "::error::APK 签名指纹变化：$ACTUAL。升级包必须保持稳定签名。"; exit 1; }
 
+      - name: Prepare Android signing tools for reproducible RC repack
+        shell: bash
+        run: |
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          mkdir -p /tmp/nandu-signing-tools
+          cp "$BUILD_TOOLS/apksigner" /tmp/nandu-signing-tools/
+          cp "$BUILD_TOOLS/zipalign" /tmp/nandu-signing-tools/
+          cp -R "$BUILD_TOOLS/lib" /tmp/nandu-signing-tools/
+          if [ -d "$BUILD_TOOLS/lib64" ]; then cp -R "$BUILD_TOOLS/lib64" /tmp/nandu-signing-tools/; fi
+          chmod +x /tmp/nandu-signing-tools/apksigner /tmp/nandu-signing-tools/zipalign
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -63,3 +74,11 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload Android signing tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: nandu-android-signing-tools
+          path: /tmp/nandu-signing-tools
+          if-no-files-found: error
+          retention-days: 7
