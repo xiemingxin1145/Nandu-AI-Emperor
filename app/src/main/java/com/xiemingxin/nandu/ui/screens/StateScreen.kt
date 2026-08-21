@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.PropCategory
+import com.xiemingxin.nandu.game.PropResourceRegistry
+import com.xiemingxin.nandu.ui.components.PropShelf
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -37,6 +40,7 @@ fun StateScreen(gameState: GameState) {
         item { TalentHintCard(gameState) }
         item { CitySummaryCard(gameState) }
         item { OfficerSummaryCard(gameState) }
+        item { TreasuryPropsCard(gameState) }
         item { ChroniclePreviewCard(gameState) }
     }
 }
@@ -142,6 +146,30 @@ private fun OfficerSummaryCard(state: GameState) {
                     Text("统${officer.command} 忠${officer.loyalty} @${officer.currentCityId}", color = Color(0xFFB9AA82), fontSize = 11.sp)
                 }
                 Spacer(Modifier.height(4.dp))
+            }
+        }
+    }
+}
+
+/**
+ * 内库 · 御用器物陈列。
+ * 复用 PropResourceRegistry（18 件道具定义）与 PropShelf 组件；
+ * 图像未补齐时 AssetImage 自动走 fallback，不影响查阅。
+ */
+@Composable
+private fun TreasuryPropsCard(state: GameState) {
+    PanelCard {
+        SectionTitle("内库 · 御用器物")
+        Text("礼制、文书、军务与文房器物陈设。图像逐批补齐，缺图处以占位显示，不影响查阅。", color = Color(0xFFB9AA82), fontSize = 11.sp)
+        Spacer(Modifier.height(8.dp))
+        PropCategory.values().forEach { category ->
+            val props = PropResourceRegistry.all.values.filter { it.category == category }
+            if (props.isNotEmpty()) {
+                PropShelf(
+                    title = category.label,
+                    props = props,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
             }
         }
     }
