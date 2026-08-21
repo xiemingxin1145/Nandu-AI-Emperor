@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'release/**'
       - ai-palace-simulator-v1
       - feature/living-world-court-v1
       - integration/living-world-canon-recovery-v1
@@ -24,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -34,8 +37,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Make scripts executable
+        run: chmod +x ./gradlew ./scripts/check_android_release_policy.sh
+
+      - name: Enforce Android release version and stable debug signing
+        run: ./scripts/check_android_release_policy.sh
 
       - name: Run unit tests
         shell: bash
@@ -52,24 +58,30 @@ jobs:
           find app/build/test-results -name "*.xml" -exec grep -l "<failure" {} \; 2>/dev/null | \
             xargs -I{} sh -c 'echo "== {} =="; grep -B2 -A15 "<failure" "{}"' 2>/dev/null > /tmp/report.txt
           if [ ! -s /tmp/report.txt ]; then
-            echo "(no JUnit <failure> found -- likely a compile error; tail of gradle output below)" > /tmp/report.txt
+            echo "(no JUnit <failure> found -- likely a compile/policy error; tail below)" > /tmp/report.txt
             tail -c 50000 /tmp/gradle_test_output.txt >> /tmp/report.txt 2>/dev/null
           fi
           head -c 55000 /tmp/report.txt > /tmp/report_trunc.txt
           jq -n --rawfile report /tmp/report_trunc.txt --arg branch "${{ github.ref_name }}" \
-            '{body: ("CI unit test failure summary (branch: " + $branch + ")\n\n" + "```" + "\n" + $report + "\n" + "```")}' \
-            > /tmp/payload.json
-          curl -s -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-            --data @/tmp/payload.json
+            '{body: ("CI failure summary (branch: " + $branch + ")\n\n```\n" + $report + "\n```")}' > /tmp/payload.json
+          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments" --data @/tmp/payload.json
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      - name: Verify stable debug signing certificate
+        shell: bash
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/apkcert.txt
+          ACTUAL=$(awk -F': ' '/certificate SHA-256 digest/ {print tolower($2); exit}' /tmp/apkcert.txt)
+          EXPECTED='ec1b19d8ffe51983a1b33bbedc7724d9d441218b7edd6c6e2062cf97d3843875'
+          test "$ACTUAL" = "$EXPECTED" || { echo "::error::APK 签名指纹变化：$ACTUAL。升级包必须保持稳定签名。"; exit 1; }
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: nandu-living-world-canon-recovery-debug
+          name: nandu-v1.6.1-debug-apk
           path: app/build/outputs/apk/debug/*.apk
