@@ -131,6 +131,19 @@ private object OpenAiCompatibleEngine {
         coerceInputValues = true
     }
 
+    private data class PendingClarification(
+        val providerKey: String,
+        val accumulatedEdict: String
+    )
+
+    /**
+     * 只保存在当前应用进程内，绝不写回玩家输入框。
+     * 当一轮明确要求“补充圣意”时，下一次短句会自动带上这一段隐藏上下文。
+     * 下一轮若被判定为新话题/完整命令，则立即清空，避免旧旨意污染后续对话。
+     */
+    @Volatile
+    private var pendingClarification: PendingClarification? = null
+
     suspend fun parseEdict(
         apiKey: String,
         baseUrl: String,
@@ -143,12 +156,24 @@ private object OpenAiCompatibleEngine {
             require(baseUrl.isNotBlank()) { "$errorPrefix Base URL未配置" }
             require(model.isNotBlank()) { "$errorPrefix 模型名未配置" }
 
+            val providerKey = "${baseUrl.trim()}|${model.trim()}"
+            val pending = pendingClarification?.takeIf { it.providerKey == providerKey }
+            val modelUserPrompt = if (pending != null) {
+                """
+上一道未完圣意（仅作后台上下文，禁止原样复述给玩家）：${pending.accumulatedEdict}
+本次玩家原话：$edictText
+请先判断本句是否确实是在补充上一道圣意；若明显是新话题、闲谈、问策或一条新的完整命令，就按新话语分类，不要强行续接旧旨意。
+""".trimIndent()
+            } else {
+                "玩家原话：$edictText"
+            }
+
             val rawText = requestText(
                 apiKey = apiKey,
                 baseUrl = baseUrl,
                 model = model,
                 systemPrompt = buildEdictSystemPrompt(gameContext),
-                userPrompt = "玩家原话：$edictText",
+                userPrompt = modelUserPrompt,
                 maxTokens = 900,
                 temperature = 0.08,
                 errorPrefix = errorPrefix
@@ -165,7 +190,7 @@ private object OpenAiCompatibleEngine {
                     baseUrl = baseUrl,
                     model = model,
                     systemPrompt = repairEdictSystemPrompt(),
-                    userPrompt = "玩家原话：$edictText\n上一轮模型输出：${AiJsonRecovery.compactDiagnostic(rawText, 900)}",
+                    userPrompt = "$modelUserPrompt\n上一轮模型输出：${AiJsonRecovery.compactDiagnostic(rawText, 900)}",
                     maxTokens = 650,
                     temperature = 0.0,
                     errorPrefix = errorPrefix
@@ -178,7 +203,29 @@ private object OpenAiCompatibleEngine {
                     }
             }
 
-            normalizeEdictResult(decoded, edictText, gameContext)
+            val normalized = normalizeEdictResult(decoded, edictText, gameContext)
+            updateClarificationMemory(providerKey, pending, edictText, normalized)
+            normalized
+        }
+    }
+
+    private fun updateClarificationMemory(
+        providerKey: String,
+        previous: PendingClarification?,
+        currentUserText: String,
+        result: EdictResult
+    ) {
+        val type = result.interactionType.uppercase()
+        if (result.clarificationNeeded && type in setOf("ORDER", "CLARIFICATION")) {
+            val accumulated = if (previous != null) {
+                "${previous.accumulatedEdict}\n补充：$currentUserText"
+            } else {
+                currentUserText
+            }
+            pendingClarification = PendingClarification(providerKey, accumulated.takeLast(1800))
+        } else {
+            // 新话题、问策、闲谈或一条已经完整的正式命令都会终止旧追问链。
+            pendingClarification = null
         }
     }
 
