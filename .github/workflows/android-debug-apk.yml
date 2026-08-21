@@ -40,6 +40,15 @@ jobs:
       - name: Enforce Android release version and stable debug signing
         run: ./scripts/check_android_release_policy.sh
 
+      - name: Ensure ffprobe for video QA
+        shell: bash
+        run: |
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffprobe -version | head -1
+
       - name: Validate packaged MP4 compatibility
         run: ./scripts/check_video_assets.sh
 
