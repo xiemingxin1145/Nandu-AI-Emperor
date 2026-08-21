@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
@@ -25,19 +28,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.xiemingxin.nandu.agent.AgentPlanType
 import com.xiemingxin.nandu.agent.CharacterAgentState
 import com.xiemingxin.nandu.agent.EmperorAttitude
 import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.ArtResourceRegistry
-import com.xiemingxin.nandu.game.CharacterStateSource
+import com.xiemingxin.nandu.game.CharacterDetailEntryPolicy
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerIntel
-import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.PropResourceRegistry
 import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.VisualAssetV3
@@ -56,37 +61,51 @@ fun CharacterDetailPanelWithState(
     officer: Officer,
     gameState: GameState,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = false
 ) {
-    val cityName = gameState.cities.find { it.id == officer.currentCityId }?.name ?: officer.currentCityId
-    val isLeadPending = officer.id in gameState.talentLeads &&
-        officer.status in setOf(OfficerStatus.HIDDEN, OfficerStatus.SOLDIER, OfficerStatus.WANDERING)
-    val isFullyRevealed = officer.status in setOf(
-        OfficerStatus.IN_COURT,
-        OfficerStatus.DEPLOYED,
-        OfficerStatus.DISMISSED,
-        OfficerStatus.DECEASED
-    ) || isLeadPending
-    val currentRole = AppointmentSystem.currentRole(gameState, officer.id)
+    val snapshot = CharacterDetailEntryPolicy.snapshot(officer, gameState)
+    val currentRole = snapshot.currentRole
 
-    if (!isFullyRevealed && officer.status == OfficerStatus.HIDDEN) {
+    if (snapshot.isHiddenHint) {
         HiddenOfficerHintPanel(
             officer = officer,
-            cityName = cityName,
+            cityName = snapshot.cityName,
             onDismiss = onDismiss,
             modifier = modifier
         )
     } else {
         CharacterDetailPanel(
             officer = officer,
-            cityName = cityName,
+            cityName = snapshot.cityName,
             currentRole = currentRole,
             loyaltyRisk = AppointmentSystem.loyaltyRiskLabel(officer),
             agentState = gameState.agentStates[officer.id],
-            statusHint = CharacterStateSource.statusHint(gameState, officer),
-            armyName = CharacterStateSource.armyOf(gameState, officer.id)?.name,
+            statusHint = snapshot.statusHint,
+            armyName = snapshot.armyName,
             onDismiss = onDismiss,
-            modifier = modifier
+            modifier = modifier,
+            scrollable = scrollable
+        )
+    }
+}
+
+@Composable
+fun CharacterDetailDialog(
+    officer: Officer,
+    gameState: GameState,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        CharacterDetailPanelWithState(
+            officer = officer,
+            gameState = gameState,
+            onDismiss = onDismiss,
+            scrollable = true,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -117,11 +136,11 @@ fun HiddenOfficerHintPanel(
             }
             Spacer(Modifier.height(6.dp))
             Text("此人尚未被发现", color = PanelCream, fontSize = 13.sp)
-            Text("所在：$cityName 附近", color = PanelSub, fontSize = 11.sp)
+            Text("所在：$cityName 附近", color = PanelSub, fontSize = 12.sp)
             Spacer(Modifier.height(8.dp))
-            Text("统率：未知 / 武力：未知 / 智略：未知", color = PanelSub, fontSize = 11.sp)
+            Text("统率：未知 / 武力：未知 / 智略：未知", color = PanelSub, fontSize = 12.sp)
             Spacer(Modifier.height(6.dp))
-            Text("← 在此城走访或寻访，可能获得更多线索", color = Color(0xFF8FB573), fontSize = 10.sp)
+            Text("← 在此城走访或寻访，可能获得更多线索", color = Color(0xFF8FB573), fontSize = 12.sp)
         }
     }
 }
@@ -136,10 +155,22 @@ fun CharacterDetailPanel(
     loyaltyRisk: String? = null,
     agentState: CharacterAgentState? = null,
     statusHint: String = "",
-    armyName: String? = null
+    armyName: String? = null,
+    scrollable: Boolean = false
 ) {
     val p = officer.profile()
     val signatureProps = PropResourceRegistry.signaturePropsForOfficer(officer.id)
+    val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.82f).dp
+    val bodyModifier = if (scrollable) {
+        Modifier
+            .heightIn(max = maxHeight)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    } else {
+        Modifier.padding(16.dp)
+    }
+    val factionText = officer.faction.ifBlank { "未载" }
+    val identityText = listOf(p.rank, p.origin).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "身份未载" }
 
     Card(
         modifier = modifier
@@ -149,14 +180,14 @@ fun CharacterDetailPanel(
         colors = CardDefaults.cardColors(containerColor = PanelDark),
         border = BorderStroke(1.dp, PanelGold.copy(alpha = 0.6f))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = bodyModifier) {
             Row(verticalAlignment = Alignment.Top) {
                 AssetImage(
                     path = VisualAssetV3.halfbodyForOfficer(officer.id),
                     fallbackPath = ArtResourceRegistry.portraitForOfficer(officer.id),
-                    contentDescription = officer.name,
+                    contentDescription = officer.name.ifBlank { "人物" },
                     contentScale = ContentScale.Fit,
-                    placeholderText = officer.name.take(1),
+                    placeholderText = officer.name.take(1).ifBlank { "?" },
                     modifier = Modifier
                         .width(140.dp)
                         .height(210.dp)
@@ -170,21 +201,27 @@ fun CharacterDetailPanel(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(officer.name, color = PanelGold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            officer.name.ifBlank { "无名" },
+                            color = PanelGold,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                             Text("X", color = PanelSub, fontSize = 14.sp)
                         }
                     }
-                    Text(p.rank + " · " + p.origin, color = PanelCream, fontSize = 13.sp)
-                    Text("现驻 $cityName", color = PanelSub, fontSize = 11.sp)
+                    Text("身份：$identityText", color = PanelCream, fontSize = 13.sp)
+                    Text("阵营：$factionText", color = PanelSub, fontSize = 12.sp)
+                    Text("现驻 $cityName", color = PanelSub, fontSize = 12.sp)
                     if (currentRole.isNotBlank()) {
-                        Text("职务：$currentRole", color = Color(0xFF8FB573), fontSize = 11.sp)
+                        Text("职务：$currentRole", color = Color(0xFF8FB573), fontSize = 12.sp)
                     }
-                    Text("动向：$statusHint", color = PanelSub, fontSize = 11.sp)
-                    armyName?.let { Text("所属：$it", color = PanelSub, fontSize = 11.sp) }
+                    Text("动向：$statusHint", color = PanelSub, fontSize = 12.sp)
+                    armyName?.let { Text("所属：$it", color = PanelSub, fontSize = 12.sp) }
                     Spacer(Modifier.height(5.dp))
-                    Text("忠：${OfficerIntel.loyaltyLabel(officer.loyalty)}", color = PanelSub, fontSize = 11.sp)
-                    Text("志：${OfficerIntel.ambitionLabel(p.ambition)}", color = PanelSub, fontSize = 11.sp)
+                    Text("忠：${OfficerIntel.loyaltyLabel(officer.loyalty)}", color = PanelSub, fontSize = 12.sp)
+                    Text("志：${OfficerIntel.ambitionLabel(p.ambition)}", color = PanelSub, fontSize = 12.sp)
                     Spacer(Modifier.height(10.dp))
                     MiniStat("名望", OfficerIntel.fameLabel(p.fame))
                     Spacer(Modifier.height(5.dp))
@@ -203,11 +240,11 @@ fun CharacterDetailPanel(
 
             if (p.skills.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
-                Text("专长", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("专长", color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 SkillTagRow(p.skills)
                 Spacer(Modifier.height(4.dp))
-                Text(SkillEffects.shortSummary(p.skills), color = PanelSub, fontSize = 10.sp)
+                Text(SkillEffects.shortSummary(p.skills), color = PanelSub, fontSize = 12.sp)
             }
 
             if (signatureProps.isNotEmpty()) {
@@ -217,13 +254,13 @@ fun CharacterDetailPanel(
                 Text(
                     "人物页物件用于身份与叙事识别；兵权、资源和真实持有状态仍由游戏规则决定。",
                     color = PanelSub,
-                    fontSize = 9.sp,
-                    lineHeight = 14.sp
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
                 )
             }
 
             Spacer(Modifier.height(12.dp))
-            Text("评估", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("评估", color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text(
                 OfficerIntel.trustBrief(officer.loyalty, p.ambition),
@@ -232,13 +269,13 @@ fun CharacterDetailPanel(
             )
             if (loyaltyRisk != null) {
                 Spacer(Modifier.height(6.dp))
-                Text(loyaltyRisk, color = Color(0xFFE57373), fontSize = 11.sp)
+                Text(loyaltyRisk, color = Color(0xFFE57373), fontSize = 12.sp)
             }
             if (officer.bio.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
-                Text("简介", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("简介", color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
-                Text(officer.bio, color = PanelSub, fontSize = 10.sp, lineHeight = 16.sp)
+                Text(officer.bio, color = PanelSub, fontSize = 12.sp, lineHeight = 18.sp)
             }
 
             if (agentState != null) {
@@ -287,7 +324,7 @@ fun StatBar(label: String, value: Int) {
 fun MiniStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.Start) {
         Text(value, color = PanelGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(label, color = PanelSub, fontSize = 9.sp)
+        Text(label, color = PanelSub, fontSize = 11.sp)
     }
 }
 
@@ -344,10 +381,10 @@ private fun AgentInfoSection(agentState: CharacterAgentState) {
             Text("近期记忆", color = PanelGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             agentState.recentMemory.takeLast(3).forEach { mem ->
-                Text("· [旬${mem.turn}] ${mem.summary}", color = PanelSub, fontSize = 11.sp)
+                Text("· [旬${mem.turn}] ${mem.summary}", color = PanelSub, fontSize = 12.sp)
             }
             if (agentState.compressedMemorySummary.isNotBlank()) {
-                Text("· 往事：${agentState.compressedMemorySummary.take(80)}…", color = PanelSub.copy(alpha = 0.7f), fontSize = 10.sp)
+                Text("· 往事：${agentState.compressedMemorySummary.take(80)}…", color = PanelSub.copy(alpha = 0.7f), fontSize = 11.sp)
             }
         }
 
@@ -364,7 +401,7 @@ private fun AgentInfoSection(agentState: CharacterAgentState) {
                 Text(
                     "· ${rel.targetOfficerId} (${rel.tag.label} ${if (rel.score > 0) "+" else ""}${rel.score})",
                     color = relColor,
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
             }
         }

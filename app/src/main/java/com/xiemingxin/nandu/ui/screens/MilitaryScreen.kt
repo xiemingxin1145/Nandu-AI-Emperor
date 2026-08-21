@@ -30,22 +30,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.xiemingxin.nandu.game.Army
+import com.xiemingxin.nandu.game.ArmyStatus
 import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
-import com.xiemingxin.nandu.game.ArmyStatus
-import com.xiemingxin.nandu.ui.components.ArmyDetailPanel
 import com.xiemingxin.nandu.game.OfficerIntel
 import com.xiemingxin.nandu.game.OfficerStatus
 import com.xiemingxin.nandu.game.SkillEffects
 import com.xiemingxin.nandu.game.UiIconRegistry
 import com.xiemingxin.nandu.game.commandLimit
 import com.xiemingxin.nandu.game.profile
+import com.xiemingxin.nandu.ui.components.ArmyDetailPanel
 import com.xiemingxin.nandu.ui.components.AssetIcon
 import com.xiemingxin.nandu.ui.components.AssetImage
-import com.xiemingxin.nandu.ui.components.CharacterDetailPanel
+import com.xiemingxin.nandu.ui.components.CharacterDetailDialog
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -157,13 +156,11 @@ fun MilitaryScreen(gameState: GameState) {
     }
 
     selectedOfficer?.let { officer ->
-        Dialog(onDismissRequest = { selectedOfficer = null }) {
-            CharacterDetailPanel(
-                officer = officer,
-                cityName = cityMap[officer.currentCityId]?.name ?: officer.currentCityId,
-                onDismiss = { selectedOfficer = null }
-            )
-        }
+        CharacterDetailDialog(
+            officer = officer,
+            gameState = gameState,
+            onDismiss = { selectedOfficer = null }
+        )
     }
 }
 
@@ -284,6 +281,7 @@ fun MilitaryScreenV4(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedArmyId by remember { mutableStateOf<String?>(null) }
+    var selectedOfficer by remember { mutableStateOf<Officer?>(null) }
 
     val garrisoned = gameState.armies.filter { it.ownerFactionId == "song" && it.statusCode == ArmyStatus.GARRISONED }
     val marching   = gameState.armies.filter { it.ownerFactionId == "song" && it.statusCode == ArmyStatus.MARCHING }
@@ -369,7 +367,11 @@ fun MilitaryScreenV4(
                                 Text(army.name, color = Color(0xFFC9A227), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 Text(
                                     "主帅：${cmd?.name ?: "无"} · ${city?.name ?: army.currentCityId}",
-                                    color = Color(0xFF9A8862), fontSize = 11.sp
+                                    color = Color(0xFFC9A227),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.clickable(enabled = cmd != null) {
+                                        cmd?.let { selectedOfficer = it }
+                                    }
                                 )
                                 if (army.statusCode == ArmyStatus.MARCHING && army.targetCityId.isNotBlank()) {
                                     val tgt = gameState.cities.find { it.id == army.targetCityId }?.name ?: army.targetCityId
@@ -400,11 +402,20 @@ fun MilitaryScreenV4(
                             } else null,
                             onRetreat = if (army.statusCode == ArmyStatus.ENGAGEMENT_PENDING) {
                                 { onRetreatArmy(army.id); selectedArmyId = null }
-                            } else null
+                            } else null,
+                            onCommanderClick = { selectedOfficer = it }
                         )
                     }
                 }
             }
+        }
+
+        selectedOfficer?.let { officer ->
+            CharacterDetailDialog(
+                officer = officer,
+                gameState = gameState,
+                onDismiss = { selectedOfficer = null }
+            )
         }
     }
 }
