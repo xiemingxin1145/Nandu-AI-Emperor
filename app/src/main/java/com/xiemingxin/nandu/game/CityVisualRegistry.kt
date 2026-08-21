@@ -43,7 +43,8 @@ object MapBackgroundRegistry {
 
 object CityVisualRegistry {
     private val important = listOf(
-        CityVisualInfo("linan", "临安", CityVisualTier.CAPITAL, "capital_song", "images/city/linan_palace.webp", "images/map/city_capital_song.webp", listOf("皇都", "行在", "繁华"), "南宋行在，皇宫、政事堂、市舶财政的中心。"),
+        CityVisualInfo("linan", "临安", CityVisualTier.FORTRESS, "front_fortress", "images/city/linan_palace.webp", "images/map/city_fortress.webp", listOf("两浙", "水路", "繁华"), "两浙重镇，市舶财政要地。"),
+        CityVisualInfo("yingtianfu", "应天府", CityVisualTier.CAPITAL, "capital_song", "images/city/yingtianfu.webp", "images/map/city_capital_song.webp", listOf("行在", "草创", "军政中枢"), "建炎元年天子驻跸之地，仓促草创的战时行在。"),
         CityVisualInfo("jiankang", "建康", CityVisualTier.FORTRESS, "river_fortress", "images/city/jiankang_river_fortress.webp", "images/map/city_fortress_river.webp", listOf("江防", "重镇"), "江淮门户，守江必守建康。"),
         CityVisualInfo("xiangyang", "襄阳", CityVisualTier.FORTRESS, "north_fortress", "images/city/xiangyang_fortress.webp", "images/map/city_fortress.webp", listOf("北伐", "山河要冲"), "荆襄北伐跳板，兵家必争。"),
         CityVisualInfo("kaifeng", "汴京", CityVisualTier.METROPOLIS, "old_capital", "images/city/kaifeng_old_capital.webp", "images/map/city_old_capital.webp", listOf("旧都", "中原"), "旧日东京，收复此城意味着中兴大业入史。"),

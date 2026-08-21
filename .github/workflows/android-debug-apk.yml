@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - test/art-asset-integration
+      - fix/stab-005-video-player-compat
   workflow_dispatch:
 
 jobs:
@@ -39,6 +40,9 @@ jobs:
 
       - name: Enforce Android release version and stable debug signing
         run: ./scripts/check_android_release_policy.sh
+
+      - name: Audit integrated court art, capital and formal video routes
+        run: python3 ./scripts/check_v162_preacceptance.py
 
       - name: Ensure ffmpeg/ffprobe for video preparation and QA
         shell: bash
@@ -70,6 +74,9 @@ jobs:
           ACTUAL=$(sed -nE 's/.*certificate SHA-256 digest: ([0-9a-fA-F]+).*/\L\1/p' /tmp/apkcert.txt | head -1)
           EXPECTED='ec1b19d8ffe51983a1b33bbedc7724d9d441218b7edd6c6e2062cf97d3843875'
           test "$ACTUAL" = "$EXPECTED" || { echo "::error::APK 签名指纹变化：$ACTUAL。升级包必须保持稳定签名。"; exit 1; }
+
+      - name: Verify packaged court art, Yingtian image and all 51 silent H.264 videos
+        run: python3 ./scripts/check_v162_preacceptance.py --apk app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare Android signing tools for reproducible RC repack
         shell: bash

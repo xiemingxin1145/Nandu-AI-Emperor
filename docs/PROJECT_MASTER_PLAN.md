@@ -8,8 +8,9 @@
 当前可测试版本：**V1.6.1 RC / versionCode 28**  
 当前稳定基线：`release/v1.6.1`  
 当前主集成线：`fix/stab-005-video-player-compat`（PR #58，基于 STAB-004）  
-并行已验证分支：`feat/court-001-crowd-wiring`（PR #54，尚未并入主集成线）  
-并行审计分支：`docs/roster-001-expansion-audit`（Claude，ROSTER-001）  
+当前预验收集成线：`integration/v1.6.2-preacceptance`（已接入 COURT-001 / ROSTER-001，等待 STAB-006）
+并行已验证分支：`feat/court-001-crowd-wiring`（PR #54，已并入预验收线，尚未合 main）
+并行审计分支：`docs/roster-001-expansion-audit`（Claude，ROSTER-001 审计文档已并入预验收线）
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
 当前下一任务：**STAB-006 全仓历史硬编码审计**  
 当前里程碑进度：**5 / 8**  
@@ -397,7 +398,7 @@ AI 可生成建议、奏议、计划、外交措辞和候选行动；最终数�
 这些任务允许与 V1.6.2 主线并行，但不得抢同一核心文件。若并行任务也修改本总纲，集成时必须人工保留双方记录。
 
 ## COURT-001 — 朝会列班视觉接线
-状态：`DONE`（Claude，独立分支已验证，尚未并入主集成线）  
+状态：`DONE`（Claude，独立分支已验证；已并入 `integration/v1.6.2-preacceptance`）
 目标：利用现有普通官员素材与群像图提升大殿“百官列班”观感，不伪造正式 Officer 状态，不改主战役逻辑。
 
 完成：
@@ -418,15 +419,22 @@ AI 可生成建议、奏议、计划、外交措辞和候选行动；最终数�
 - CI：**Android Build #215 / run 32445288756 PASS**；
 - 真机专项：尚未验收，待 STAB-007/STAB-008 与主集成线一起验收。
 
-注意：COURT-001 也修改了 `PROJECT_MASTER_PLAN.md`，与 STAB 主线存在文档层冲突；集成时不得用任一分支版本直接覆盖另一边记录。
+注意：COURT-001 曾在总纲中额外插入第二条同名 `IN_PROGRESS` 记录；预验收集成时已手工消除重复，并保留 STAB 主线和本处完整 DONE 记录。最终合入 STAB-006 时仍需手工合并总纲，禁止覆盖另一方进度。
 
 ## ART-001 — 首都与核心城池背景修复
 状态：`IN_PROGRESS`  
 应天府专属城池图接线已由 COURT-001 完成；后续仅继续补真正缺失的高频核心城池，不再把应天府当作缺素材任务。
 
 ## ROSTER-001 — 正式人物池扩容规划
-状态：`IN_PROGRESS`（Claude，`docs/roster-001-expansion-audit`）  
-只做审计与规划：先列人物数据/官职/位置/登场窗口/美术缺口/CORE-ACTIVE-BACKGROUND 层级，再给出第一批 30～50 个优先人物，不一次性把人物硬塞进游戏，不碰 STAB-006 主线代码。
+状态：`DONE`（Claude，PR #57；审计文档已并入预验收线）
+交付：`docs/ROSTER_EXPANSION_AUDIT.md`，盘点当前 12 名正式 Officer、6 名有立绘无实体人物、金国将领缺口，并提出 35 名候选人物的分层规划。仅整合文档，未把候选人物写入正式 Officer 数据；`V162PreacceptanceRegressionTest` 固定验证正式人物仍为 12 人。
+
+## V162-INTEGRATION-PREP — V1.6.2 集成与 Smoke Test 准备
+状态：`IN_PROGRESS`（Codex，`integration/v1.6.2-preacceptance`；不计入 37 项主线）
+范围：以 STAB-005 为基线整合 COURT-001 与 ROSTER-001 审计；建立 `docs/V162_SMOKE_TEST_MATRIX.md`、`docs/V162_PREACCEPTANCE_RISKS.md`、独立预验收 JVM 测试与源资源 / APK 审计脚本。
+边界：不修改 STAB-006 历史事件核心，不修改版本号和签名，不把 STAB-007 提前标 DONE，不合 main。
+新增发现：正式剧情 CG 曾残留 `VideoView`，已统一迁移到 Media3；8 首正式 BGM 未入仓库、主菜单设置被提前返回挡住、亡国判定仍固定杭州，详见风险文档。
+完成条件：独立 Draft PR、两套 CI 通过、54 张朝堂图片与应天图进入 APK、51 条 V3 视频为 H.264/yuv420p/无内嵌音轨、固定测试签名保持不变。
 
 ---
 
@@ -506,4 +514,12 @@ APK/真机结果：
 - 朝会群像/侧翼列班接线完成，真实 Officer 仍按状态过滤；
 - 应天府既有城池图接线路径修复，首都数据/地图/视觉分级统一；
 - PR #54 / Android Build #215 验证通过；
-- 仍为独立并行 Draft PR，待后续与 STAB 主集成线汇合。
+- 已由 `integration/v1.6.2-preacceptance` 承接，不直接合 main。
+
+## 2026-08-21 — V1.6.2 预验收集成准备
+- COURT-001 两个提交与 ROSTER-001 审计文档整合到独立预验收分支；
+- 手工清理 COURT-001 重复、互相矛盾的总纲任务记录，保留 STAB-001～005 全部历史；
+- 发现正式剧情 CG 仍在使用 VideoView，已迁移至统一 Media3 播放器并添加静态 CG 保底；
+- 建立正式入口 Smoke Test 矩阵、发布风险报告、54 张朝堂素材 SHA 校验、应天首都与实际 APK 视频审计；
+- 记录正式 BGM 8/8 缺失、主菜单设置不可达、杭州被错误当成亡国判定首都等真实阻塞；
+- STAB-006 保持当前唯一 NEXT，里程碑继续保持 5/8；等待 Claude 完成后再进入 STAB-007。
