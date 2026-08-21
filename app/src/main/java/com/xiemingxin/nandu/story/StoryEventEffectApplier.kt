@@ -1,5 +1,6 @@
 package com.xiemingxin.nandu.story
 
+import com.xiemingxin.nandu.game.AppointmentSystem
 import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.GameState
 import kotlinx.serialization.json.JsonElement
@@ -105,14 +106,32 @@ object StoryEventEffectApplier {
 
             val amount = value.intValueOrNull() ?: continue
             if (!applyScalar(key, amount)) {
-                // Officer rank/troops/loyalty and other special effects stay pending until routed
-                // through their authoritative gameplay systems. Never silently pretend they applied.
+                // DELEGATION-001：人物忠诚度现在有正式入口了，不用再攒着不生效。
+                if (key.endsWith("_loyalty")) {
+                    val officerId = key.removeSuffix("_loyalty")
+                    when (val result = AppointmentSystem.adjustLoyalty(next, officerId, amount)) {
+                        is AppointmentSystem.AppointResult.Success -> {
+                            next = result.newState
+                            outcomes += "【剧情影响】${result.message}"
+                        }
+                        is AppointmentSystem.AppointResult.Failure -> {
+                            // 人物不存在/已故：不写回世界状态，也不把内部 key 抛给玩家。
+                            pending[key] = amount
+                        }
+                    }
+                    continue
+                }
+                // Officer rank/troops and other special effects without an authoritative
+                // system entry point stay pending until routed. Never silently pretend they applied.
                 pending[key] = amount
             }
         }
 
         if (pending.isNotEmpty()) {
-            outcomes += "【待接入】${pending.keys.joinToString("、")} 未绕过正式系统修改，等待人物/军团规则接入。"
+            // DELEGATION-001：绝不把 zong_ze_loyalty 这类内部 key 原样丢给玩家看，
+            // 但保留"待接入"这个关键词——这是既有约定的措辞，其它系统/测试依赖它
+            // 判断"这次选择还有效果没有真正生效"，不需要连着这个语义一起改掉。
+            outcomes += "【待接入】部分效果仍等待正式规则接入，暂未施行（不影响本次已生效的部分）。"
         }
 
         return StoryEventEffectResult(

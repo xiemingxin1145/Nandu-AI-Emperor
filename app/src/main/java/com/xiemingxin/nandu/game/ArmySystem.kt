@@ -85,6 +85,96 @@ object ArmySystem {
         )
     }
 
+    // ─── 通用募兵/补员（DELEGATION-001：支持任意势力，不局限于宋）─────────────
+    /**
+     * 跟 [formArmy] 的核心机制一致（城池 troops 转移给军团），但：
+     * 1. 支持任意 factionId，供被授权的宋方负责人和金/西夏等 AI 势力共用；
+     * 2. 若 commanderId 已经统领同势力的军团，走"补员"（troops 累加到既有军团），
+     *    不强行拆分成两支番号；
+     * 3. 不在这里扣钱粮——预算是否够、扣哪个"钱包"（玩家中央国库 or 该城池地方财政）
+     *    由调用方（DelegatedActionValidator / FactionStrategyPlanner）先决定，
+     *    这个函数只负责"人从哪来、兵到哪去"这个军事动作本身，职责单一。
+     */
+    fun recruitOrReinforce(
+        state: GameState,
+        factionId: String,
+        cityId: String,
+        commanderId: String,
+        troops: Int,
+        armyType: String
+    ): ArmyResult {
+        val city = state.cities.find { it.id == cityId }
+            ?: return ArmyResult.Failure("【募兵失败】找不到城池：$cityId")
+        if (city.owner != factionId)
+            return ArmyResult.Failure("【募兵失败】${city.name}不在该势力控制之下。")
+
+        val commander = state.officers.find { it.id == commanderId }
+            ?: return ArmyResult.Failure("【募兵失败】找不到负责募兵的人物。")
+        if (commander.status == OfficerStatus.DECEASED)
+            return ArmyResult.Failure("【募兵失败】${commander.name}已殁。")
+
+        val available = city.troops - MIN_GARRISON
+        if (available <= 0)
+            return ArmyResult.Failure("【募兵失败】${city.name}可调兵力不足（须保留守军$MIN_GARRISON）。")
+
+        val existing = state.armies.find {
+            it.commanderId == commanderId && it.ownerFactionId == factionId && it.statusCode != ArmyStatus.DISBANDED
+        }
+
+        if (existing != null) {
+            // 补员：既有军团受统兵上限约束，不能无限吃兵。
+            val cmdLimit = commander.commandLimit()
+            val headroom = (cmdLimit - existing.troops).coerceAtLeast(0)
+            val actual = troops.coerceAtMost(available).coerceAtMost(headroom)
+            if (actual <= 0)
+                return ArmyResult.Failure("【募兵失败】${commander.name}部已近统兵上限，无法再补员。")
+            val newCities = state.cities.map { if (it.id == cityId) it.copy(troops = it.troops - actual) else it }
+            val newArmies = state.armies.map { if (it.id == existing.id) it.copy(troops = it.troops + actual) else it }
+            return ArmyResult.Success(
+                "【募兵】${commander.name}部于${city.name}补员${actual}人。",
+                state.copy(cities = newCities, armies = newArmies)
+            )
+        }
+
+        // 新组建：与 formArmy 相同的统兵上限/主帅唯一性检查，只是不锁死 "song"。
+        val alreadyCommanding = state.armies.find {
+            it.commanderId == commanderId && it.statusCode != ArmyStatus.DISBANDED
+        }
+        if (alreadyCommanding != null)
+            return ArmyResult.Failure("【募兵失败】${commander.name}已统领「${alreadyCommanding.name}」，同一主帅不得重复带兵。")
+
+        val cmdLimit = commander.commandLimit()
+        val actualTroops = troops.coerceAtMost(available).coerceAtMost(cmdLimit)
+        if (actualTroops <= 0)
+            return ArmyResult.Failure("【募兵失败】${commander.name}当前可统${cmdLimit}兵，${city.name}可调${available}兵，无法成军。")
+
+        val newCities = state.cities.map { if (it.id == cityId) it.copy(troops = it.troops - actualTroops) else it }
+        val newOfficers = state.officers.map {
+            if (it.id == commanderId) it.copy(currentCityId = cityId, status = OfficerStatus.DEPLOYED) else it
+        }
+        val armyId = "army_${commanderId}_${state.turn}"
+        val newArmy = Army(
+            id = armyId,
+            name = "${commander.name}部",
+            ownerFactionId = factionId,
+            commanderId = commanderId,
+            homeCityId = cityId,
+            currentCityId = cityId,
+            troops = actualTroops,
+            morale = (state.troopMorale + commander.loyalty / 10).coerceIn(40, 100),
+            armyType = armyType,
+            supplyCityId = cityId,
+            statusCode = ArmyStatus.GARRISONED,
+            status = ArmyStatus.GARRISONED.label,
+            supplyLevel = 100,
+            createdTurn = state.turn
+        )
+        return ArmyResult.Success(
+            "【募兵】${commander.name}部于${city.name}募兵成军，兵$actualTroops。",
+            state.copy(cities = newCities, officers = newOfficers, armies = state.armies + newArmy)
+        )
+    }
+
     // ─── 解散军团 ─────────────────────────────────────────────
     fun disbandArmy(state: GameState, armyId: String): ArmyResult {
         val army = state.armies.find { it.id == armyId }
