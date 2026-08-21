@@ -76,7 +76,7 @@ jobs:
           APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
           "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/apkcert.txt
-          ACTUAL=$(awk -F': ' '/certificate SHA-256 digest/ {print tolower($2); exit}' /tmp/apkcert.txt)
+          ACTUAL=$(sed -nE 's/.*certificate SHA-256 digest: ([0-9a-fA-F]+).*/\L\1/p' /tmp/apkcert.txt | head -1)
           EXPECTED='ec1b19d8ffe51983a1b33bbedc7724d9d441218b7edd6c6e2062cf97d3843875'
           test "$ACTUAL" = "$EXPECTED" || { echo "::error::APK 签名指纹变化：$ACTUAL。升级包必须保持稳定签名。"; exit 1; }
 
