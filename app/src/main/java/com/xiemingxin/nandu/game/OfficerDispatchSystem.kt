@@ -16,24 +16,22 @@ object OfficerDispatchSystem {
 
     /**
      * travelArrivalPostTitle 已经进入存档格式。为了不再扩一次存档 schema，
-     * 本轮把“抵达后是文职主官还是武职守将”作为内部前缀一起持久化；
-     * 对外展示时统一解码，旧存档没有前缀的职务按守将兼容。
+     * 文职主官仅在内部存储时加 GOVERNOR 前缀；武职守将继续保存原始标题，
+     * 从而保持 #72 初版存档和现有测试完全向后兼容。对外展示时统一解码。
      */
     internal data class TravelPost(val title: String, val garrisonPost: Boolean?)
 
-    private const val GARRISON_PREFIX = "__GARRISON__::"
     private const val GOVERNOR_PREFIX = "__GOVERNOR__::"
 
     internal fun encodeTravelPost(postTitle: String, garrisonPost: Boolean): String {
         if (postTitle.isBlank()) return ""
-        return (if (garrisonPost) GARRISON_PREFIX else GOVERNOR_PREFIX) + postTitle
+        return if (garrisonPost) postTitle else GOVERNOR_PREFIX + postTitle
     }
 
     internal fun decodeTravelPost(raw: String): TravelPost = when {
         raw.isBlank() -> TravelPost("", null)
-        raw.startsWith(GARRISON_PREFIX) -> TravelPost(raw.removePrefix(GARRISON_PREFIX), true)
         raw.startsWith(GOVERNOR_PREFIX) -> TravelPost(raw.removePrefix(GOVERNOR_PREFIX), false)
-        // 兼容 #72 初版已经写入存档的纯标题：当时只能落到 cityGarrisons。
+        // 旧存档和武职沿用纯标题：按守将处理。
         else -> TravelPost(raw, true)
     }
 
