@@ -29,6 +29,16 @@ data class Officer(
     // 不允许在此期间被判定为"在朝"。见 CharacterStateSource / CharacterTravelSystem。
     val travelDestinationCityId: String? = null, // 目的地城市id（null=未在赶路）
     val travelArrivalTurn: Int? = null,           // 预计抵达的旬数（state.turn 达到此值即抵达）
+    // WORLD-CORE-001：抵达后应转为的状态；null=沿用旧行为（固定变 IN_COURT，兼容
+    // AppointmentSystem.recallToCourt 这条已有召回路径）。新的"派任外地"场景
+    // （见 OfficerDispatchSystem）会显式传 DEPLOYED/IN_CAPITAL 等，且整个赶路
+    // 期间人物从朝堂彻底消失（isTraveling=true 时 isAtCourt 必然为 false），
+    // 不是"转场前依然在场"——这跟下面 scheduledStatus 那套语义刻意不同。
+    val travelArrivalStatus: OfficerStatus? = null,
+    // WORLD-CORE-001：抵达时应正式生效的职务标签（如"东京留守"），用于
+    // AppointmentSystem 落地为 cityGarrisons/cityGovernors 记录 + 玩家可读播报，
+    // 不需要就留空。
+    val travelArrivalPostTitle: String = "",
     // V1.1 历史 Canon：人物"当前在场，但已知会在某旬后转为另一状态/地点"（如宗泽开局入对、随后外任）。
     // 与上面的召回赶路字段语义不同：这里人物在转场前一直正常在场/在朝，不受 isTraveling 影响；
     // 到达 scheduledTurn 才一次性切换，不经历"途中不可见"的过程。见 CharacterTravelSystem.tickScheduledTransitions。
@@ -271,8 +281,14 @@ data class GameState(
     val pendingAgentConflicts: List<com.xiemingxin.nandu.agent.AgentConflict> = emptyList(),
     // DELEGATION-001：皇帝授权制。全带默认值，兼容旧存档。
     val imperialMandates: List<ImperialMandate> = emptyList(),
-    val mandateExecutionLog: List<MandateExecutionRecord> = emptyList()
+    val mandateExecutionLog: List<MandateExecutionRecord> = emptyList(),
+    // WORLD-CORE-001：待办不再是"每次打开页面都重新算一遍"的无记忆快照——
+    // 玩家处理过的事，只要情况没有明显恶化，冷却期内不重新刷出来。
+    val dismissedTaskSignatures: Map<String, DismissedTaskMemory> = emptyMap()
 )
+
+/** signature -> 处理时记录的旬数与严重度，供 PalaceTaskSystem 判断"是否算恶化"。 */
+data class DismissedTaskMemory(val turn: Int, val severityOrdinal: Int)
 
 // ═══ V1.7 天下战略：势力归属统计与存亡判定（骨架，不改动既有经济/战斗结算逻辑）═══
 
