@@ -5,12 +5,14 @@ package com.xiemingxin.nandu.game
  *
  * 规则：正式 BGM 只允许人工试听通过的纯器乐进入；未验收用途继续使用不存在的 pending 槽位，
  * 宁可静默也不让提示词、人声或旧占位音频回流。
+ *
+ * 高频 UI / 回合操作只允许短提示音。4~5 秒的锣、钟、翻页、钱币、募兵音只保留给真正
+ * 需要完整演出的低频事件，禁止再次拿来当按钮点击声。
  */
 object AudioResourceRegistry {
     private const val BASE = "audio"
 
     object Bgm {
-        // 已验收并接入的正式场景音乐（V1.6.1）。
         const val mainMenu = "$BASE/bgm/bgm_main_menu.ogg"
         const val chuigongEntry = "$BASE/bgm/bgm_chuigong_hall_entry.ogg"
         const val chuigongLoop = "$BASE/bgm/bgm_chuigong_hall_loop.ogg"
@@ -20,7 +22,6 @@ object AudioResourceRegistry {
         const val linan = "$BASE/bgm/bgm_linan_loop.ogg"
         const val militaryCamp = "$BASE/bgm/bgm_military_camp_loop.ogg"
 
-        // 尚未专门制作/试听的用途，故意保持不存在文件，禁止旧曲顶包。
         const val pendingPrologueCrisis = "$BASE/bgm/__pending_prologue_crisis.ogg"
         const val pendingPrologueSad = "$BASE/bgm/__pending_prologue_sad.ogg"
         const val pendingBattle = "$BASE/bgm/__pending_battle.ogg"
@@ -173,19 +174,22 @@ object AudioResourceRegistry {
     fun sfxForGameEvent(event: String): String = when (event) {
         "click", "confirm", "cancel", "open_panel", "close_panel", "switch_tab",
         "select", "warning", "unlock", "edict_stamp", "brush_write", "scroll_open", "scroll_close" -> sfxForUi(event)
-        "edict_submitted" -> Ui.scrollOpen
+        "edict_submitted" -> Ui.brushWrite
         "edict_confirmed" -> Ui.stampEdict
         "edict_cancelled" -> Ui.cancel
-        "council_open" -> Sfx.courtMurmur
-        "council_choice" -> Ui.confirm
-        "story_event" -> Sfx.bell
+        "council_open" -> Ui.openPanel
+        "council_choice" -> Ui.select
+        "story_event" -> Ui.warning
         "story_outcome" -> Sfx.reportArrive
-        "turn_advance" -> Sfx.gong
+        // 回合推进是高频操作，禁止再播放4.49秒长锣。
+        "turn_advance" -> Ui.confirm
         "military_report" -> Sfx.drumWar
         "military_start" -> Sfx.encounterStart
-        "city_build" -> Sfx.build
-        "city_recruit" -> Sfx.recruit
-        "gold_gain" -> Sfx.coin
+        // 建造/募兵旧素材分别3.76秒/4.67秒，高频按钮先用短确认音，待新素材替换。
+        "city_build" -> Ui.confirm
+        "city_recruit" -> Ui.select
+        // 金钱旧素材5.19秒，不用于频繁资源变化提示。
+        "gold_gain" -> Ui.select
         "relation_up" -> Sfx.relationUp
         "relation_down" -> Sfx.relationDown
         else -> Ui.click
@@ -194,11 +198,12 @@ object AudioResourceRegistry {
     fun sfxForCommand(commandType: String): String = when (commandType) {
         "dispatch_army" -> Sfx.march
         "assign_officer" -> Sfx.reportArrive
-        "repair_city" -> Sfx.build
-        "raise_grain" -> Sfx.coin
+        "repair_city" -> Ui.confirm
+        "raise_grain" -> Ui.select
         "suppress_officer" -> Ui.warning
         "reward_officer" -> Sfx.relationUp
         "punish_officer" -> Sfx.relationDown
+        // 迁都是低频重大事件，保留完整长锣。
         "move_capital" -> Sfx.gong
         else -> Ui.confirm
     }

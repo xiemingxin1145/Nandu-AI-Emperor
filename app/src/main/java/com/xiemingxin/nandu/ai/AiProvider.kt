@@ -8,13 +8,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class EdictResult(
-    val summary: String,                          // AI对圣旨的理解摘要
-    val commands: List<EdictCommand>,             // 解析出的命令列表
-    val npcResponses: List<NpcResponse>,          // 群臣反应
-    val riskTags: List<String> = emptyList(),     // 风险标签
-    val confidence: Float = 1.0f,                 // 解析置信度
-    val clarificationNeeded: Boolean = false,     // 是否需要澄清
-    val clarificationHint: String = ""            // 澄清提示
+    val summary: String = "",                       // AI对玩家话语/圣旨的理解摘要
+    val commands: List<EdictCommand> = emptyList(), // 解析出的命令列表；闲谈/问策可以为空
+    val npcResponses: List<NpcResponse> = emptyList(), // 群臣反应；不再强迫每轮必须有人发言
+    val riskTags: List<String> = emptyList(),        // 风险标签
+    val confidence: Float = 1.0f,                    // 解析置信度
+    val clarificationNeeded: Boolean = false,        // 是否需要澄清
+    val clarificationHint: String = "",             // 澄清提示
+    val interactionType: String = ""                 // CHAT / CONSULT / ORDER / CLARIFICATION；缺省时由本地推断
 )
 
 @Serializable
@@ -65,9 +66,9 @@ data class EdictCommand(
 
 @Serializable
 data class NpcResponse(
-    val officerId: String,
-    val attitude: String,   // support / oppose / neutral / concerned
-    val text: String
+    val officerId: String = "",
+    val attitude: String = "neutral",   // support / oppose / neutral / concerned
+    val text: String = ""
 )
 
 // ══════════════════════════════════════════════
