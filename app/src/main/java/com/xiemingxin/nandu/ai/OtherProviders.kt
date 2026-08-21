@@ -3,13 +3,10 @@ package com.xiemingxin.nandu.ai
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -139,6 +136,11 @@ private object OpenAiCompatibleEngine {
         val accumulatedEdict: String
     )
 
+    private data class CourtConversationMemory(
+        val providerKey: String,
+        val transcript: String
+    )
+
     /**
      * 只保存在当前应用进程内，绝不写回玩家输入框。
      * 当一轮明确要求“补充圣意”时，下一次短句会自动带上这一段隐藏上下文。
@@ -146,6 +148,10 @@ private object OpenAiCompatibleEngine {
      */
     @Volatile
     private var pendingClarification: PendingClarification? = null
+
+    /** 御前闲聊/问策的短期连续上下文。只保留最近少量文本，不写存档、不改变 GameState。 */
+    @Volatile
+    private var courtConversationMemory: CourtConversationMemory? = null
 
     suspend fun parseEdict(
         apiKey: String,
@@ -161,14 +167,23 @@ private object OpenAiCompatibleEngine {
 
             val providerKey = "${baseUrl.trim()}|${model.trim()}"
             val pending = pendingClarification?.takeIf { it.providerKey == providerKey }
-            val modelUserPrompt = if (pending != null) {
-                """
-上一道未完圣意（仅作后台上下文，禁止原样复述给玩家）：${pending.accumulatedEdict}
-本次玩家原话：$edictText
-请先判断本句是否确实是在补充上一道圣意；若明显是新话题、闲谈、问策或一条新的完整命令，就按新话语分类，不要强行续接旧旨意。
-""".trimIndent()
-            } else {
-                "玩家原话：$edictText"
+            val rememberedConversation = courtConversationMemory
+                ?.takeIf { it.providerKey == providerKey }
+                ?.transcript
+                .orEmpty()
+
+            val modelUserPrompt = buildString {
+                if (rememberedConversation.isNotBlank()) {
+                    appendLine("御前此前连续对话（只作语境，不是新圣旨）：")
+                    appendLine(rememberedConversation)
+                }
+                if (pending != null) {
+                    appendLine("上一道未完圣意（仅作后台上下文，禁止原样复述给玩家）：${pending.accumulatedEdict}")
+                    appendLine("本次玩家原话：$edictText")
+                    append("请先判断本句是否确实是在补充上一道圣意；若明显是新话题、闲谈、问策或一条新的完整命令，就按新话语分类，不要强行续接旧旨意。")
+                } else {
+                    append("玩家原话：$edictText")
+                }
             }
 
             val rawText = requestText(
@@ -177,7 +192,8 @@ private object OpenAiCompatibleEngine {
                 model = model,
                 systemPrompt = buildEdictSystemPrompt(gameContext),
                 userPrompt = modelUserPrompt,
-                maxTokens = 900,
+                // 推理型中转常把一部分 token 用在 reasoning；900 很容易只剩“思考”没有最终正文。
+                maxTokens = 1500,
                 temperature = 0.08,
                 errorPrefix = errorPrefix
             )
@@ -194,7 +210,7 @@ private object OpenAiCompatibleEngine {
                     model = model,
                     systemPrompt = repairEdictSystemPrompt(),
                     userPrompt = "$modelUserPrompt\n上一轮模型输出：${AiJsonRecovery.compactDiagnostic(rawText, 900)}",
-                    maxTokens = 650,
+                    maxTokens = 1100,
                     temperature = 0.0,
                     errorPrefix = errorPrefix
                 )
@@ -208,6 +224,7 @@ private object OpenAiCompatibleEngine {
 
             val normalized = normalizeEdictResult(decoded, edictText, gameContext)
             updateClarificationMemory(providerKey, pending, edictText, normalized)
+            updateConversationMemory(providerKey, edictText, normalized)
             normalized
         }
     }
@@ -229,6 +246,30 @@ private object OpenAiCompatibleEngine {
         } else {
             pendingClarification = null
         }
+    }
+
+    private fun updateConversationMemory(
+        providerKey: String,
+        currentUserText: String,
+        result: EdictResult
+    ) {
+        val type = result.interactionType.uppercase()
+        if (type !in setOf("CHAT", "CONSULT")) {
+            // 一旦进入正式下旨，上一段闲聊不再无限污染后续命令。
+            if (!result.clarificationNeeded) courtConversationMemory = null
+            return
+        }
+        val previous = courtConversationMemory
+            ?.takeIf { it.providerKey == providerKey }
+            ?.transcript
+            .orEmpty()
+        val replies = result.npcResponses.joinToString("\n") { "${it.officerId}：${it.text}" }
+        val next = buildString {
+            if (previous.isNotBlank()) append(previous).append('\n')
+            append("陛下：").append(currentUserText)
+            if (replies.isNotBlank()) append('\n').append(replies)
+        }.takeLast(2600)
+        courtConversationMemory = CourtConversationMemory(providerKey, next)
     }
 
     suspend fun planWorldTurn(
@@ -267,11 +308,6 @@ private object OpenAiCompatibleEngine {
         userText: String,
         context: GameContext
     ): EdictResult {
-        val knownOfficerIds = context.availableOfficers.map { it.id }.toSet()
-        val validResponses = result.npcResponses
-            .filter { it.officerId in knownOfficerIds && it.text.isNotBlank() }
-            .take(4)
-
         val validCommands = result.commands
             .filter { EdictCommand.isValid(it.type) }
             .take(8)
@@ -281,8 +317,29 @@ private object OpenAiCompatibleEngine {
             else when {
                 validCommands.isNotEmpty() -> "ORDER"
                 result.clarificationNeeded -> "CLARIFICATION"
-                userText.contains("？") || userText.contains("?") || userText.contains("如何") || userText.contains("怎么看") -> "CONSULT"
+                userText.contains("？") || userText.contains("?") || userText.contains("如何") ||
+                    userText.contains("怎么看") || userText.contains("多少") || userText.contains("多久") -> "CONSULT"
                 else -> "CHAT"
+            }
+        }
+
+        val knownOfficerIds = context.availableOfficers.map { it.id }.toSet()
+        val inCourtIds = context.availableOfficers.filter { it.status == "IN_COURT" }.map { it.id }.toSet()
+        val allowedResponseIds = if (normalizedType in setOf("CHAT", "CONSULT")) inCourtIds else knownOfficerIds
+        val validResponses = result.npcResponses
+            .filter { it.officerId in allowedResponseIds && it.text.isNotBlank() }
+            .take(4)
+            .toMutableList()
+
+        // P0：皇帝明明在问话，殿里也明明站着官员，却因为小模型漏了 npcResponses 而全员装死。
+        // 本地世界必须兜底；AI 掉链子时至少让真实在殿人物据当前 GameContext 回一句。
+        if (normalizedType in setOf("CHAT", "CONSULT") && validResponses.isEmpty()) {
+            chooseFallbackCourtOfficer(userText, context)?.let { officer ->
+                validResponses += NpcResponse(
+                    officerId = officer.id,
+                    attitude = "neutral",
+                    text = localCourtFallback(userText, context, normalizedType)
+                )
             }
         }
 
@@ -306,6 +363,38 @@ private object OpenAiCompatibleEngine {
             clarificationNeeded = shouldClarify,
             clarificationHint = if (shouldClarify) result.clarificationHint else ""
         )
+    }
+
+    private fun chooseFallbackCourtOfficer(userText: String, context: GameContext): OfficerContext? {
+        val inCourt = context.availableOfficers.filter { it.status == "IN_COURT" }
+        if (inCourt.isEmpty()) return null
+        return inCourt.firstOrNull { userText.contains(it.name) }
+            ?: when {
+                userText.contains("兵") || userText.contains("战") || userText.contains("金") || userText.contains("前线") ->
+                    inCourt.firstOrNull { it.commandSummary.contains("统帅") || it.commandSummary.contains("猛将") }
+                userText.contains("钱") || userText.contains("粮") || userText.contains("国库") || userText.contains("民") ->
+                    inCourt.firstOrNull { it.commandSummary.contains("文臣") || it.commandSummary.contains("谋士") }
+                else -> null
+            }
+            ?: inCourt.first()
+    }
+
+    private fun localCourtFallback(
+        userText: String,
+        context: GameContext,
+        interactionType: String
+    ): String = when {
+        userText.contains("国库") || userText.contains("钱") || userText.contains("军费") ->
+            "臣在。眼下国库尚有${context.gold}贯、粮草${context.grain}石；若问还能支应多久，还须把各路军费、转运与本旬支出一并核算，臣请有司即刻具数奏明。"
+        userText.contains("粮") ->
+            "臣在。眼下粮草约${context.grain}石，能否久支还要看前线耗粮和漕运是否畅通，不能只看府库总数。"
+        userText.contains("金") || userText.contains("前线") || userText.contains("战") || userText.contains("兵") ->
+            "臣在。眼下金国威胁为${context.jinThreat}，军心${context.troopMorale}。若要进退，须把各军所在、粮道与可用兵力一并核清，臣愿据实再奏。"
+        userText.contains("你们") || userText.contains("诸卿") || userText.contains("话呢") || userText.contains("在吗") ->
+            "臣在。陛下垂询，臣不敢不答，请陛下发问。"
+        interactionType == "CONSULT" ->
+            "臣在。陛下所问，臣请据眼下实情直陈；若要定策，可从军情、钱粮与朝局三端逐项议定。"
+        else -> "臣在。陛下有话，臣听着。"
     }
 
     private fun requestText(
@@ -369,48 +458,14 @@ private object OpenAiCompatibleEngine {
             val parsed = runCatching { json.parseToJsonElement(responseText) as? JsonObject }
                 .getOrNull()
                 ?: throw IllegalStateException("$errorPrefix 已响应，但接口返回格式不兼容 OpenAI /chat/completions。")
-            return extractAssistantText(parsed)
-                ?: throw IllegalStateException("$errorPrefix 已响应，但没有找到模型正文。")
+            return AiResponseTextExtractor.extract(parsed)
+                ?: throw IllegalStateException("$errorPrefix 已响应，但没有找到模型正文。若这是推理模型，请尝试更大的输出上限或非推理型号。")
         }
     }
 
     private fun normalizeChatUrl(baseUrl: String): String {
         val clean = baseUrl.trim().trimEnd('/')
         return if (clean.endsWith("/chat/completions")) clean else "$clean/chat/completions"
-    }
-
-    private fun extractAssistantText(root: JsonObject): String? {
-        val choices = root["choices"] as? JsonArray
-        val choice = choices?.firstOrNull() as? JsonObject
-        val message = choice?.get("message") as? JsonObject
-        val content = message?.get("content")
-
-        extractTextFromContent(content)?.takeIf { it.isNotBlank() }?.let { return it }
-
-        (choice?.get("text") as? JsonPrimitive)?.contentOrNull
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        (root["output_text"] as? JsonPrimitive)?.contentOrNull
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
-
-        return null
-    }
-
-    private fun extractTextFromContent(content: JsonElement?): String? = when (content) {
-        is JsonPrimitive -> content.contentOrNull
-        is JsonArray -> content.mapNotNull { part ->
-            when (part) {
-                is JsonPrimitive -> part.contentOrNull
-                is JsonObject -> {
-                    (part["text"] as? JsonPrimitive)?.contentOrNull
-                        ?: (part["content"] as? JsonPrimitive)?.contentOrNull
-                }
-                else -> null
-            }
-        }.joinToString("")
-        else -> null
     }
 
     private fun buildWorldSystemPrompt(context: WorldTurnContext): String {
@@ -449,12 +504,20 @@ private object OpenAiCompatibleEngine {
     }
 
     private fun buildEdictSystemPrompt(context: GameContext): String {
-        val courtOfficers = context.availableOfficers
-            .filter { it.status == "IN_COURT" || it.status == "DEPLOYED" }
+        val inCourtOfficers = context.availableOfficers
+            .filter { it.status == "IN_COURT" }
             .joinToString("、") { o ->
                 val role = if (o.currentRole.isNotBlank() && o.currentRole != "御前待命") " [${o.currentRole}]" else ""
                 "${o.name}(${o.id}$role,${o.commandSummary})"
             }
+            .ifBlank { "（本轮无实名官员实际在殿）" }
+        val remoteOfficers = context.availableOfficers
+            .filter { it.status == "DEPLOYED" }
+            .joinToString("、") { o ->
+                val role = if (o.currentRole.isNotBlank()) " [${o.currentRole}]" else ""
+                "${o.name}(${o.id}$role)"
+            }
+            .ifBlank { "（无）" }
         val leadList = if (context.pendingRecruitLeads.isNotEmpty())
             "待征辟：${context.pendingRecruitLeads.joinToString("、")}" else ""
         val cityList = context.activeCities.filter { it.owner == "song" }
@@ -469,26 +532,28 @@ private object OpenAiCompatibleEngine {
 你是《南渡无悔》的御前语言理解层。你的任务不是把玩家每句话都强行变成圣旨，而是先判断玩家正在做什么，再给本地规则一个很小、很稳定的结构化结果。
 
 interactionType 只能四选一：
-CHAT：感叹、闲谈、情绪表达，例如“天下大乱啊”。commands 必须为空；可让1-2名当前真实在场人物自然接话，也可以无人接话。
-CONSULT：问策、询问局势、点名问某位臣子。commands 必须为空；只让当前真实可用人物回答。
-ORDER：明确要求执行军政、人事、财政、军事动作。仅此类型允许 commands。
+CHAT：感叹、闲谈、情绪表达。commands 必须为空。若玩家明显向殿中人说话且“实际在殿官员”非空，必须至少让1人自然接话，不得让满朝集体沉默。
+CONSULT：问策、询问局势、点名问某位臣子。commands 必须为空。只要“实际在殿官员”非空，必须有1-3名在殿官员回答；玩家点名且该人在殿时优先由其回答。
+ORDER：明确要求执行军政、人事、财政、军事动作。仅此类型允许 commands；臣子可有意见，也可不表态。
 CLARIFICATION：对上一道未完整旨意补充兵力、军费、目标、期限等。若当前上下文无法确定上一道旨意，不要擅自拼接命令，可要求澄清。
 
 当前局势：${context.era}，第${context.currentTurn}旬
 国库：${context.gold}贯；粮草：${context.grain}石；军心：${context.troopMorale}；朝堂稳定：${context.courtStability}；金国威胁：${context.jinThreat}
-当前可用人物：$courtOfficers
+实际在殿官员：$inCourtOfficers
+外任/领军人物（只能作为奏札、军报背景，不得伪装成肉身站在殿里）：$remoteOfficers
 $leadList
 宋方城池：$cityList
 我方军团：$armyList
 
-AI只理解语言，不得修改世界数字，不得决定胜负，不得让不在当前可用人物列表中的历史人物发言。
+AI只理解语言，不得修改世界数字，不得决定胜负，不得让名单之外的人物凭空发言。
+CHAT / CONSULT 的 npcResponses 只能使用“实际在殿官员”的 officerId；外任人物除非玩家明确引用其既有奏札，否则不要生成即时口头回答。
 命令白名单：dispatch_army、assign_officer、repair_city、raise_grain、suppress_officer、reward_officer、punish_officer、appoint_governor、appoint_garrison、dismiss_officer、transfer_officer、recruit_officer、form_army、move_army、disband_army、change_army_commander、resupply_army、attack_city、retreat_army、move_capital。
 
 输出必须从 { 开始，以与之匹配的 } 结束。禁止Markdown代码块，禁止解释，禁止“我们需要回答用户”等分析，禁止前言后记。
-字段允许为空；不要为了填字段而编造内容。不要强迫每轮都让大臣表态。
+字段允许为空；不要为了填字段而编造人物、军队、城池或数值。
 
 JSON：
-{"interactionType":"CHAT/CONSULT/ORDER/CLARIFICATION","summary":"简短理解","commands":[],"npcResponses":[],"riskTags":[],"confidence":0.9,"clarificationNeeded":false,"clarificationHint":""}
+{"interactionType":"CHAT/CONSULT/ORDER/CLARIFICATION","summary":"简短理解","commands":[],"npcResponses":[{"officerId":"真实id","attitude":"support/oppose/neutral/concerned","text":"自然奏对"}],"riskTags":[],"confidence":0.9,"clarificationNeeded":false,"clarificationHint":""}
 """.trimIndent()
     }
 
