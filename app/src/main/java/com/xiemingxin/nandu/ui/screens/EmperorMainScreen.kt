@@ -32,6 +32,7 @@ import com.xiemingxin.nandu.game.playerFaction
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
 import com.xiemingxin.nandu.ui.components.AssetImage
+import com.xiemingxin.nandu.ui.components.CharacterDetailPanelWithState
 import com.xiemingxin.nandu.ui.components.StoryEventCard
 import com.xiemingxin.nandu.ui.theme.*
 import androidx.compose.ui.window.Dialog
@@ -223,6 +224,7 @@ fun IdleView(
     isLoading: Boolean
 ) {
     val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
+    var inspectedOfficer by remember { mutableStateOf<Officer?>(null) }
     Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         LazyColumn(
@@ -230,7 +232,16 @@ fun IdleView(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "群臣列班 · 御笔候旨") }
-            item { CourtOfficerRow(state = state) }
+            item { CourtOfficerRow(state = state, onOfficerClick = { inspectedOfficer = it }) }
+            inspectedOfficer?.let { officer ->
+                item(key = "officer_detail_" + officer.id) {
+                    CharacterDetailPanelWithState(
+                        officer = officer,
+                        gameState = state,
+                        onDismiss = { inspectedOfficer = null }
+                    )
+                }
+            }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -389,7 +400,7 @@ private fun CourtStageHeader(state: GameState, title: String, subtitle: String) 
  * 外任、领军、俘虏、未到时代、罢黜、赶路中的人物一律不能肉身列班。
  */
 @Composable
-private fun CourtOfficerRow(state: GameState) {
+private fun CourtOfficerRow(state: GameState, onOfficerClick: (Officer) -> Unit = {}) {
     val present = state.officers.filter {
         CharacterAppearanceSystem.canAppearInPalace(state, it.id, PalaceIds.CHUIGONG)
     }
@@ -398,13 +409,14 @@ private fun CourtOfficerRow(state: GameState) {
         return
     }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(present) { officer -> OfficerMiniCard(officer = officer) }
+        items(present) { officer -> OfficerMiniCard(officer = officer, onClick = { onOfficerClick(officer) }) }
     }
 }
 
 @Composable
-private fun OfficerMiniCard(officer: Officer) {
+private fun OfficerMiniCard(officer: Officer, onClick: () -> Unit = {}) {
     Card(
+        onClick = onClick,
         modifier = Modifier.width(136.dp).height(100.dp),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xD51E1508)),
