@@ -12,6 +12,7 @@ on:
       - main
       - test/art-asset-integration
       - fix/stab-005-video-player-compat
+      - integration/v1.6.2-preacceptance
   workflow_dispatch:
 
 jobs:
