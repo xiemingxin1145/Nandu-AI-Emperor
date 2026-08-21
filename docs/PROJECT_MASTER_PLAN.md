@@ -8,7 +8,7 @@
 当前可测试版本：**V1.6.1 RC / versionCode 28**  
 当前稳定基线：`release/v1.6.1`  
 当前主集成线：`fix/stab-005-video-player-compat`（PR #58，基于 STAB-004）  
-当前预验收集成线：`integration/v1.6.2-preacceptance`（已接入 COURT-001 / ROSTER-001，等待 STAB-006）
+当前预验收集成线：`integration/v1.6.2-preacceptance`（PR #59；COURT-001 / ROSTER-001 已接入并通过双 CI，等待 STAB-006）
 并行已验证分支：`feat/court-001-crowd-wiring`（PR #54，已并入预验收线，尚未合 main）
 并行审计分支：`docs/roster-001-expansion-audit`（Claude，ROSTER-001 审计文档已并入预验收线）
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
@@ -430,11 +430,19 @@ AI 可生成建议、奏议、计划、外交措辞和候选行动；最终数�
 交付：`docs/ROSTER_EXPANSION_AUDIT.md`，盘点当前 12 名正式 Officer、6 名有立绘无实体人物、金国将领缺口，并提出 35 名候选人物的分层规划。仅整合文档，未把候选人物写入正式 Officer 数据；`V162PreacceptanceRegressionTest` 固定验证正式人物仍为 12 人。
 
 ## V162-INTEGRATION-PREP — V1.6.2 集成与 Smoke Test 准备
-状态：`IN_PROGRESS`（Codex，`integration/v1.6.2-preacceptance`；不计入 37 项主线）
+状态：`DONE`（Codex，PR #59；预验收准备完成，不代表 STAB-007 已完成）
 范围：以 STAB-005 为基线整合 COURT-001 与 ROSTER-001 审计；建立 `docs/V162_SMOKE_TEST_MATRIX.md`、`docs/V162_PREACCEPTANCE_RISKS.md`、独立预验收 JVM 测试与源资源 / APK 审计脚本。
 边界：不修改 STAB-006 历史事件核心，不修改版本号和签名，不把 STAB-007 提前标 DONE，不合 main。
 新增发现：正式剧情 CG 曾残留 `VideoView`，已统一迁移到 Media3；8 首正式 BGM 未入仓库、主菜单设置被提前返回挡住、亡国判定仍固定杭州，详见风险文档。
 完成条件：独立 Draft PR、两套 CI 通过、54 张朝堂图片与应天图进入 APK、51 条 V3 视频为 H.264/yuv420p/无内嵌音轨、固定测试签名保持不变。
+完成记录：
+- Draft PR：#59 → `fix/stab-005-video-player-compat`；集成提交：`659e7845129338f4ebcfdd5406ea83162281a05c`。
+- 两套验证：**Android Build #226 PASS；Build Nandu Debug APK #738 PASS；全量 unit tests PASS；APK 构建 PASS；固定 V1.6.1 测试签名 PASS。**
+- APK 实测：**朝堂素材 54/54 SHA-256 一致；应天府专属图存在；V3 视频 H.264 51/51、yuv420p 51/51、内嵌音轨 0/51；序章旁白 6/6。**
+- 明确发布阻塞：正式已审核 BGM **0/8**，不得把当前 CI APK 当成完整有音乐的 V1.6.2 交付。
+- 剩余风险：主菜单设置入口不可达、亡国判定仍把杭州写死为首都、军务返回空回调、主菜单 Demo 文案、系统返回手势待真机验证。
+- Claude 的 STAB-006 已出现 Draft PR #60；截至本次交接目标分支仍为 `release/v1.6.1` 且未见 CI，应先确认真实基线和验证结果，再与预验收线手工合流。
+- **STAB-006 仍为唯一 NEXT；STAB-007 仍为 TODO；V1.6.2 进度严格保持 5/8。**
 
 ---
 
@@ -522,4 +530,6 @@ APK/真机结果：
 - 发现正式剧情 CG 仍在使用 VideoView，已迁移至统一 Media3 播放器并添加静态 CG 保底；
 - 建立正式入口 Smoke Test 矩阵、发布风险报告、54 张朝堂素材 SHA 校验、应天首都与实际 APK 视频审计；
 - 记录正式 BGM 8/8 缺失、主菜单设置不可达、杭州被错误当成亡国判定首都等真实阻塞；
+- Draft PR #59 经 Android Build #226 / Debug APK #738 验证通过，APK 内 54 张朝堂素材、51 条静音 H.264 视频与 6 条旁白全部实测存在。
+- 明确记录正式 BGM 0/8、主菜单设置与首都亡国判定等发布阻塞，不允许用 CI 全绿冒充完整真机验收。
 - STAB-006 保持当前唯一 NEXT，里程碑继续保持 5/8；等待 Claude 完成后再进入 STAB-007。
