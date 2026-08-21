@@ -31,6 +31,8 @@ EXPECTED_MAP_DECORATIONS = 10
 EXPECTED_ACTIVE_MAP_DECORATIONS = 5
 EXPECTED_MAP_BACKGROUNDS = 6
 EXPECTED_REGISTERED_CITY_BACKGROUNDS = 31
+EXPECTED_SEASONAL_PRESENTATIONS = 4
+BGM_CANDIDATE_MANIFEST = ROOT / "docs/audio/BGM_V162_DEVICE_CANDIDATE_SHA256.txt"
 
 
 class AuditFailure(RuntimeError):
@@ -134,6 +136,27 @@ def source_audit() -> None:
     require("AssetVideoSurface(" in cg_dialog, "story CG dialog bypasses the shared Media3 asset player")
     require("ArtResourceRegistry.Fallback.event" in cg_dialog, "story CG dialog has no static-image fallback")
 
+    seasonal_videos = {
+        "spring": "V04_season_spring.mp4",
+        "summer": "V05_season_summer.mp4",
+        "autumn": "V06_season_autumn.mp4",
+        "winter": "V07_season_winter.mp4",
+    }
+    for season, filename in seasonal_videos.items():
+        require((V3_ROOT / "seasons" / filename).is_file(), f"seasonal video is missing: {filename}")
+        require((ROOT / "assets/ui_textures" / f"season_{season}_bg.webp").is_file(), f"seasonal static CG is missing: {season}")
+    world_overlay = (JAVA_ROOT / "com/xiemingxin/nandu/ui/components/WorldTurnReplayOverlay.kt").read_text(encoding="utf-8")
+    world_policy = (JAVA_ROOT / "com/xiemingxin/nandu/game/WorldPresentationPolicy.kt").read_text(encoding="utf-8")
+    court_screen = (JAVA_ROOT / "com/xiemingxin/nandu/ui/screens/EmperorMainScreen.kt").read_text(encoding="utf-8")
+    view_model = (JAVA_ROOT / "com/xiemingxin/nandu/ui/EmperorViewModel.kt").read_text(encoding="utf-8")
+    require("AssetVideoSurface(" in world_overlay and "fallbackPath =" in world_overlay, "seasonal presentation does not preserve Media3 and static CG fallback")
+    require("if (before.season == after.season) return null" in world_policy, "seasonal video can replay without an actual season transition")
+    require("season = nextCalendar.season()" in view_model, "world turn does not synchronize actual season with its calendar")
+    require("decision.canExecute(result)" in court_screen and "current.imperialDecision.canExecute(edictResult)" in view_model, "court decision has no UI and execution-level approval guard")
+    require("综合诸议" in court_screen and "朱批准行" in court_screen and "补充圣意" in court_screen, "formal court decision actions are missing")
+    require("WorldPresentationPolicy.commandDescription(state, cmd)" in court_screen, "court command preview may expose raw internal identifiers")
+    require("WorldTurnReplayOverlay(" in map_screen and "SeasonalTransitionOverlay(" in map_screen, "formal map does not show actual turn replay and season transition")
+
     main_activity = (JAVA_ROOT / "com/xiemingxin/nandu/MainActivity.kt").read_text(encoding="utf-8")
     main_menu = (JAVA_ROOT / "com/xiemingxin/nandu/ui/screens/MainMenuScreen.kt").read_text(encoding="utf-8")
     navigation = (JAVA_ROOT / "com/xiemingxin/nandu/ui/AppNavigationPolicy.kt").read_text(encoding="utf-8")
@@ -168,6 +191,19 @@ def source_audit() -> None:
         require(str(audio_streams[0].get("sample_rate")) == "48000", f"approved BGM is not 48 kHz: {name}")
         require(audio_streams[0].get("channels") == 2, f"approved BGM is not stereo: {name}")
 
+    if len(present_bgm) == EXPECTED_APPROVED_BGM and BGM_CANDIDATE_MANIFEST.is_file():
+        candidate_rows = {
+            filename: digest
+            for digest, filename in re.findall(
+                r"^([a-f0-9]{64})\s+(bgm_[^\s]+\.ogg)$",
+                BGM_CANDIDATE_MANIFEST.read_text(encoding="utf-8"),
+                re.MULTILINE,
+            )
+        }
+        require(set(candidate_rows) == set(approved_bgm), "BGM candidate SHA-256 manifest does not cover all eight registered slots")
+        for filename, digest in candidate_rows.items():
+            require(sha256_bytes((APP_ASSETS / "audio/bgm" / filename).read_bytes()) == digest, f"BGM candidate checksum changed: {filename}")
+
     matrix = (ROOT / "docs/V162_SMOKE_TEST_MATRIX.md").read_text(encoding="utf-8")
     smoke_rows = [line for line in matrix.splitlines() if re.match(r"^\| (?:MENU|PRO|COURT|MAP|PEOPLE|GOV|MIL|HIST|MEDIA|AI|SAVE|NAV)-\d+ \|", line)]
     require(len(smoke_rows) == EXPECTED_SMOKE_ROWS, f"expected 49 formal smoke-test rows, found {len(smoke_rows)}")
@@ -188,11 +224,12 @@ def source_audit() -> None:
     print(f"MAP_DECORATIONS: available={len(decoration_files)}/{EXPECTED_MAP_DECORATIONS}; safely_active={len(active_decorations)}")
     print(f"MAP_BACKGROUNDS: {len(background_files)}/{EXPECTED_MAP_BACKGROUNDS}; CITY_BACKGROUNDS: {len(city_backgrounds)}/{EXPECTED_REGISTERED_CITY_BACKGROUNDS}")
     print("FORMAL_VIDEO: one Media3 implementation; story CG shares AssetVideoSurface; VideoView=0")
+    print(f"WORLD_PRESENTATION: council_selection=guarded; state_backed_replay=enabled; seasonal_video={len(seasonal_videos)}/{EXPECTED_SEASONAL_PRESENTATIONS}; seasonal_cg={len(seasonal_videos)}/{EXPECTED_SEASONAL_PRESENTATIONS}")
     print("FORMAL_ROUTES: main-menu settings, military return, system back and state-derived capital verified")
     print(f"V3_SOURCE_VIDEOS: {len(videos)}")
     print(f"PROLOGUE_NARRATION: {len(voices)}/{EXPECTED_PROLOGUE_VOICES}")
     print("SMOKE_MATRIX: " + "; ".join(f"{status}={count}" for status, count in smoke_counts.items()))
-    print(f"APPROVED_BGM: {len(present_bgm)}/{EXPECTED_APPROVED_BGM}")
+    print(f"BGM_REGISTRY_ASSETS: {len(present_bgm)}/{EXPECTED_APPROVED_BGM}; approval=DEVICE_REQUIRED")
     if missing_bgm:
         print("::warning::Approved BGM binaries are absent from the repository and CI APK: " + ", ".join(missing_bgm))
 
@@ -236,6 +273,10 @@ def apk_audit(apk_path: Path) -> None:
 
         videos = sorted(member for member in members if member.startswith("assets/videos/") and member.endswith(".mp4"))
         require(len(videos) == EXPECTED_V3_VIDEOS, f"APK contains {len(videos)} V3 videos instead of 51")
+        seasonal_video_members = sorted(member for member in videos if member.startswith("assets/videos/seasons/"))
+        seasonal_cg_members = sorted(member for member in members if re.fullmatch(r"assets/ui_textures/season_(?:spring|summer|autumn|winter)_bg\.webp", member))
+        require(len(seasonal_video_members) == EXPECTED_SEASONAL_PRESENTATIONS, f"APK contains {len(seasonal_video_members)} seasonal videos instead of four")
+        require(len(seasonal_cg_members) == EXPECTED_SEASONAL_PRESENTATIONS, f"APK contains {len(seasonal_cg_members)} seasonal CG backgrounds instead of four")
         with tempfile.TemporaryDirectory(prefix="nandu-v162-video-audit-") as scratch:
             probe_path = Path(scratch) / "video.mp4"
             for member in videos:
@@ -255,8 +296,9 @@ def apk_audit(apk_path: Path) -> None:
         print(f"APK_MAP_DECORATIONS: {len(apk_map_decorations)}/{EXPECTED_MAP_DECORATIONS}; active={EXPECTED_ACTIVE_MAP_DECORATIONS}")
         print(f"APK_MAP_BACKGROUNDS: {len(apk_map_backgrounds)}/{EXPECTED_MAP_BACKGROUNDS}")
         print(f"APK_V3_VIDEO: h264={len(videos)}/{EXPECTED_V3_VIDEOS}; yuv420p={len(videos)}/{EXPECTED_V3_VIDEOS}; embedded_audio=0")
+        print(f"APK_SEASONAL_VIDEO: {len(seasonal_video_members)}/{EXPECTED_SEASONAL_PRESENTATIONS}; APK_SEASONAL_CG: {len(seasonal_cg_members)}/{EXPECTED_SEASONAL_PRESENTATIONS}")
         print(f"APK_PROLOGUE_NARRATION: {len(voices)}/{EXPECTED_PROLOGUE_VOICES}")
-        print(f"APK_APPROVED_BGM: {len(approved_bgm)}/{EXPECTED_APPROVED_BGM}")
+        print(f"APK_BGM_REGISTRY_ASSETS: {len(approved_bgm)}/{EXPECTED_APPROVED_BGM}; approval=DEVICE_REQUIRED")
         if len(approved_bgm) != EXPECTED_APPROVED_BGM:
             print(f"::warning::APK contains {len(approved_bgm)}/{EXPECTED_APPROVED_BGM} approved BGM tracks; missing original audio remains a release blocker")
 

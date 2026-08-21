@@ -13,7 +13,7 @@
 | 编号 | 等级 | 发现位置 | 事实与影响 | 当前状态 / 建议负责人 |
 | --- | --- | --- | --- | --- |
 | RISK-001 | P1 / RESOLVED IN FINAL INTEGRATION | `MainActivity.kt` / `AppNavigationPolicy.kt` | 主菜单路由现在显式避开 `showSettings = true`，设置页能从主菜单和游戏中进入；返回只关闭当前设置层。 | 已修复；`AppNavigationPolicyTest` 覆盖主菜单 -> 设置 -> 主菜单。实际点击仍需真机。 |
-| RISK-002 | P0 / RELEASE BLOCKER | `AudioResourceRegistry.kt` 与 `app/src/main/assets/audio/bgm/` | 8 首审核通过的正式 OGG 已注册，但仓库 BGM 目录只有 README，8/8 二进制均不存在。以仓库直接构建的 CI APK 因此没有正式 BGM。此前可试听版本依赖构建后外部注入，不能被当前 CI 重现。 | 未修改；STAB-008 前恢复**相同已验收音频**，不得回灌旧污染 BGM。审计脚本与 APK 步骤持续输出明确 warning。 |
+| RISK-002 | P0 / WAITING FOR DEVICE AUDIO APPROVAL | `AudioResourceRegistry.kt` 与 `app/src/main/assets/audio/bgm/` | 已恢复 8/8 来自用户原始音乐的正式槽位候选 OGG，并附 `docs/audio/BGM_V162_DEVICE_CANDIDATE_SHA256.txt`；这些文件技术格式合规，但不是旧版逐字节归档，尚未完成玩家真机试听。 | 音频文件缺失已解除，最终审美与场景适配尚未验收；`MEDIA-03` 在用户确认前继续 `BLOCKED`，禁止把候选文件冒充已批准正式配乐。 |
 | RISK-003 | P0 / RESOLVED IN FINAL INTEGRATION | `VictoryJudge.kt` | 亡国判定改为依据玩家势力当前 `capitalCityId` 与真实 `City.isCapital`，不再把 1127 年杭州固定当首都；结局文案改为“行在失守”。 | 已修复；5 组回归覆盖杭州失守不亡国、应天失守亡国、迁都和状态同步。 |
 | RISK-004 | P1 / RESOLVED IN FINAL INTEGRATION | `MainActivity.kt` 军务入口 | 军务页左上返回已接回真实皇宫页面，不再传入空回调。 | 已修复；源码守卫与统一返回策略回归均覆盖。实际点击仍需真机。 |
 | RISK-005 | P1 / DEVICE_REQUIRED | 全部二级 Compose 页面 | 统一 Compose `BackHandler` 已按设置、序章、内景、宫殿、战役、人物列表和主导航分层处理；天命绘卷也有独立返回处理。 | 代码和 6 组 JVM 路由回归已通过静态检查；Android 实体返回键和手势仍必须由真机逐个验证。 |
@@ -24,8 +24,11 @@
 | RISK-010 | P1 / RESOLVED IN PREP | `PROJECT_MASTER_PLAN.md` | cherry-pick COURT-001 后，文档出现两条同名任务：一处 `IN_PROGRESS`，另一处 `DONE`，容易误导其他 AI 重做已完成工作。 | 已手工合并为唯一 `DONE` 记录，保留 STAB-001～005、COURT、ROSTER 与预验收全部交接信息。 |
 | RISK-011 | P1 / RESOLVED BY ART-HOTFIX-001 | `CityVisualRegistry.kt` / `MapScreen.kt` | 15 条重点城市地图图标路径和动态回退规则均漏了 `icons/`；地图正式界面还绕开 `mapIconPath`，动态城市背景也会漏掉鄂州、扬州这类已注册专属图。 | 已修复；16/16 图标、24 个别名、全部地图节点、动态势力首都图标、31 个城市背景及 APK 素材均有自动守卫。 |
 | RISK-012 | P2 / FOLLOW-UP | 地图旧素材池与专属城池图 | 10 张地图装饰实际是半透明方框标记，不能把 `fog_overlay` 当真实全屏雾层；开局 36 座实际城市中另有 18 座尚无正式专属背景。 | 已安全接入选中框、前线预警、商路标记、宋军旗和金军旗；雾层、山河标签、区域牌、路线箭头暂缓，未注册城市保留既有通用背景，等待后续专项处理。 |
+| RISK-013 | P1 / RESOLVED BY WORLD-UX-001 | `EmperorMainScreen.kt` / `EmperorViewModel.kt` | 群臣奏议此前只能浏览，玩家不知道实际采纳谁；需要澄清时仍可直接执行，命令预览还直接显示人物/城池内部 ID。 | 已接入臣议单选、多选、综合、保留上下文补充圣意和朱批双重门控；人物、军团、城市与命令全部转换为玩家可读中文。实际点击仍需真机。 |
+| RISK-014 | P1 / RESOLVED BY WORLD-UX-001 | 世界回合状态 / `MapScreen.kt` / 四季演出 | 天下回合此前只给文字报告，独立推进历法时没有同步刷新季节，导致已存在的 4 组四季视频/CG 无法可靠进入正式流程。 | 已基于回合前后真实军团、补给、城池变化生成可跳过地图推演；仅实际季节切换时播放静音 Media3 视频，四张静态季节 CG 保底，不伪造不存在路线。 |
+| RISK-015 | P1 / WAITING FOR DELEGATION-001 | 宋军 AI 授权执行 | 本轮只建立皇帝裁决和天下推演的展示层；宋军在没有底层 `Imperial Mandate` 授权执行器之前仍不会自动募兵、筹粮或奉旨调动。 | 等待 Claude 独立 `DELEGATION-001` 分支交付后，由集成负责人对接真实授权、预算、执行结果与回放；不得在 UI 中编造自动治理结果。 |
 
-## BGM 缺失清单
+## BGM 待真机试听清单
 
 ```text
 audio/bgm/bgm_main_menu.ogg
@@ -38,7 +41,7 @@ audio/bgm/bgm_linan_loop.ogg
 audio/bgm/bgm_military_camp_loop.ogg
 ```
 
-这些文件不是“允许为空的 pending BGM 槽位”。它们已被主菜单、皇宫、地图、城池与军务正式路由引用，缺失必须作为真实发布阻塞记录。
+上述 8 个正式注册槽位现在已有用户来源的候选 OGG，且 SHA-256 清单已入仓；由于其与旧版归档并非逐字节一致，是否通过仍取决于用户在真实手机逐场景试听，不能根据格式检查直接宣布批准。
 
 ## 本分支保护边界
 
@@ -67,8 +70,8 @@ app/build.gradle.kts 中的 versionCode / versionName / signingConfigs
 
 ## STAB-008 之前仍需完成
 
-1. 找回 8 首此前人工验收通过的原始正式 OGG；目前仓库和项目文件中均没有这些音乐，状态真实为 **0/8 BLOCKED**。
-2. 重新核对 OGG Vorbis / 48 kHz / stereo、注册表命中、真实 APK 入包和各场景试听，不允许注入旧污染音频或空文件。
+1. 对现已恢复的 **8/8 用户来源 BGM 候选**完成真实手机试听，确认主菜单、皇宫、地图与军务等场景适配；确认前继续视为人工验收阻塞。
+2. 重新核对 OGG Vorbis / 48 kHz / stereo、SHA-256 候选清单、注册表命中、真实 APK 入包和各场景试听，不允许注入旧污染音频或空文件。
 3. 由真实 Android 手机完成其余 48 项入口交互验收，以及 BGM 恢复后的第 49 项。
 4. 检查 Android 返回键 / 手势、视频硬件解码、序章前后幕、旁白切换、真实模型中转与存档导入导出。
 5. STAB-007 全部通过前保持 `IN_PROGRESS` 与 **6/8**；不要开启 STAB-008、升级 versionCode 或合 main。

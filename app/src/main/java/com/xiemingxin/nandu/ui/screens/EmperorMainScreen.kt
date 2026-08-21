@@ -24,12 +24,14 @@ import com.xiemingxin.nandu.game.ArtResourceRegistry
 import com.xiemingxin.nandu.game.CharacterAppearanceSystem
 import com.xiemingxin.nandu.game.CharacterStateSource
 import com.xiemingxin.nandu.game.GameState
+import com.xiemingxin.nandu.game.ImperialDecision
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.PalaceIds
 import com.xiemingxin.nandu.game.PalaceRegistry
 import com.xiemingxin.nandu.game.controlledCityCount
 import com.xiemingxin.nandu.game.garrisonTroopsOf
 import com.xiemingxin.nandu.game.playerFaction
+import com.xiemingxin.nandu.game.WorldPresentationPolicy
 import com.xiemingxin.nandu.ui.GamePhase
 import com.xiemingxin.nandu.ui.UiState
 import com.xiemingxin.nandu.ui.components.AssetImage
@@ -52,6 +54,9 @@ fun EmperorMainScreen(
     onSubmitEdict: (String) -> Unit,
     onConfirmEdict: (String) -> Unit,
     onCancelEdict: () -> Unit,
+    onAmendEdict: (String) -> Unit,
+    onToggleCouncilOpinion: (String) -> Unit,
+    onSynthesizeCouncilOpinions: () -> Unit,
     onDismissResult: () -> Unit,
     onAdvanceTurn: () -> Unit,
     onStoryChoice: (String) -> Unit,
@@ -93,8 +98,27 @@ fun EmperorMainScreen(
                             ConfirmEdictView(
                                 state = uiState.gameState,
                                 result = result,
+                                decision = uiState.imperialDecision,
                                 onConfirm = { onConfirmEdict(edictText) },
-                                onCancel = onCancelEdict
+                                onCancel = onCancelEdict,
+                                onAmend = {
+                                    val selected = result.npcResponses
+                                        .filter { it.officerId in uiState.imperialDecision.selectedOfficerIds }
+                                        .joinToString("；") { response ->
+                                            val name = uiState.gameState.officers.firstOrNull { it.id == response.officerId }?.name ?: "朝臣"
+                                            "${name}奏：${response.text}"
+                                        }
+                                    val context = listOfNotNull(
+                                        edictText.takeIf { it.isNotBlank() },
+                                        selected.takeIf { it.isNotBlank() }?.let { "参酌前议：$it" },
+                                        result.clarificationHint.takeIf { result.clarificationNeeded && it.isNotBlank() }
+                                            ?.let { "待补圣意：$it" }
+                                    ).joinToString("\n")
+                                    edictText = context
+                                    onAmendEdict(context)
+                                },
+                                onToggleOpinion = onToggleCouncilOpinion,
+                                onSynthesize = onSynthesizeCouncilOpinions
                             )
                         }
                     }
@@ -193,7 +217,6 @@ fun GameHUD(state: GameState, onSettings: () -> Unit) {
                 IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
                     Text("⚙", fontSize = 16.sp)
                 }
-                Text("V1.7", color = Color(0xFF3A3020), fontSize = 8.sp)
             }
         }
         Row(
@@ -316,30 +339,56 @@ fun LoadingView() {
 }
 
 @Composable
-fun ConfirmEdictView(state: GameState, result: EdictResult, onConfirm: () -> Unit, onCancel: () -> Unit) {
+fun ConfirmEdictView(
+    state: GameState,
+    result: EdictResult,
+    decision: ImperialDecision,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+    onAmend: () -> Unit,
+    onToggleOpinion: (String) -> Unit,
+    onSynthesize: () -> Unit
+) {
     Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
         CourtBackground()
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { CourtStageHeader(state = state, title = "AI 奏议解析", subtitle = result.summary) }
-            item { CourtDebatePanel(state = state, responses = result.npcResponses) }
-            item { CommandPanel(result) }
+            item { CourtStageHeader(state = state, title = "御前奏议", subtitle = result.summary) }
+            item {
+                CourtDebatePanel(
+                    state = state,
+                    responses = result.npcResponses,
+                    selectedOfficerIds = decision.selectedOfficerIds,
+                    onToggleOpinion = onToggleOpinion,
+                    onSynthesize = onSynthesize
+                )
+            }
+            item { ImperialDecisionPreview(state, result, decision) }
+            item { CommandPanel(state, result) }
             if (result.riskTags.isNotEmpty() || result.clarificationNeeded) item { RiskPanel(result) }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        enabled = decision.canExecute(result),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ImperialRed),
                         shape = RoundedCornerShape(8.dp)
-                    ) { Text("准奏", color = CourtCream, fontWeight = FontWeight.Bold) }
-                    OutlinedButton(
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.55f))
-                    ) { Text("驳回再议", color = CourtGold) }
+                    ) { Text("朱批准行", color = CourtCream, fontWeight = FontWeight.Bold) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        OutlinedButton(
+                            onClick = onAmend,
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.65f))
+                        ) { Text(if (result.clarificationNeeded) "补充圣意" else "朕再修改", color = CourtGold) }
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            border = BorderStroke(1.dp, CourtSub.copy(alpha = 0.55f))
+                        ) { Text("驳回重议", color = CourtCream) }
+                    }
                 }
             }
         }
@@ -516,7 +565,13 @@ private fun DutyOfficialMiniCard(state: GameState) {
 }
 
 @Composable
-private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
+private fun CourtDebatePanel(
+    state: GameState,
+    responses: List<NpcResponse>,
+    selectedOfficerIds: Set<String>,
+    onToggleOpinion: (String) -> Unit,
+    onSynthesize: () -> Unit
+) {
     val inCourtResponses = responses.filter { response ->
         state.officers.any { it.id == response.officerId } &&
             CharacterAppearanceSystem.canAppearInPalace(state, response.officerId, PalaceIds.CHUIGONG)
@@ -534,14 +589,21 @@ private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
         border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.5f))
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("群臣奏对", color = CourtGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("群臣奏对", color = CourtGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                if (responses.isNotEmpty()) {
+                    TextButton(onClick = onSynthesize) { Text("综合诸议", color = CourtGold, fontSize = 11.sp) }
+                }
+            }
             if (inCourtResponses.isEmpty()) {
                 Text("本轮暂无在殿官员出班。", color = CourtSub, fontSize = 12.sp)
             } else {
                 Text("【当殿】", color = CourtGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 inCourtResponses.forEach { response ->
                     val officer = state.officers.first { it.id == response.officerId }
-                    DebateCard(response = response, officer = officer, remote = false)
+                    DebateCard(response, officer, remote = false, selected = response.officerId in selectedOfficerIds) {
+                        onToggleOpinion(response.officerId)
+                    }
                 }
             }
 
@@ -550,7 +612,9 @@ private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
                 Text("【奏札 / 军报转呈】", color = CourtSub, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 remoteResponses.forEach { response ->
                     val officer = state.officers.first { it.id == response.officerId }
-                    DebateCard(response = response, officer = officer, remote = true)
+                    DebateCard(response, officer, remote = true, selected = response.officerId in selectedOfficerIds) {
+                        onToggleOpinion(response.officerId)
+                    }
                 }
             }
         }
@@ -558,18 +622,18 @@ private fun CourtDebatePanel(state: GameState, responses: List<NpcResponse>) {
 }
 
 @Composable
-private fun DebateCard(response: NpcResponse, officer: Officer?, remote: Boolean) {
+private fun DebateCard(response: NpcResponse, officer: Officer?, remote: Boolean, selected: Boolean, onSelect: () -> Unit) {
     val c = attitudeColor(response.attitude)
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xB90E0A05)),
-        border = BorderStroke(1.dp, c.copy(alpha = 0.55f))
+        colors = CardDefaults.cardColors(containerColor = if (selected) Color(0xD93A2910) else Color(0xB90E0A05)),
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) CourtGold else c.copy(alpha = 0.55f))
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(officer?.name ?: response.officerId, color = CourtCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(officer?.name ?: "朝臣", color = CourtCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     val location = officer?.let { CharacterStateSource.statusHint(GameState(officers = listOf(it)), it) }
                     Text(
                         if (remote) "${officer?.faction ?: "朝臣"} · 远程奏报" else "${officer?.faction ?: "朝臣"} · 当殿",
@@ -577,7 +641,7 @@ private fun DebateCard(response: NpcResponse, officer: Officer?, remote: Boolean
                         fontSize = 9.sp
                     )
                 }
-                Text(attitudeLabel(response.attitude), color = c, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(if (selected) "已采纳" else attitudeLabel(response.attitude), color = if (selected) CourtGold else c, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             Text(if (remote) "奏称：“${response.text}”" else "“${response.text}”", color = CourtCream, fontSize = 12.sp, lineHeight = 18.sp)
             officer?.let {
@@ -588,7 +652,35 @@ private fun DebateCard(response: NpcResponse, officer: Officer?, remote: Boolean
 }
 
 @Composable
-private fun CommandPanel(result: EdictResult) {
+private fun ImperialDecisionPreview(state: GameState, result: EdictResult, decision: ImperialDecision) {
+    val names = result.npcResponses.filter { it.officerId in decision.selectedOfficerIds }
+        .mapNotNull { response -> state.officers.firstOrNull { it.id == response.officerId }?.name }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xD61A1208)),
+        border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.5f))
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("御前裁决", color = CourtGold, fontWeight = FontWeight.Bold)
+            Text(
+                when {
+                    names.isEmpty() && result.npcResponses.isNotEmpty() -> "尚未择定臣议，请点选一位或综合诸议。"
+                    names.isEmpty() -> "本议无待采纳臣议，由陛下亲断。"
+                    decision.synthesizeOpinions -> "综合诸议：${names.joinToString("、")}"
+                    else -> "采纳臣议：${names.joinToString("、")}"
+                },
+                color = if (names.isEmpty() && result.npcResponses.isNotEmpty()) CourtSub else CourtCream,
+                fontSize = 12.sp
+            )
+            Text("最终圣意：${result.summary}", color = CourtCream, fontSize = 12.sp, lineHeight = 17.sp)
+            Text("拟执行 ${result.commands.size} 项军政命令", color = CourtSub, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun CommandPanel(state: GameState, result: EdictResult) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -602,7 +694,7 @@ private fun CommandPanel(result: EdictResult) {
             } else {
                 result.commands.forEachIndexed { index, cmd ->
                     Text(
-                        "${index + 1}. ${commandLabel(cmd.type)} ${cmd.officerId.ifBlank { cmd.cityId }} ${cmd.fromCityId.ifBlank { "" }}${if (cmd.toCityId.isNotBlank()) "→${cmd.toCityId}" else ""} ${if (cmd.troops > 0) "${cmd.troops}兵" else ""}",
+                        "${index + 1}. ${WorldPresentationPolicy.commandDescription(state, cmd)}",
                         color = CourtCream,
                         fontSize = 12.sp
                     )

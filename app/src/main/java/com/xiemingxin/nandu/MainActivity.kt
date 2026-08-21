@@ -148,6 +148,13 @@ fun NanduApp() {
     var bgmVolume by remember { mutableStateOf(audioPrefs.getFloat(BGM_VOLUME_KEY, 0.7f).coerceIn(0f, 1f)) }
     var sfxVolume by remember { mutableStateOf(audioPrefs.getFloat(SFX_VOLUME_KEY, 0.74f).coerceIn(0f, 1f)) }
 
+    LaunchedEffect(uiState.activeWorldReplay?.turn) {
+        if (uiState.activeWorldReplay != null) {
+            activePalaceId = null
+            currentTab = 2
+        }
+    }
+
     fun saveAudioSettings(enabled: Boolean, bgm: Float, sfx: Float) {
         audioPrefs.edit()
             .putBoolean(AUDIO_ENABLED_KEY, enabled)
@@ -381,13 +388,23 @@ fun NanduApp() {
                     onSubmitEdict = { text -> playSfx("edict_submitted"); edictText = text; viewModel.submitEdict(text) },
                     onConfirmEdict = { playSfx("edict_confirmed"); viewModel.confirmEdict(edictText) },
                     onCancelEdict = { playSfx("edict_cancelled"); viewModel.cancelEdict() },
+                    onAmendEdict = { revised -> edictText = revised; playSfx("open_panel"); viewModel.amendEdict() },
+                    onToggleCouncilOpinion = { officerId -> playSfx("council_choice"); viewModel.toggleCouncilOpinion(officerId) },
+                    onSynthesizeCouncilOpinions = { playSfx("council_choice"); viewModel.synthesizeCouncilOpinions() },
                     onDismissResult = { playSfx("turn_advance"); viewModel.dismissResult() },
                     onAdvanceTurn = { playSfx("turn_advance"); viewModel.advanceTurn() },
                     onStoryChoice = { choiceId -> playSfx("story_event"); viewModel.chooseStoryOption(choiceId) },
                     onDismissStoryOutcome = { playSfx("story_outcome"); viewModel.dismissStoryOutcome() },
                     onOpenSettings = { playSfx("open_panel"); showSettings = true }
                 )
-                2 -> MapScreen(gameState = uiState.gameState, onCitySelected = { payload -> draftFromCity(payload) })
+                2 -> MapScreen(
+                    gameState = uiState.gameState,
+                    replay = uiState.activeWorldReplay,
+                    lastReplay = uiState.lastWorldReplay,
+                    onDismissReplay = { playSfx("close_panel"); viewModel.dismissWorldReplay() },
+                    onReopenReplay = { playSfx("open_panel"); viewModel.reopenWorldReplay() },
+                    onCitySelected = { payload -> draftFromCity(payload) }
+                )
                 3 -> StateScreen(gameState = uiState.gameState)
                 4 -> if (showOfficerList) {
                     OfficerListScreen(
