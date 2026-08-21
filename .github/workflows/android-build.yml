@@ -16,6 +16,7 @@ on:
       - feature/living-world-court-v1
       - ci/living-world-canon-base
       - fix/stab-005-video-player-compat
+      - integration/v1.6.2-preacceptance
   workflow_dispatch:
 
 jobs:
@@ -43,6 +44,9 @@ jobs:
 
       - name: Enforce Android release version and stable debug signing
         run: ./scripts/check_android_release_policy.sh
+
+      - name: Enforce project roadmap, P0 ownership and device acceptance gates
+        run: python3 ./scripts/check_project_governance.py
 
       - name: Ensure ffmpeg/ffprobe for preacceptance, video preparation and QA
         shell: bash

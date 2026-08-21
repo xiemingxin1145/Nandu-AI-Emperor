@@ -2,21 +2,24 @@
 
 本文件是仓库级执行入口。任何 AI、开发者、自动化代理在修改本项目之前，必须先阅读：
 
-1. `docs/PROJECT_MASTER_PLAN.md` —— 项目总纲、当前里程碑、任务编号、下一步与完成记录。
-2. `docs/RELEASE_POLICY.md` —— Android 版本号、签名、构建与交付硬规则。
-3. 与当前任务直接相关的专项文档，例如 `docs/audio/`、历史 Canon、世界 AI、QA 文档。
+1. `START_HERE.md` —— 仓库入口、正式文档顺序与当前协作边界。
+2. `docs/PROJECT_MASTER_PLAN.md` —— 唯一长期路线图、当前里程碑、37 项主线与完成记录。
+3. `docs/PROJECT_EXECUTION_BOARD.md` —— 唯一当前任务队列、P0/P1、负责人、依赖、证据和下一执行项。
+4. `docs/AI_COLLABORATION_PROTOCOL.md` —— 用户、Claude、Work/Codex、豆包的职责和并行文件边界。
+5. `docs/RELEASE_POLICY.md` —— 开发构建与正式升级、Android 版本号、固定签名和交付规则。
+6. 与当前任务直接相关的专项文档；开局或 STAB-007 还必须读 `docs/OPENING_30MIN_RELEASE_GATE.md` 和 49 项 Smoke Test 矩阵。
 
 ## 一、接手流程
 
 每次开始工作时，严格按下面顺序：
 
-1. 打开 `docs/PROJECT_MASTER_PLAN.md`。
-2. 确认 `当前版本`、`当前里程碑`、`当前下一任务`。
-3. 优先处理当前里程碑中状态为 `NEXT` 的第一项；除非用户明确改变优先级，不得跳到后续里程碑。
-4. 开工前把该任务状态改为 `IN_PROGRESS`，并写明分支/负责人（可写 AI 名称或“当前会话”）。
+1. 打开 `docs/PROJECT_MASTER_PLAN.md` 和 `docs/PROJECT_EXECUTION_BOARD.md`。
+2. 确认 `当前版本`、`当前里程碑`、唯一 `NEXT`、未关闭 P0 和最新真实手机反馈。
+3. 优先处理执行看板中状态为 `NEXT` 的任务；除非用户明确改变优先级，不得跳到后续里程碑或自由新增玩法。
+4. 开工前把该任务状态改为 `IN_PROGRESS`，并写明分支、负责人、复现证据与文件边界。
 5. 实现代码、测试、构建与真机/静态验收。
 6. 完成后把任务改为 `DONE`，补充：完成日期、提交/PR、验证结果、遗留问题。
-7. 将下一项任务改为 `NEXT`，同时更新文档顶部的 `当前下一任务` 和里程碑完成数。
+7. 将执行看板下一项任务改为 `NEXT`；只在真实主线任务完成时更新主路线里的里程碑完成数，辅助任务不得虚增 37 项主线进度。
 8. 如果任务被阻塞，标记 `BLOCKED`，写清阻塞原因和解除条件，不得假装完成。
 
 ## 二、状态定义
@@ -25,6 +28,8 @@
 - `TODO`：已规划，尚未开始。
 - `IN_PROGRESS`：正在实施。
 - `BLOCKED`：被明确条件阻塞。
+- `NEEDS_REPRO`：用户已反馈，但仍需记录 APK、设备、模型配置和可复现步骤。
+- `DEVICE_REQUIRED`：自动证据存在，但仍缺真实 Android 手机验收。
 - `DONE`：代码、测试、构建和验收均达到完成标准。
 - `DEFERRED`：主动延期，必须写原因和重新评估节点。
 
@@ -73,7 +78,7 @@ AI 可以生成建议、计划、奏疏、外交意图、候选行动；不能�
 
 ### 6. 版本和签名永远按仓库规则走
 
-任何安装包任务，先读 `docs/RELEASE_POLICY.md`。不得复用旧 `versionCode`，不得临时更换测试签名。
+任何安装包任务，先读 `docs/RELEASE_POLICY.md`。同版本开发/集成构建可以保持当前 `versionCode`，但不得冒充正式升级包；真正交付更新必须递增 `versionCode`。任何阶段都不得临时更换固定测试签名。
 
 ## 四、每个任务的完成标准（Definition of Done）
 
@@ -87,6 +92,7 @@ AI 可以生成建议、计划、奏疏、外交意图、候选行动；不能�
 - 涉及 UI 时至少做静态/真机验收；
 - 涉及历史时已验证“历史发生”和“历史被改变后不发生/变形”两条路径；
 - `docs/PROJECT_MASTER_PLAN.md` 已同步更新。
+- `docs/PROJECT_EXECUTION_BOARD.md`、对应风险和专项验收已同步；`NEEDS_REPRO`、`DEVICE_REQUIRED`、`BLOCKED` 不得伪装成 `DONE`。
 
 ## 五、交接格式
 
@@ -99,5 +105,6 @@ AI 可以生成建议、计划、奏疏、外交意图、候选行动；不能�
 - APK/资源结果（如有）：
 - 仍存在的问题：
 - 下一任务 ID：
+- 未关闭 P0 / 真机证据 / 资源阻塞：
 
 如果没有更新总纲和下一任务，视为交接未完成。

@@ -3,6 +3,8 @@
 > 用途：记录 STAB-007 正式集成后的自动证据、真实资源阻塞和手机待验收结果。
 >
 > STAB-006 已合流；自动检查通过不等于真机点击通过，因此没有手机验证的入口一律保留 `DEVICE_REQUIRED`。
+>
+> 当前 P0/P1 执行顺序见 `docs/PROJECT_EXECUTION_BOARD.md`；叙事、历史与可玩性另执行 `docs/OPENING_30MIN_RELEASE_GATE.md` 的 30 项导演测试。
 
 集成基线：STAB-001～006 + COURT-001 PR #54 + ROSTER-001 审计 PR #57 + WORLD-UX-001 + Claude DELEGATION-001 PR #64 选择性正式集成 + 最终入口修复。
 预验收分支：`integration/v1.6.2-preacceptance`。
@@ -93,6 +95,7 @@
 ## 自动化命令与构建门禁
 
 ```bash
+python3 scripts/check_project_governance.py
 python3 scripts/check_v162_preacceptance.py
 ./gradlew :app:testDebugUnitTest --stacktrace
 ./scripts/prepare_android_video_assets.sh
