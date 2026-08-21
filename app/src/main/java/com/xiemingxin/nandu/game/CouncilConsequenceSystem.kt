@@ -266,6 +266,15 @@ object CouncilConsequenceSystem {
             outcomes += "${scene.title}已裁断：${choice.preview}"
         }
 
+        // WORLD-CORE-001：宫殿待办一旦已经由玩家正式裁断，就把稳定 signature 写进
+        // GameState 的处理记忆。旧 UI 的 scene.id 本来就是 council_<task.id>，因此无需
+        // 额外把 task 对象塞进 Compose 状态，也不会把“只是看了一眼”误算成已处理。
+        val sourceTaskId = scene.id.removePrefix("council_")
+        val handledTask = PalaceTaskSystem.generate(state).firstOrNull { it.id == sourceTaskId }
+        if (handledTask != null && handledTask.signature.isNotBlank()) {
+            current = PalaceTaskSystem.markDismissed(current, handledTask.signature, handledTask.severity)
+        }
+
         current = current.copy(storyFlags = current.storyFlags + "council_choice_${scene.palaceId}_${choice.id}_turn_${state.turn}")
         return CouncilConsequenceResult(current, outcomes)
     }
