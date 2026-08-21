@@ -105,6 +105,13 @@ class WorldCoreSchedulerFollowupTest {
     }
 
     @Test
+    fun legacyUnmarkedTravelPostDefaultsToGarrisonForBackwardCompatibility() {
+        val decoded = OfficerDispatchSystem.decodeTravelPost("东京留守")
+        assertEquals("东京留守", decoded.title)
+        assertEquals(true, decoded.garrisonPost)
+    }
+
+    @Test
     fun healthyTreasuryAndHealthyCitiesDoNotCreateFiscalTask() {
         val state = GameState(
             turn = 5,
