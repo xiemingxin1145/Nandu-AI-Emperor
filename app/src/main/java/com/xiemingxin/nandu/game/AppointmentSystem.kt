@@ -10,8 +10,9 @@ import kotlin.math.sqrt
  *  - 人在城里（Officer.currentCityId）：物理位置
  *  - 正式担任职务（AppointmentSystem 记录）：制度身份
  *
- * 建炎元年开局的“京城/行在”由 CharacterStateSource.CAPITAL_CITY_ID 统一决定，
- * 禁止任何召回逻辑自行写死“临安”。
+ * WORLD-CORE-001 合流后，跨城任命/调任不再瞬移：正式人事命令统一交给
+ * OfficerDispatchSystem 产生“离任→赶路→抵达→履职”的真实世界过程。
+ * 建炎元年开局的“京城/行在”由 CharacterStateSource.CAPITAL_CITY_ID 统一决定。
  */
 object AppointmentSystem {
 
@@ -20,10 +21,13 @@ object AppointmentSystem {
         data class Failure(val reason: String) : AppointResult()
     }
 
+    private fun fromDispatch(result: OfficerDispatchSystem.DispatchResult): AppointResult = when (result) {
+        is OfficerDispatchSystem.DispatchResult.Success -> AppointResult.Success(result.message, result.newState)
+        is OfficerDispatchSystem.DispatchResult.Failure -> AppointResult.Failure(result.reason)
+    }
+
     /**
-     * DELEGATION-001：剧情事件效果里带的"人物忠诚度调整"此前一直卡在
-     * StoryEventEffectApplier.pendingEffects 里，从不真正生效。这里给它一个
-     * 正式、有校验的入口——不是让 story 逻辑直接摸 Officer.loyalty。
+     * DELEGATION-001：剧情事件效果里的忠诚度调整走正式校验入口。
      */
     fun adjustLoyalty(state: GameState, officerId: String, amount: Int): AppointResult {
         val officer = state.officers.find { it.id == officerId }
@@ -53,20 +57,15 @@ object AppointmentSystem {
         if (officer.status !in setOf(OfficerStatus.IN_COURT, OfficerStatus.IN_CAPITAL, OfficerStatus.DEPLOYED))
             return AppointResult.Failure("【任命失败】${officer.name}尚未进入宋廷任官体系，不可直接委任。")
 
-        val clearedGovernors = state.cityGovernors.filterValues { it != officerId }
-        val newGovernors = clearedGovernors + (cityId to officerId)
-        val newOfficers = state.officers.map {
-            if (it.id == officerId) it.copy(
-                currentCityId = cityId,
-                status = OfficerStatus.DEPLOYED,
-                travelDestinationCityId = null,
-                travelArrivalTurn = null
-            ) else it
-        }
-
-        return AppointResult.Success(
-            "【任命】${officer.name}出任${city.name}主官，离开行在赴任，总领政务。",
-            state.copy(cityGovernors = newGovernors, officers = newOfficers)
+        return fromDispatch(
+            OfficerDispatchSystem.dispatch(
+                state = state,
+                officerId = officerId,
+                targetCityId = cityId,
+                arrivalStatus = OfficerStatus.DEPLOYED,
+                postTitle = "${city.name}主官",
+                garrisonPost = false
+            )
         )
     }
 
@@ -84,19 +83,15 @@ object AppointmentSystem {
         if (officer.status !in setOf(OfficerStatus.IN_COURT, OfficerStatus.IN_CAPITAL, OfficerStatus.DEPLOYED))
             return AppointResult.Failure("【任命失败】${officer.name}尚未进入宋廷任官体系，无法委任守将之职。")
 
-        val clearedGarrisons = state.cityGarrisons.filterValues { it != officerId }
-        val newGarrisons = clearedGarrisons + (cityId to officerId)
-        val newOfficers = state.officers.map {
-            if (it.id == officerId) it.copy(
-                currentCityId = cityId,
-                status = OfficerStatus.DEPLOYED,
-                travelDestinationCityId = null,
-                travelArrivalTurn = null
-            ) else it
-        }
-        return AppointResult.Success(
-            "【任命】${officer.name}奉命镇守${city.name}，离开行在领兵驻防。",
-            state.copy(cityGarrisons = newGarrisons, officers = newOfficers)
+        return fromDispatch(
+            OfficerDispatchSystem.dispatch(
+                state = state,
+                officerId = officerId,
+                targetCityId = cityId,
+                arrivalStatus = OfficerStatus.DEPLOYED,
+                postTitle = "${city.name}守将",
+                garrisonPost = true
+            )
         )
     }
 
@@ -112,7 +107,13 @@ object AppointmentSystem {
         val newGovernors = state.cityGovernors.filterValues { it != officerId }
         val newGarrisons = state.cityGarrisons.filterValues { it != officerId }
         val newOfficers = state.officers.map {
-            if (it.id == officerId) it.copy(status = OfficerStatus.DISMISSED) else it
+            if (it.id == officerId) it.copy(
+                status = OfficerStatus.DISMISSED,
+                travelDestinationCityId = null,
+                travelArrivalTurn = null,
+                travelArrivalStatus = null,
+                travelArrivalPostTitle = ""
+            ) else it
         }
         return AppointResult.Success(
             "【免职】${officer.name}奉旨解除职务，候朝廷另行安排。",
@@ -133,56 +134,71 @@ object AppointmentSystem {
             ?: return AppointResult.Failure("【调任失败】找不到此人。")
         val targetCity = state.cities.find { it.id == targetCityId }
             ?: return AppointResult.Failure("【调任失败】找不到目标城池：$targetCityId")
+        if (targetCity.owner != "song")
+            return AppointResult.Failure("【调任失败】${targetCity.name}不在宋廷控制之下。")
         if (officer.status !in setOf(OfficerStatus.IN_COURT, OfficerStatus.IN_CAPITAL, OfficerStatus.DEPLOYED))
             return AppointResult.Failure("【调任失败】${officer.name}当前状态不允许调任。")
 
-        val isGarrison = state.cityGarrisons.values.contains(officerId)
         val isGovernor = state.cityGovernors.values.contains(officerId)
-
-        val newGovernors = if (isGovernor) {
-            state.cityGovernors.filterValues { it != officerId } + (targetCityId to officerId)
-        } else state.cityGovernors
-        val newGarrisons = if (isGarrison) {
-            state.cityGarrisons.filterValues { it != officerId } + (targetCityId to officerId)
-        } else state.cityGarrisons
-
-        val newOfficers = state.officers.map {
-            if (it.id == officerId) it.copy(currentCityId = targetCityId, status = OfficerStatus.DEPLOYED) else it
+        val isGarrison = state.cityGarrisons.values.contains(officerId)
+        val postTitle = when {
+            isGovernor -> "${targetCity.name}主官"
+            isGarrison -> "${targetCity.name}守将"
+            else -> ""
         }
-        val roleDesc = when {
-            isGovernor -> "主官"
-            isGarrison -> "守将"
-            else -> "职"
+        val garrisonPost = when {
+            isGovernor -> false
+            isGarrison -> true
+            else -> true // postTitle 为空时不会落正式席位，只用于保持参数稳定。
         }
-        return AppointResult.Success(
-            "【调任】${officer.name}由旧任奉旨移驻${targetCity.name}，继续担任$roleDesc。",
-            state.copy(cityGovernors = newGovernors, cityGarrisons = newGarrisons, officers = newOfficers)
+
+        return fromDispatch(
+            OfficerDispatchSystem.dispatch(
+                state = state,
+                officerId = officerId,
+                targetCityId = targetCityId,
+                arrivalStatus = OfficerStatus.DEPLOYED,
+                postTitle = postTitle,
+                garrisonPost = garrisonPost
+            )
         )
     }
 
     /**
      * 召回入朝：外任/领军人物奉诏还朝。
-     * 若人已在当前行在，直接转 IN_COURT；否则记录在途状态，抵达前不得肉身参加朝会。
+     * 若人已在当前行在，直接转 IN_COURT；否则记录真实在途状态。
+     * 一旦奉诏离任，原城正式席位立即腾缺，不能出现“人已在路上，旧城仍挂名主官”的假状态。
      */
     fun recallToCourt(state: GameState, officerId: String): AppointResult {
         val officer = state.officers.find { it.id == officerId }
             ?: return AppointResult.Failure("【召回失败】找不到此人。")
         if (officer.status != OfficerStatus.DEPLOYED)
             return AppointResult.Failure("【召回失败】${officer.name}当前并非外任/领军状态，无需召回。")
+        if (CharacterStateSource.isTraveling(officer))
+            return AppointResult.Failure("【召回失败】${officer.name}正在赶路途中，须先抵达方可再下新命。")
 
         val capitalId = CharacterStateSource.CAPITAL_CITY_ID
         val capitalName = state.cities.find { it.id == capitalId }?.name ?: "行在"
+        val clearedGovernors = state.cityGovernors.filterValues { it != officerId }
+        val clearedGarrisons = state.cityGarrisons.filterValues { it != officerId }
+
         if (officer.currentCityId == capitalId) {
             val newOfficers = state.officers.map {
                 if (it.id == officerId) it.copy(
                     status = OfficerStatus.IN_COURT,
                     travelDestinationCityId = null,
-                    travelArrivalTurn = null
+                    travelArrivalTurn = null,
+                    travelArrivalStatus = null,
+                    travelArrivalPostTitle = ""
                 ) else it
             }
             return AppointResult.Success(
                 "【召回】${officer.name}本在${capitalName}任所，即日入朝待命。",
-                state.copy(officers = newOfficers)
+                state.copy(
+                    officers = newOfficers,
+                    cityGovernors = clearedGovernors,
+                    cityGarrisons = clearedGarrisons
+                )
             )
         }
 
@@ -191,13 +207,19 @@ object AppointmentSystem {
         val newOfficers = state.officers.map {
             if (it.id == officerId) it.copy(
                 travelDestinationCityId = capitalId,
-                travelArrivalTurn = arrivalTurn
+                travelArrivalTurn = arrivalTurn,
+                travelArrivalStatus = OfficerStatus.IN_COURT,
+                travelArrivalPostTitle = ""
             ) else it
         }
         return AppointResult.Success(
             "【诏令】遣使赴任所召${officer.name}还朝，路程约${travelTurns}旬。" +
-                "未抵${capitalName}前不能列班奏对，只可由军报、奏折陈情。",
-            state.copy(officers = newOfficers)
+                "本人已离任启程；未抵${capitalName}前不能列班奏对，只可由奏折、军报陈情。",
+            state.copy(
+                officers = newOfficers,
+                cityGovernors = clearedGovernors,
+                cityGarrisons = clearedGarrisons
+            )
         )
     }
 
