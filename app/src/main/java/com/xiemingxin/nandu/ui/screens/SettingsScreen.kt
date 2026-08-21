@@ -37,7 +37,8 @@ fun SettingsScreen(
     onImportSave: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val initialBase = if (currentModel.contains("|")) currentModel.substringBefore("|") else ""
+    val rawInitialBase = if (currentModel.contains("|")) currentModel.substringBefore("|") else ""
+    val initialBase = rawInitialBase.takeIf(::isUsableCustomBaseUrl).orEmpty()
     val initialModel = if (currentModel.contains("|")) currentModel.substringAfter("|") else currentModel
 
     var selectedProvider by remember { mutableStateOf(currentProvider) }
@@ -48,6 +49,9 @@ fun SettingsScreen(
     var localAudioEnabled by remember { mutableStateOf(audioEnabled) }
     var localBgmVolume by remember { mutableStateOf(bgmVolume.coerceIn(0f, 1f)) }
     var localSfxVolume by remember { mutableStateOf(sfxVolume.coerceIn(0f, 1f)) }
+
+    val customConfigValid = selectedProvider != AiProviderType.CUSTOM ||
+        (isUsableCustomBaseUrl(baseUrl) && modelName.isNotBlank())
 
     Column(
         modifier = Modifier
@@ -85,7 +89,8 @@ fun SettingsScreen(
                         AiProviderType.OPENAI -> if (modelName.isBlank()) modelName = "gpt-4o-mini"
                         AiProviderType.OPENROUTER -> if (modelName.isBlank()) modelName = "deepseek/deepseek-chat"
                         AiProviderType.CUSTOM -> {
-                            if (baseUrl.isBlank()) baseUrl = "https://你的中转站域名/v1"
+                            // 这里只切换通道，绝不再把示例地址写进真实配置。
+                            // 已填写的 Base URL 必须原样保留。
                             if (modelName.isBlank()) modelName = "deepseek-chat"
                         }
                         else -> Unit
@@ -114,10 +119,17 @@ fun SettingsScreen(
                     HintText("OpenRouter 可自由换低价模型；只要能稳定返回 JSON 即可。")
                 }
                 AiProviderType.CUSTOM -> {
-                    StyledTextField(baseUrl, { baseUrl = it }, "Base URL", "https://你的中转站域名/v1")
+                    StyledTextField(baseUrl, { baseUrl = it }, "Base URL", "例如：https://api.example.com/v1")
                     StyledTextField(modelName, { modelName = it }, "模型名", "deepseek-chat / qwen-plus / 站内任意模型名")
                     HintText("兼容 OpenAI /chat/completions。Base URL 可填到 /v1，也可直接填完整 /chat/completions；免鉴权服务的 Key 可以留空。")
-                    HintText("适合各种模型中转站、自建网关、局域网 OpenAI-compatible 服务。")
+                    HintText("切换‘自定义中转站’不会再覆盖已经填写的真实地址。")
+                    if (!customConfigValid) {
+                        Text(
+                            "请填写真实的 http(s) Base URL；示例地址不会被保存或用于联网。",
+                            color = Color(0xFFE07162),
+                            fontSize = 11.sp
+                        )
+                    }
                 }
                 AiProviderType.CLAUDE -> HintText("Claude 官方通道可继续解析圣旨；若想让 Claude 也驱动天下，可经 OpenAI-compatible 中转站接入。")
                 AiProviderType.GEMINI -> HintText("Gemini 官方协议仍在排期；现在可用支持 Gemini 的 OpenAI-compatible 中转站。")
@@ -143,9 +155,9 @@ fun SettingsScreen(
                 modelName = "deepseek/deepseek-chat"
             },
             onCustom = {
+                // 只选择自定义通道，不碰玩家已经填好的 Base URL / Key。
                 selectedProvider = AiProviderType.CUSTOM
-                baseUrl = "https://你的中转站域名/v1"
-                modelName = "deepseek-chat"
+                if (modelName.isBlank()) modelName = "deepseek-chat"
             }
         )
 
@@ -157,6 +169,7 @@ fun SettingsScreen(
 
         Button(
             onClick = { onSave(selectedProvider, apiKey.trim(), savedModel) },
+            enabled = customConfigValid,
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ImperialRed),
             shape = RoundedCornerShape(8.dp)
@@ -169,6 +182,7 @@ fun SettingsScreen(
                 onSave(selectedProvider, apiKey.trim(), savedModel)
                 onTestConnection()
             },
+            enabled = customConfigValid,
             modifier = Modifier.fillMaxWidth().height(44.dp),
             border = BorderStroke(1.dp, ImperialGold.copy(alpha = 0.65f)),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = ImperialGold)
@@ -388,4 +402,13 @@ private fun PresetButton(text: String, modifier: Modifier, onClick: () -> Unit) 
     ) {
         Text(text, fontSize = 12.sp)
     }
+}
+
+private fun isUsableCustomBaseUrl(value: String): Boolean {
+    val url = value.trim()
+    if (url.isBlank()) return false
+    if (!url.startsWith("https://", ignoreCase = true) && !url.startsWith("http://", ignoreCase = true)) return false
+    val lowered = url.lowercase()
+    if (url.contains("你的中转站域名") || lowered.contains("example.com")) return false
+    return true
 }

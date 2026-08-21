@@ -3,9 +3,9 @@ package com.xiemingxin.nandu.game
 /**
  * V1.6.2 宫殿待办派生系统。
  *
- * 待办目前从 GameState 派生，以兼容既有存档；但每一条正式待办必须能解释为当前世界
- * 状态的结果，不能仅因 turn % N 到点就伪造“有事待闻”。持久化、逾期和连锁后果仍留
- * 给后续版本深化。
+ * 待办从 GameState 派生，以兼容既有存档；每一条正式待办必须能解释为当前世界
+ * 状态的结果。WORLD-CORE-001 增加稳定 signature 与已处理冷却记忆，避免同一问题
+ * 被玩家处理后立刻无限重刷；世界真正恶化时仍会再次提醒。
  */
 data class PalaceTask(
     val id: String,
@@ -17,7 +17,8 @@ data class PalaceTask(
     val relatedOfficerIds: List<String> = emptyList(),
     val relatedCityIds: List<String> = emptyList(),
     val recommendedTab: Int = 1,
-    val edictDraft: String = ""
+    val edictDraft: String = "",
+    val signature: String = ""
 )
 
 enum class TaskSeverity(val label: String) {
@@ -66,6 +67,10 @@ object PalaceRegistry {
 
 object PalaceTaskSystem {
 
+    private const val LOCAL_GRAIN_ABSOLUTE_FLOOR = 30_000
+    private const val LOCAL_GRAIN_PER_TROOP_FLOOR = 2
+    private const val COOLDOWN_TURNS = 3
+
     fun generate(state: GameState): List<PalaceTask> {
         val tasks = mutableListOf<PalaceTask>()
         val songCities = state.cities.filter { it.owner == "song" }
@@ -73,7 +78,16 @@ object PalaceTaskSystem {
             .filter { it.controlState == "FRONTLINE" || it.controlState == "CONTESTED" }
             .sortedBy { it.defense }
         val weakestFront = frontline.firstOrNull()
-        val lowGrainCity = songCities.sortedBy { it.grain }.firstOrNull()
+
+        // 旧逻辑取“粮最少的一座宋城”后只判断 != null，导致只要大宋还有城，财政待办永久成立。
+        // 现在只有真正低于绝对安全线，或存粮不足约两倍驻军规模时，才算地方粮情异常。
+        val lowGrainCity = songCities
+            .filter { city ->
+                city.grain < LOCAL_GRAIN_ABSOLUTE_FLOOR ||
+                    (city.troops > 0 && city.grain < city.troops * LOCAL_GRAIN_PER_TROOP_FLOOR)
+            }
+            .minByOrNull { it.grain }
+
         val hiddenTalent = state.officers.firstOrNull {
             (it.status == OfficerStatus.HIDDEN || it.status == OfficerStatus.WANDERING) && !state.talentLeads.contains(it.id)
         }
@@ -88,6 +102,7 @@ object PalaceTaskSystem {
 
         tasks += PalaceTask(
             id = "court_${state.turn}",
+            signature = "court",
             palaceId = PalaceIds.CHUIGONG,
             title = if (state.courtStability < 45) "主战主和争执不下" else "本旬朝议待断",
             description = if (state.courtStability < 45) {
@@ -106,6 +121,7 @@ object PalaceTaskSystem {
             val city = weakestFront ?: songCities.firstOrNull()
             tasks += PalaceTask(
                 id = "war_${state.turn}_${city?.id ?: "front"}",
+                signature = "war_${city?.id ?: "front"}",
                 palaceId = PalaceIds.SHUMI,
                 title = if (state.jinThreat >= 85) "金军压境，边报火急" else "中原防线需整备",
                 description = city?.let { "${it.name}防御${it.defense}、守军${it.troops}，需议调兵、修城或筹粮。" }
@@ -124,12 +140,20 @@ object PalaceTaskSystem {
         }
 
         if (state.grain < 160000 || state.gold < 40000 || lowGrainCity != null) {
+            val localGrainNote = lowGrainCity?.let { "；${it.name}现存粮${it.grain}石，守军${it.troops}" }.orEmpty()
             tasks += PalaceTask(
                 id = "fiscal_${state.turn}",
+                signature = "fiscal",
                 palaceId = PalaceIds.ZHENGSHI,
-                title = if (state.grain < 120000) "府库粮储吃紧" else "钱粮调度待议",
-                description = "国库${state.gold}贯，粮草${state.grain}石。政事堂请议转运、屯田、赈济与军粮。",
-                severity = if (state.grain < 120000) TaskSeverity.HIGH else TaskSeverity.MEDIUM,
+                title = when {
+                    state.grain < 120000 -> "府库粮储吃紧"
+                    lowGrainCity != null -> "${lowGrainCity.name}粮储偏低"
+                    else -> "钱粮调度待议"
+                },
+                description = "国库${state.gold}贯，粮草${state.grain}石$localGrainNote。政事堂请议转运、屯田、赈济与军粮。",
+                severity = if (state.grain < 120000 || (lowGrainCity?.grain ?: Int.MAX_VALUE) < 15_000) {
+                    TaskSeverity.HIGH
+                } else TaskSeverity.MEDIUM,
                 source = TaskSource.FISCAL,
                 relatedOfficerIds = openingCourtIds.take(3),
                 relatedCityIds = lowGrainCity?.let { listOf(it.id) } ?: emptyList(),
@@ -142,6 +166,7 @@ object PalaceTaskSystem {
             val isTrade = brief.relatedRouteIds.any { it.contains("quanzhou") || it.contains("guangzhou") || it.contains("mingzhou") }
             tasks += PalaceTask(
                 id = "foreign_${state.turn}_$index",
+                signature = "foreign_${brief.title}",
                 palaceId = if (isTrade) PalaceIds.ZHENGSHI else PalaceIds.YUSHU,
                 title = brief.title,
                 description = brief.description,
@@ -165,6 +190,7 @@ object PalaceTaskSystem {
         if (hiddenTalent != null || state.talentLeads.isNotEmpty()) {
             tasks += PalaceTask(
                 id = "talent_${state.turn}_${hiddenTalent?.id ?: state.talentLeads.firstOrNull().orEmpty()}",
+                signature = "talent_${hiddenTalent?.id ?: state.talentLeads.firstOrNull().orEmpty()}",
                 palaceId = PalaceIds.WENDE,
                 title = if (hiddenTalent != null) "在野人才可访" else "人才线索待召见",
                 description = hiddenTalent?.let { "${it.currentCityId}一带或有${it.origin}出身之才，可议访求。" }
@@ -182,6 +208,7 @@ object PalaceTaskSystem {
             val rumor = state.rumors.last()
             tasks += PalaceTask(
                 id = "rumor_${state.turn}_${state.rumors.size}",
+                signature = "rumor_${rumor.text.take(20)}",
                 palaceId = PalaceIds.YUSHU,
                 title = "坊间传闻入密折",
                 description = rumor.text.take(60),
@@ -196,6 +223,7 @@ object PalaceTaskSystem {
         if (riskyOfficer != null) {
             tasks += PalaceTask(
                 id = "intel_${state.turn}_${riskyOfficer.id}",
+                signature = "intel_${riskyOfficer.id}",
                 palaceId = PalaceIds.HUANGCHENG,
                 title = "朝臣动向需留意",
                 description = "${riskyOfficer.name}忠诚${riskyOfficer.loyalty}、野心${riskyOfficer.ambition}。皇城司请密察其往来。",
@@ -210,6 +238,7 @@ object PalaceTaskSystem {
         if (state.prestige < 40 || state.turn % 3 == 0) {
             tasks += PalaceTask(
                 id = "ritual_${state.turn}",
+                signature = "ritual",
                 palaceId = PalaceIds.TAIMIAO,
                 title = "礼制正统待议",
                 description = "名望${state.prestige}，国势未稳。可议告慰祖宗、安抚军民、整肃正统。",
@@ -221,11 +250,10 @@ object PalaceTaskSystem {
             )
         }
 
-        // STAB-004：内廷不再按 turn % 4 机械制造“有事待闻”。
-        // 只有当前世界确实存在内廷能感知的压力时才生成，且文案直接展示触发数据。
         val innerPalaceTask = when {
             state.jinThreat >= 85 -> PalaceTask(
                 id = "inner_war_pressure_${state.turn}",
+                signature = "inner_war_pressure",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "军报频至，内廷人心不安",
                 description = "金军威胁已达${state.jinThreat}。行在内廷因前线急报接连入宫而人心浮动，需决定节用、安抚或听取近事。",
@@ -236,6 +264,7 @@ object PalaceTaskSystem {
             )
             state.gold < 40000 -> PalaceTask(
                 id = "inner_budget_${state.turn}",
+                signature = "inner_budget",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "行在内廷请议减省",
                 description = "国库仅余${state.gold}贯。内廷请官家裁定宫中用度是否继续裁减，以免与军粮民食争用。",
@@ -246,6 +275,7 @@ object PalaceTaskSystem {
             )
             state.courtStability < 40 -> PalaceTask(
                 id = "inner_court_unrest_${state.turn}",
+                signature = "inner_court_unrest",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "朝局震荡波及宫中",
                 description = "朝局稳定仅${state.courtStability}。外朝争议已传入宫禁，内廷请示是否安抚众人并严禁私议军政。",
@@ -260,9 +290,26 @@ object PalaceTaskSystem {
 
         return tasks
             .distinctBy { it.id }
+            .filterNot { isCoolingDown(state, it) }
             .sortedWith(compareByDescending<PalaceTask> { it.severity.ordinal }.thenBy { it.palaceId })
             .take(12)
     }
+
+    /**
+     * 最近处理过、且情况没有明显恶化，就不再机械重刷；恶化或冷却期结束可重新提醒。
+     */
+    private fun isCoolingDown(state: GameState, task: PalaceTask): Boolean {
+        if (task.signature.isBlank()) return false
+        val memory = state.dismissedTaskSignatures[task.signature] ?: return false
+        if (state.turn - memory.turn > COOLDOWN_TURNS) return false
+        return task.severity.ordinal <= memory.severityOrdinal
+    }
+
+    fun markDismissed(state: GameState, signature: String, severity: TaskSeverity): GameState =
+        state.copy(
+            dismissedTaskSignatures = state.dismissedTaskSignatures +
+                (signature to DismissedTaskMemory(turn = state.turn, severityOrdinal = severity.ordinal))
+        )
 
     fun tasksForPalace(state: GameState, palaceId: String): List<PalaceTask> =
         generate(state).filter { it.palaceId == palaceId }

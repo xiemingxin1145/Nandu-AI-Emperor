@@ -25,9 +25,13 @@ data class ImperialDecision(
 
     fun requestAmendment(): ImperialDecision = copy(amendmentRequested = true)
 
+    /**
+     * 皇帝是否可以朱批，只由“圣意是否完整 + 是否存在真正可执行事项”决定。
+     * 大臣意见永远只是参考，绝不能反过来成为皇帝下旨的强制前置条件。
+     * selectedOfficerIds 仅用于记录“采纳了谁的意见”，不再锁死朱批按钮。
+     */
     fun canExecute(result: EdictResult, hasLongTermMandate: Boolean = false): Boolean =
-        !result.clarificationNeeded && (result.commands.isNotEmpty() || hasLongTermMandate) &&
-            (result.npcResponses.isEmpty() || selectedOfficerIds.isNotEmpty())
+        !result.clarificationNeeded && (result.commands.isNotEmpty() || hasLongTermMandate)
 }
 
 enum class WorldTurnActionKind(val label: String) {
@@ -71,18 +75,46 @@ data class WorldTurnReplay(
 )
 
 object WorldPresentationPolicy {
+    /**
+     * 天下纪要属于皇帝视角，不是开发控制台。
+     * 网络异常、JSON、HTTP、DNS、类名、内部 fallback 标签都不允许泄漏到玩家面前。
+     */
     fun humanizeReport(state: GameState, report: String): String {
+        val trimmed = report.trim()
+        if (looksLikeTechnicalAiFailure(trimmed)) {
+            return "驿报一度受阻，枢密院已依既定军政方略继续处置，本旬天下推演未中断。"
+        }
+
         val names = buildMap {
             state.officers.forEach { put(it.id, it.name) }
             state.cities.forEach { put(it.id, it.name) }
             state.armies.forEach { put(it.id, it.name) }
             state.factions.forEach { put(it.id, it.name) }
         }
-        var readable = report
+        var readable = trimmed
+            .replace("【AI世界推演】", "【枢密院议定】")
+            .replace("【本地战略脑】", "【枢密院议定】")
+
         names.entries.sortedByDescending { it.key.length }.forEach { (id, name) ->
             readable = readable.replace(Regex("(?<![A-Za-z0-9_])${Regex.escape(id)}(?![A-Za-z0-9_])"), name)
         }
         return readable.replace(Regex("\\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\\b"), "相关事项")
+    }
+
+    private fun looksLikeTechnicalAiFailure(report: String): Boolean {
+        val lower = report.lowercase()
+        return report.startsWith("【AI自动降级】") ||
+            lower.contains("unable to resolve host") ||
+            lower.contains("unknownhost") ||
+            lower.contains("expected start of the object") ||
+            lower.contains("expected eof after parsing") ||
+            lower.contains("unexpected json token") ||
+            lower.contains("serialization") ||
+            lower.contains("json input:") ||
+            lower.contains("http 4") ||
+            lower.contains("http 5") ||
+            lower.contains("api错误") ||
+            lower.contains("chat/completions")
     }
 
     fun seasonalTransition(before: GameState, after: GameState): SeasonalTransition? {

@@ -43,6 +43,12 @@ object GameSaveCodec {
             // DELEGATION-001
             .put("imperialMandates", JSONArray(state.imperialMandates.map { it.toJson() }))
             .put("mandateExecutionLog", JSONArray(state.mandateExecutionLog.map { it.toJson() }))
+            // WORLD-CORE-001
+            .put("dismissedTaskSignatures", JSONObject().apply {
+                state.dismissedTaskSignatures.forEach { (sig, mem) ->
+                    put(sig, JSONObject().put("turn", mem.turn).put("severityOrdinal", mem.severityOrdinal))
+                }
+            })
         val encoded = Base64.getEncoder().encodeToString(root.toString().toByteArray(StandardCharsets.UTF_8))
         return PREFIX + encoded
     }
@@ -84,7 +90,14 @@ object GameSaveCodec {
             } ?: emptyMap(),
             // DELEGATION-001（旧存档没有这两个字段，默认空，向后兼容）
             imperialMandates = root.optJSONArray("imperialMandates").toListOrDefault(emptyList()) { it.toMandate() },
-            mandateExecutionLog = root.optJSONArray("mandateExecutionLog").toListOrDefault(emptyList()) { it.toExecutionRecord() }
+            mandateExecutionLog = root.optJSONArray("mandateExecutionLog").toListOrDefault(emptyList()) { it.toExecutionRecord() },
+            // WORLD-CORE-001（旧存档没有这个字段，默认空，向后兼容）
+            dismissedTaskSignatures = root.optJSONObject("dismissedTaskSignatures")?.let { obj ->
+                obj.keys().asSequence().associateWith { key ->
+                    val m = obj.optJSONObject(key)
+                    DismissedTaskMemory(turn = m?.optInt("turn", 0) ?: 0, severityOrdinal = m?.optInt("severityOrdinal", 0) ?: 0)
+                }
+            } ?: emptyMap()
         )
     }
 
@@ -143,6 +156,9 @@ object GameSaveCodec {
         // V1.0 活朝堂：赶路状态是可选字段，人不在途中时不写入，读取端按"没有=未在赶路"处理。
         travelDestinationCityId?.let { obj.put("travelDestinationCityId", it) }
         travelArrivalTurn?.let { obj.put("travelArrivalTurn", it) }
+        // WORLD-CORE-001
+        travelArrivalStatus?.let { obj.put("travelArrivalStatus", it.name) }
+        if (travelArrivalPostTitle.isNotBlank()) obj.put("travelArrivalPostTitle", travelArrivalPostTitle)
         // V1.1 历史 Canon：预定状态迁移，同样只在有值时写入。
         scheduledStatus?.let { obj.put("scheduledStatus", it.name) }
         scheduledCityId?.let { obj.put("scheduledCityId", it) }
@@ -173,6 +189,8 @@ object GameSaveCodec {
             bio = optString("bio", fallback?.bio ?: ""),
             travelDestinationCityId = if (has("travelDestinationCityId")) optString("travelDestinationCityId") else null,
             travelArrivalTurn = if (has("travelArrivalTurn")) optInt("travelArrivalTurn") else null,
+            travelArrivalStatus = if (has("travelArrivalStatus")) enumValueOf<OfficerStatus>(optString("travelArrivalStatus")) else null,
+            travelArrivalPostTitle = optString("travelArrivalPostTitle", ""),
             scheduledStatus = if (has("scheduledStatus")) enumValueOf<OfficerStatus>(optString("scheduledStatus")) else null,
             scheduledCityId = if (has("scheduledCityId")) optString("scheduledCityId") else null,
             scheduledTurn = if (has("scheduledTurn")) optInt("scheduledTurn") else null

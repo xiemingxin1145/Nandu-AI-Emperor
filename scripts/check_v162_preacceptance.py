@@ -191,6 +191,29 @@ def source_audit() -> None:
     require('it.id == "linan"' not in victory, "defeat still hardcodes Hangzhou as the capital")
     require("临安陷落" not in victory, "capital-lost ending still names a fixed future capital")
 
+    geography_source = JAVA_ROOT / "com/xiemingxin/nandu/game/EastAsiaGeography.kt"
+    geography_map = JAVA_ROOT / "com/xiemingxin/nandu/ui/screens/GeoMapScreenV2.kt"
+    geography_basemap = APP_ASSETS / "images/map_v2/east_asia_relief.webp"
+    if geography_source.exists() or geography_map.exists() or geography_basemap.exists():
+        require(geography_source.is_file() and geography_map.is_file() and geography_basemap.is_file(),
+                "real East Asian map V2 is missing its geographic source, screen or relief asset")
+        geographic_code = geography_source.read_text(encoding="utf-8")
+        map_v2_code = geography_map.read_text(encoding="utf-8")
+        locations = re.findall(r'"([^"\n]+)"\s+to\s+GeoLocation\(', geographic_code)
+        require(len(locations) == 79 and len(set(locations)) == 79,
+                f"real geographic map does not locate all 79 existing nodes: {len(locations)}")
+        require('2 -> GeoMapScreenV2(' in main_activity, "formal 山河 entry does not open the geographic map")
+        require('"寰宇"' in map_v2_code and '"山河"' in map_v2_code and '"近览"' in map_v2_code,
+                "far and close views do not share the geographic map camera")
+        require('"隐藏城点"' in map_v2_code, "the real basemap cannot be verified with city nodes hidden")
+        require('WorldTurnReplayOverlay(' in map_v2_code and 'SeasonalTransitionOverlay(' in map_v2_code,
+                "real geographic map does not preserve world replay and seasonal playback")
+        image_streams = ffprobe(geography_basemap).get("streams", [])
+        require(len(image_streams) == 1 and image_streams[0].get("codec_name") == "webp",
+                "real geographic basemap is not a valid WEBP")
+        require(image_streams[0].get("width") >= 2400 and image_streams[0].get("height") >= 1500,
+                "real geographic basemap resolution is insufficient for mobile zoom")
+
     videos = sorted(V3_ROOT.rglob("*.mp4"))
     require(len(videos) == EXPECTED_V3_VIDEOS, f"expected 51 source V3 videos, found {len(videos)}")
     voices = sorted((APP_ASSETS / "audio/voice/prologue").glob("prologue_act*.m4a"))
@@ -251,6 +274,8 @@ def source_audit() -> None:
     print(f"PROLOGUE_NARRATION: {len(voices)}/{EXPECTED_PROLOGUE_VOICES}")
     print("SMOKE_MATRIX: " + "; ".join(f"{status}={count}" for status, count in smoke_counts.items()))
     print(f"BGM_REGISTRY_ASSETS: {len(present_bgm)}/{EXPECTED_APPROVED_BGM}; approval=DEVICE_REQUIRED")
+    if geography_basemap.is_file():
+        print(f"GEO_MAP_V2: 79/79 real locations; relief={image_streams[0]['width']}x{image_streams[0]['height']}; bytes={geography_basemap.stat().st_size}; unified_zoom=1")
     if missing_bgm:
         print("::warning::Approved BGM binaries are absent from the repository and CI APK: " + ", ".join(missing_bgm))
 
@@ -278,6 +303,12 @@ def apk_audit(apk_path: Path) -> None:
 
         require("assets/images/city/yingtianfu.webp" in members, "Yingtian runtime city image missing from APK")
         require("assets/video/VID-CZ-001-PREWAR-V01.mp4" in members, "legacy story CG asset missing from APK")
+        geography_basemap = APP_ASSETS / "images/map_v2/east_asia_relief.webp"
+        if geography_basemap.is_file():
+            geography_member = "assets/images/map_v2/east_asia_relief.webp"
+            require(geography_member in members, "real East Asian relief map missing from APK")
+            require(sha256_bytes(apk.read(geography_member)) == sha256_bytes(geography_basemap.read_bytes()),
+                    "real East Asian relief map checksum mismatch in APK")
         apk_map_icons = sorted(member for member in members if re.fullmatch(r"assets/images/map/icons/[^/]+\.webp", member))
         apk_map_decorations = sorted(member for member in members if re.fullmatch(r"assets/images/map/decorations/[^/]+\.webp", member))
         apk_map_backgrounds = sorted(member for member in members if re.fullmatch(r"assets/images/map/[^/]+\.webp", member))
@@ -316,6 +347,8 @@ def apk_audit(apk_path: Path) -> None:
         print(f"APK_MAP_ICONS: {len(apk_map_icons)}/{EXPECTED_MAP_ICONS}")
         print(f"APK_MAP_DECORATIONS: {len(apk_map_decorations)}/{EXPECTED_MAP_DECORATIONS}; active={EXPECTED_ACTIVE_MAP_DECORATIONS}")
         print(f"APK_MAP_BACKGROUNDS: {len(apk_map_backgrounds)}/{EXPECTED_MAP_BACKGROUNDS}")
+        if geography_basemap.is_file():
+            print(f"APK_GEO_MAP_V2: 1/1; sha256=verified; bytes={geography_basemap.stat().st_size}")
         print(f"APK_V3_VIDEO: h264={len(videos)}/{EXPECTED_V3_VIDEOS}; yuv420p={len(videos)}/{EXPECTED_V3_VIDEOS}; embedded_audio=0")
         print(f"APK_SEASONAL_VIDEO: {len(seasonal_video_members)}/{EXPECTED_SEASONAL_PRESENTATIONS}; APK_SEASONAL_CG: {len(seasonal_cg_members)}/{EXPECTED_SEASONAL_PRESENTATIONS}")
         print(f"APK_PROLOGUE_NARRATION: {len(voices)}/{EXPECTED_PROLOGUE_VOICES}")
