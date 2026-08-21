@@ -35,7 +35,7 @@ object MapData {
     // 其中 GameState 已接入的城池仍负责数值结算；新增节点先作为战略密度、外交、外贸与后续城池扩展槽位。
     val nodes: List<MapNode> = listOf(
         // ===== 南宋核心区·两浙与江南 =====
-        MapNode("linan", "临安", 11000f, 6800f, isCapital = true, ownerHint = "song"),
+        MapNode("linan", "临安", 11000f, 6800f, ownerHint = "song"),
         MapNode("shaoxing", "绍兴", 11600f, 7000f, ownerHint = "song"),
         MapNode("suzhou", "平江", 10800f, 6300f, ownerHint = "song"),
         MapNode("mingzhou", "明州", 12200f, 7100f, ownerHint = "song"),
@@ -88,7 +88,7 @@ object MapData {
         MapNode("hefei", "庐州", 9800f, 5000f, ownerHint = "song"),
         MapNode("shouchun", "寿春", 9600f, 4600f, ownerHint = "song"),
         MapNode("xinyang", "信阳", 9000f, 4400f, ownerHint = "song"),
-        MapNode("yingtianfu", "应天府", 10000f, 4000f, ownerHint = "song"),
+        MapNode("yingtianfu", "应天府", 10000f, 4000f, isCapital = true, ownerHint = "song"),
         MapNode("haozhou", "濠州", 10200f, 4400f, ownerHint = "song"),
         MapNode("sizhou", "泗州", 10650f, 4250f, ownerHint = "song"),
         MapNode("kaifeng", "开封", 9400f, 3400f, ownerHint = "jin", isCapital = true),
