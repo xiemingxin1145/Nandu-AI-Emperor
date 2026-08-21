@@ -158,8 +158,6 @@ fun EmperorMainScreen(
                                     onCancel = onCancelEdict,
                                     onAmend = {
                                         inputMode = CourtInputMode.ORDER
-                                        // 玩家输入框只属于玩家。原旨、臣议和追问由状态层暗中保存，
-                                        // 绝不再把“参酌前议 / 待补圣意”塞进玩家正文。
                                         edictText = ""
                                         onAmendEdict("")
                                     },
@@ -287,7 +285,7 @@ fun HudStat(icon: String, value: String, valueColor: Color = Color.White) {
 }
 
 @Composable
-fun IdleView(
+private fun IdleView(
     state: GameState,
     edictText: String,
     inputMode: CourtInputMode,
@@ -316,9 +314,7 @@ fun IdleView(
                     ImperialMandateCard(state = state, mandate = mandate, onRevoke = { onRevokeMandate(mandate.id) })
                 }
             }
-            item {
-                CourtModeSelector(selected = inputMode, onSelected = onInputModeChange)
-            }
+            item { CourtModeSelector(selected = inputMode, onSelected = onInputModeChange) }
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -333,13 +329,7 @@ fun IdleView(
                             value = edictText,
                             onValueChange = onEdictChange,
                             modifier = Modifier.fillMaxWidth().height(170.dp),
-                            placeholder = {
-                                Text(
-                                    courtPlaceholder(inputMode),
-                                    color = Color(0xFF8B7355),
-                                    fontSize = 13.sp
-                                )
-                            },
+                            placeholder = { Text(courtPlaceholder(inputMode), color = Color(0xFF8B7355), fontSize = 13.sp) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = CourtGold,
                                 unfocusedBorderColor = Color(0xFF4A3728),
@@ -423,7 +413,7 @@ private fun CourtModeSelector(selected: CourtInputMode, onSelected: (CourtInputM
 }
 
 @Composable
-fun LoadingView(inputMode: CourtInputMode) {
+private fun LoadingView(inputMode: CourtInputMode) {
     val courtName = PalaceRegistry.byId(PalaceIds.CHUIGONG).name
     val detail = when (inputMode) {
         CourtInputMode.CONSULT -> "群臣正在据当前军政实情奏对…"
@@ -624,10 +614,6 @@ private fun CourtStageHeader(state: GameState, title: String, subtitle: String) 
     }
 }
 
-/**
- * 活朝堂：谁能站在行在内殿，统一由 CharacterAppearanceSystem.canAppearInPalace 决定。
- * 外任、领军、俘虏、未到时代、罢黜、赶路中的人物一律不能肉身列班。
- */
 @Composable
 private fun CourtOfficerRow(state: GameState) {
     val present = state.officers.filter {
