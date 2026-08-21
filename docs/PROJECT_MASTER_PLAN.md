@@ -8,8 +8,8 @@
 当前可测试版本：**V1.6.1 RC / versionCode 28**  
 当前主开发分支：`release/v1.6.1`  
 当前里程碑：**V1.6.2 稳定化与去 Demo 化**  
-当前下一任务：**STAB-001 移除/门控顺昌测试入口，禁止历史战役无条件出现（进行中，分支 fix/stab-001-shunchang-gating）**  
-当前里程碑进度：**0 / 8**
+当前下一任务：**STAB-002 清理战役 UI 硬编码人物与年份**  
+当前里程碑进度：**1 / 8**
 
 ---
 
@@ -165,7 +165,7 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 
 ## STAB-001 — 顺昌测试入口退出正式流程
 
-状态：`IN_PROGRESS`（分支 `fix/stab-001-shunchang-gating`，当前会话）
+状态：`DONE`
 
 工作：
 
@@ -180,11 +180,43 @@ AI 不可以绕过本地规则直接写数值或生成非法行动。
 - 金国不具备进攻条件时入口不存在；
 - UI 不再暴露“美术资产实装测试场景”。
 
-完成记录：待填写。
+完成记录：
+
+- 日期：2026-08-21
+- 分支：`fix/stab-001-shunchang-gating`（从 `release/v1.6.1` 切出）
+- 提交：`d5ff4232d83f6cfe8c030bf4a18abbd61849664a`
+- PR：#52 → `release/v1.6.1`（未合并，等待人工/后续审阅）
+- 改动：
+  - 新增 `game/BattleOpportunitySystem.kt`：`HistoricalBattleAvailability.forShunchang(state)`，
+    检查历史窗口（游戏内年数 10~20）、金国是否灭亡/无城池、`jinThreat` 是否≥25、
+    宋金关系是否≤-20、顺昌一带（代理城池"寿春"）归属、刘锜存活与在场状态；
+  - `PalaceHallScreen.kt`：入口卡片改为只在 `available=true` 时才渲染，不满足时不留占位；
+  - `MainActivity.kt`：`onOpenShunchang` 回调加二次校验，防止入口卡片以外的路径绕过门控；
+  - 新增 `BattleOpportunitySystemTest.kt`，11 个用例。
+- 测试结果：本地在真实 JVM（`apt` 装的 `junit4.jar` + 项目 `game`/`agent` 全部源码一起
+  编译成同一编译单元，避免 `internal` 可见性误报）上跑通整个 `game`+`agent` 测试套件，
+  **87 个测试全部通过**（含新增 11 个）。CI（`android-build.yml`，`workflow_dispatch`
+  跑在本分支）：`Enforce Android release version and stable debug signing` /
+  `Run unit tests` / `Build debug APK` / `Verify stable debug signing certificate` /
+  `Upload debug APK` 全部 `success`。
+- APK/真机结果：CI 产出 Debug APK（artifact `nandu-v1.6.1-debug-apk`），签名指纹校验通过；
+  未做真机安装验收（本任务范围内无 UI 视觉/交互变化需要真机确认，两处改动均为条件门控逻辑）。
+- 遗留问题：
+  1. `GameCalendar.advance()` 尚未实现“建炎→绍兴”年号切换，`calendar.year` 只是从开局
+     累计的年号内年数，不是公历数字——本次窗口判断按这个口径给了游戏内年数区间，
+     不是精确年号切换后的产物。这是独立的既有缺陷，建议后续任务（HIST-001 或专项）修正
+     年号切换后，回头把这里的窗口常量换算方式一并复核。
+  2. 地图数据里没有独立的"顺昌"城池实体，本任务用刘锜初始所在的"寿春"作为代理城池
+     判断归属；若未来地图拆出独立顺昌城池 id，需要同步更新
+     `SHUNCHANG_PROXY_CITY_ID` 常量。
+  3. 本任务只做“入口是否出现”的门控，`ShunchangBattleScreen.kt` 内部仍是硬编码的
+     战报文案（如"完颜宗弼十万铁骑南下"）和固定演出内容，未做真实数据回填——这正是
+     STAB-002/STAB-003 的范畴，本任务有意不越界处理。
+  4. PR #52 未合并 `release/v1.6.1`，按任务要求停在这里等待验收。
 
 ## STAB-002 — 清理战役 UI 硬编码人物与年份
 
-状态：`TODO`
+状态：`NEXT`
 
 工作：
 
