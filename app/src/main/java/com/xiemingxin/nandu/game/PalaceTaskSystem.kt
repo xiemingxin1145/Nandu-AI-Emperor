@@ -17,7 +17,10 @@ data class PalaceTask(
     val relatedOfficerIds: List<String> = emptyList(),
     val relatedCityIds: List<String> = emptyList(),
     val recommendedTab: Int = 1,
-    val edictDraft: String = ""
+    val edictDraft: String = "",
+    // WORLD-CORE-001：不含 turn 的稳定标识，用来判断"这是不是同一件事又刷出来了"。
+    // 默认取 id 去掉尾部 "_<turn>" 数字，特殊情况在生成处显式指定。
+    val signature: String = ""
 )
 
 enum class TaskSeverity(val label: String) {
@@ -88,6 +91,7 @@ object PalaceTaskSystem {
 
         tasks += PalaceTask(
             id = "court_${state.turn}",
+            signature = "court",
             palaceId = PalaceIds.CHUIGONG,
             title = if (state.courtStability < 45) "主战主和争执不下" else "本旬朝议待断",
             description = if (state.courtStability < 45) {
@@ -106,6 +110,7 @@ object PalaceTaskSystem {
             val city = weakestFront ?: songCities.firstOrNull()
             tasks += PalaceTask(
                 id = "war_${state.turn}_${city?.id ?: "front"}",
+                signature = "war_${city?.id ?: "front"}",
                 palaceId = PalaceIds.SHUMI,
                 title = if (state.jinThreat >= 85) "金军压境，边报火急" else "中原防线需整备",
                 description = city?.let { "${it.name}防御${it.defense}、守军${it.troops}，需议调兵、修城或筹粮。" }
@@ -126,6 +131,7 @@ object PalaceTaskSystem {
         if (state.grain < 160000 || state.gold < 40000 || lowGrainCity != null) {
             tasks += PalaceTask(
                 id = "fiscal_${state.turn}",
+                signature = "fiscal",
                 palaceId = PalaceIds.ZHENGSHI,
                 title = if (state.grain < 120000) "府库粮储吃紧" else "钱粮调度待议",
                 description = "国库${state.gold}贯，粮草${state.grain}石。政事堂请议转运、屯田、赈济与军粮。",
@@ -142,6 +148,7 @@ object PalaceTaskSystem {
             val isTrade = brief.relatedRouteIds.any { it.contains("quanzhou") || it.contains("guangzhou") || it.contains("mingzhou") }
             tasks += PalaceTask(
                 id = "foreign_${state.turn}_$index",
+                signature = "foreign_${brief.title}",
                 palaceId = if (isTrade) PalaceIds.ZHENGSHI else PalaceIds.YUSHU,
                 title = brief.title,
                 description = brief.description,
@@ -165,6 +172,7 @@ object PalaceTaskSystem {
         if (hiddenTalent != null || state.talentLeads.isNotEmpty()) {
             tasks += PalaceTask(
                 id = "talent_${state.turn}_${hiddenTalent?.id ?: state.talentLeads.firstOrNull().orEmpty()}",
+                signature = "talent_${hiddenTalent?.id ?: state.talentLeads.firstOrNull().orEmpty()}",
                 palaceId = PalaceIds.WENDE,
                 title = if (hiddenTalent != null) "在野人才可访" else "人才线索待召见",
                 description = hiddenTalent?.let { "${it.currentCityId}一带或有${it.origin}出身之才，可议访求。" }
@@ -182,6 +190,7 @@ object PalaceTaskSystem {
             val rumor = state.rumors.last()
             tasks += PalaceTask(
                 id = "rumor_${state.turn}_${state.rumors.size}",
+                signature = "rumor_${rumor.text.take(20)}",
                 palaceId = PalaceIds.YUSHU,
                 title = "坊间传闻入密折",
                 description = rumor.text.take(60),
@@ -196,6 +205,7 @@ object PalaceTaskSystem {
         if (riskyOfficer != null) {
             tasks += PalaceTask(
                 id = "intel_${state.turn}_${riskyOfficer.id}",
+                signature = "intel_${riskyOfficer.id}",
                 palaceId = PalaceIds.HUANGCHENG,
                 title = "朝臣动向需留意",
                 description = "${riskyOfficer.name}忠诚${riskyOfficer.loyalty}、野心${riskyOfficer.ambition}。皇城司请密察其往来。",
@@ -210,6 +220,7 @@ object PalaceTaskSystem {
         if (state.prestige < 40 || state.turn % 3 == 0) {
             tasks += PalaceTask(
                 id = "ritual_${state.turn}",
+                signature = "ritual",
                 palaceId = PalaceIds.TAIMIAO,
                 title = "礼制正统待议",
                 description = "名望${state.prestige}，国势未稳。可议告慰祖宗、安抚军民、整肃正统。",
@@ -226,6 +237,7 @@ object PalaceTaskSystem {
         val innerPalaceTask = when {
             state.jinThreat >= 85 -> PalaceTask(
                 id = "inner_war_pressure_${state.turn}",
+                signature = "inner_war_pressure",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "军报频至，内廷人心不安",
                 description = "金军威胁已达${state.jinThreat}。行在内廷因前线急报接连入宫而人心浮动，需决定节用、安抚或听取近事。",
@@ -236,6 +248,7 @@ object PalaceTaskSystem {
             )
             state.gold < 40000 -> PalaceTask(
                 id = "inner_budget_${state.turn}",
+                signature = "inner_budget",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "行在内廷请议减省",
                 description = "国库仅余${state.gold}贯。内廷请官家裁定宫中用度是否继续裁减，以免与军粮民食争用。",
@@ -246,6 +259,7 @@ object PalaceTaskSystem {
             )
             state.courtStability < 40 -> PalaceTask(
                 id = "inner_court_unrest_${state.turn}",
+                signature = "inner_court_unrest",
                 palaceId = PalaceIds.HOUYUAN,
                 title = "朝局震荡波及宫中",
                 description = "朝局稳定仅${state.courtStability}。外朝争议已传入宫禁，内廷请示是否安抚众人并严禁私议军政。",
@@ -260,9 +274,35 @@ object PalaceTaskSystem {
 
         return tasks
             .distinctBy { it.id }
+            .filterNot { isCoolingDown(state, it) }
             .sortedWith(compareByDescending<PalaceTask> { it.severity.ordinal }.thenBy { it.palaceId })
             .take(12)
     }
+
+    private const val COOLDOWN_TURNS = 3
+
+    /**
+     * WORLD-CORE-001：这件事玩家最近处理过、而且情况没有明显恶化，就不再刷出来——
+     * 这是"待办不断重复"这个问题的核心修复。恶化的判定很简单：这次算出来的
+     * severity 等级比处理时更高，冷却期内也照样重新提示，不会真的把火烧起来
+     * 还装看不见。
+     */
+    private fun isCoolingDown(state: GameState, task: PalaceTask): Boolean {
+        if (task.signature.isBlank()) return false
+        val memory = state.dismissedTaskSignatures[task.signature] ?: return false
+        if (state.turn - memory.turn > COOLDOWN_TURNS) return false
+        return task.severity.ordinal <= memory.severityOrdinal
+    }
+
+    /**
+     * 玩家真正处理了这件事（比如朱批下发了对应的圣旨）后调用，记一笔"已处理"，
+     * 在冷却期内、且情况没有恶化时，[generate] 不会再把同一件事刷回来。
+     */
+    fun markDismissed(state: GameState, signature: String, severity: TaskSeverity): GameState =
+        state.copy(
+            dismissedTaskSignatures = state.dismissedTaskSignatures +
+                (signature to DismissedTaskMemory(turn = state.turn, severityOrdinal = severity.ordinal))
+        )
 
     fun tasksForPalace(state: GameState, palaceId: String): List<PalaceTask> =
         generate(state).filter { it.palaceId == palaceId }

@@ -15,22 +15,39 @@ object CharacterTravelSystem {
 
     fun tickArrivals(state: GameState): Pair<GameState, List<String>> {
         val reports = mutableListOf<String>()
+        var cityGovernors = state.cityGovernors
+        var cityGarrisons = state.cityGarrisons
         val newOfficers = state.officers.map { officer ->
             val dest = officer.travelDestinationCityId
             val arrival = officer.travelArrivalTurn
             if (dest != null && arrival != null && state.turn >= arrival) {
                 val destName = state.cities.find { it.id == dest }?.name ?: dest
-                reports += "【回京】${officer.name}已奉诏抵达$destName，即日可入朝奏对。"
+                val arrivalStatus = officer.travelArrivalStatus ?: OfficerStatus.IN_COURT
+                val postTitle = officer.travelArrivalPostTitle
+                // WORLD-CORE-001：抵达即履职生效，不是只改一个 status 字面量——
+                // 有职务标签的（如"东京留守"），真的记进 cityGarrisons，
+                // 之后 AppointmentSystem.currentRole() 才答得出来这是谁的正式差遣。
+                if (postTitle.isNotBlank() && arrivalStatus == OfficerStatus.DEPLOYED) {
+                    cityGarrisons = cityGarrisons + (dest to officer.id)
+                }
+                reports += if (arrivalStatus == OfficerStatus.IN_COURT) {
+                    "【回京】${officer.name}已奉诏抵达$destName，即日可入朝奏对。"
+                } else {
+                    val roleText = if (postTitle.isNotBlank()) "，就任$postTitle" else ""
+                    "【履职】${officer.name}已抵达$destName$roleText，自此常驻，不再肉身入朝，唯以奏札上闻。"
+                }
                 officer.copy(
                     currentCityId = dest,
-                    status = OfficerStatus.IN_COURT,
+                    status = arrivalStatus,
                     travelDestinationCityId = null,
-                    travelArrivalTurn = null
+                    travelArrivalTurn = null,
+                    travelArrivalStatus = null,
+                    travelArrivalPostTitle = ""
                 )
             } else officer
         }
         if (reports.isEmpty()) return state to emptyList()
-        return state.copy(officers = newOfficers) to reports
+        return state.copy(officers = newOfficers, cityGovernors = cityGovernors, cityGarrisons = cityGarrisons) to reports
     }
 
     /**
