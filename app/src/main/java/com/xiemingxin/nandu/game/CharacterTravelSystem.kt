@@ -3,13 +3,8 @@ package com.xiemingxin.nandu.game
 /**
  * V1.0 人物赶路推进系统（活朝堂 / living-world-court-v1）。
  *
- * 目前只服务一种真实移动场景：AppointmentSystem.recallToCourt 把外任/领军人物
- * 召回入朝时，不会瞬间把人摆进垂拱殿，而是先记录 travelDestinationCityId /
- * travelArrivalTurn。这里在每旬推进（EmperorViewModel.advanceTurn）时检查
- * 是否已经抵达——真正抵达那一旬，才把人物切换为 IN_COURT 并挪到目的地城市。
- *
- * 调用时机：必须在 state.turn 已经+1（也就是"新的一旬"）之后再调用，
- * 这样 travelArrivalTurn 记录的就是"抵达时应处于的旬数"，语义清晰。
+ * 召回入朝与 WORLD-CORE-001 派任外地统一走真实 travel 字段：
+ * 抵达前人物不能肉身出现在不该出现的宫殿；抵达那一旬才真正改变位置/身份/任职。
  */
 object CharacterTravelSystem {
 
@@ -23,17 +18,23 @@ object CharacterTravelSystem {
             if (dest != null && arrival != null && state.turn >= arrival) {
                 val destName = state.cities.find { it.id == dest }?.name ?: dest
                 val arrivalStatus = officer.travelArrivalStatus ?: OfficerStatus.IN_COURT
-                val postTitle = officer.travelArrivalPostTitle
-                // WORLD-CORE-001：抵达即履职生效，不是只改一个 status 字面量——
-                // 有职务标签的（如"东京留守"），真的记进 cityGarrisons，
-                // 之后 AppointmentSystem.currentRole() 才答得出来这是谁的正式差遣。
-                if (postTitle.isNotBlank() && arrivalStatus == OfficerStatus.DEPLOYED) {
-                    cityGarrisons = cityGarrisons + (dest to officer.id)
+                val travelPost = OfficerDispatchSystem.decodeTravelPost(officer.travelArrivalPostTitle)
+
+                // 抵达后才真正占据新任席位。先清残留，避免同一人物同时挂两城/两职。
+                if (travelPost.title.isNotBlank() && arrivalStatus == OfficerStatus.DEPLOYED) {
+                    cityGovernors = cityGovernors.filterValues { it != officer.id }
+                    cityGarrisons = cityGarrisons.filterValues { it != officer.id }
+                    when (travelPost.garrisonPost) {
+                        false -> cityGovernors = cityGovernors + (dest to officer.id)
+                        true -> cityGarrisons = cityGarrisons + (dest to officer.id)
+                        null -> Unit
+                    }
                 }
+
                 reports += if (arrivalStatus == OfficerStatus.IN_COURT) {
                     "【回京】${officer.name}已奉诏抵达$destName，即日可入朝奏对。"
                 } else {
-                    val roleText = if (postTitle.isNotBlank()) "，就任$postTitle" else ""
+                    val roleText = if (travelPost.title.isNotBlank()) "，就任${travelPost.title}" else ""
                     "【履职】${officer.name}已抵达$destName$roleText，自此常驻，不再肉身入朝，唯以奏札上闻。"
                 }
                 officer.copy(

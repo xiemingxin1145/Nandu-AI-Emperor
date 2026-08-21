@@ -4,10 +4,8 @@ package com.xiemingxin.nandu.game
  * WORLD-CORE-001：人物调度器。
  *
  * "命宗泽赴东京任留守"不该只是一张文本卡——这里统一处理"派某人去某地任某职"，
- * 产生一条真实的、跨旬的世界任务：接旨→在途（从朝堂/原驻地消失）→抵达→履职生效，
- * 不需要任何 AI 调用，纯本地规则驱动。跟 AppointmentSystem.recallToCourt（召回
- * 入朝）是同一套 travel 机制的另一半：那边到达后固定变 IN_COURT，这边到达后变
- * DEPLOYED/IN_CAPITAL，并可选正式记入 cityGarrisons/cityGovernors。
+ * 产生一条真实的、跨旬的世界任务：接旨→离任启程→在途（从朝堂/原驻地消失）
+ * →抵达→履职生效。不需要任何 AI 调用，纯本地规则驱动。
  */
 object OfficerDispatchSystem {
 
@@ -17,11 +15,32 @@ object OfficerDispatchSystem {
     }
 
     /**
-     * @param arrivalStatus 抵达后的状态。DEPLOYED=领军外任/镇守一方，IN_CAPITAL=在京任军职。
-     * @param postTitle 人类可读职务名（如"东京留守"）；非空时会正式记入职务表，
-     *   之后 AppointmentSystem.currentRole() 才答得出这是谁的正式差遣。
-     * @param garrisonPost true=记为"驻城守将"（cityGarrisons，武职/镇守类），
-     *   false=记为"知府"类主官（cityGovernors，民政主官）。
+     * travelArrivalPostTitle 已经进入存档格式。为了不再扩一次存档 schema，
+     * 本轮把“抵达后是文职主官还是武职守将”作为内部前缀一起持久化；
+     * 对外展示时统一解码，旧存档没有前缀的职务按守将兼容。
+     */
+    internal data class TravelPost(val title: String, val garrisonPost: Boolean?)
+
+    private const val GARRISON_PREFIX = "__GARRISON__::"
+    private const val GOVERNOR_PREFIX = "__GOVERNOR__::"
+
+    internal fun encodeTravelPost(postTitle: String, garrisonPost: Boolean): String {
+        if (postTitle.isBlank()) return ""
+        return (if (garrisonPost) GARRISON_PREFIX else GOVERNOR_PREFIX) + postTitle
+    }
+
+    internal fun decodeTravelPost(raw: String): TravelPost = when {
+        raw.isBlank() -> TravelPost("", null)
+        raw.startsWith(GARRISON_PREFIX) -> TravelPost(raw.removePrefix(GARRISON_PREFIX), true)
+        raw.startsWith(GOVERNOR_PREFIX) -> TravelPost(raw.removePrefix(GOVERNOR_PREFIX), false)
+        // 兼容 #72 初版已经写入存档的纯标题：当时只能落到 cityGarrisons。
+        else -> TravelPost(raw, true)
+    }
+
+    /**
+     * @param arrivalStatus 抵达后的状态。DEPLOYED=外任/镇守一方，IN_CAPITAL=在京任军职。
+     * @param postTitle 人类可读职务名（如"东京留守"）。
+     * @param garrisonPost true=驻城守将（cityGarrisons），false=民政主官（cityGovernors）。
      */
     fun dispatch(
         state: GameState,
@@ -48,11 +67,19 @@ object OfficerDispatchSystem {
         if (targetCity.owner != "song")
             return DispatchResult.Failure("${targetCity.name}已非我方治下，不得委任。")
 
+        // 一人不能同时在旧城和新城占两个正式席位。旨意生效、本人离任启程时，旧任即腾缺。
+        val clearedGovernors = state.cityGovernors.filterValues { it != officerId }
+        val clearedGarrisons = state.cityGarrisons.filterValues { it != officerId }
+
         if (officer.currentCityId == targetCityId) {
-            // 本来就在当地：不需要"赶路"这个过程，即刻履职生效。
+            // 本来就在当地：不需要赶路，即刻履职；同时清掉此人可能残留的旧任记录。
             val newOfficers = state.officers.map { if (it.id == officerId) it.copy(status = arrivalStatus) else it }
-            val newGarrisons = if (postTitle.isNotBlank() && garrisonPost) state.cityGarrisons + (targetCityId to officerId) else state.cityGarrisons
-            val newGovernors = if (postTitle.isNotBlank() && !garrisonPost) state.cityGovernors + (targetCityId to officerId) else state.cityGovernors
+            val newGarrisons = if (postTitle.isNotBlank() && garrisonPost) {
+                clearedGarrisons + (targetCityId to officerId)
+            } else clearedGarrisons
+            val newGovernors = if (postTitle.isNotBlank() && !garrisonPost) {
+                clearedGovernors + (targetCityId to officerId)
+            } else clearedGovernors
             val roleText = if (postTitle.isNotBlank()) "，就任$postTitle" else ""
             return DispatchResult.Success(
                 "【任命】${officer.name}本在${targetCity.name}，即日履新$roleText。",
@@ -62,23 +89,26 @@ object OfficerDispatchSystem {
 
         val travelTurns = AppointmentSystem.estimateTravelTurns(state, officer.currentCityId, targetCityId)
         val arrivalTurn = state.turn + travelTurns
+        val encodedPost = if (arrivalStatus == OfficerStatus.DEPLOYED) {
+            encodeTravelPost(postTitle, garrisonPost)
+        } else ""
         val newOfficers = state.officers.map {
             if (it.id == officerId) it.copy(
                 travelDestinationCityId = targetCityId,
                 travelArrivalTurn = arrivalTurn,
                 travelArrivalStatus = arrivalStatus,
-                // 履职记录延到真正抵达那一旬才写入 cityGarrisons/cityGovernors
-                // （CharacterTravelSystem.tickArrivals 只按 DEPLOYED 记 garrison，
-                // IN_CAPITAL 等其它到达状态暂不自动记正式职务，避免"人还没到、
-                // 官职表已经写好了"这种半真半假的状态）。
-                travelArrivalPostTitle = if (arrivalStatus == OfficerStatus.DEPLOYED) postTitle else ""
+                travelArrivalPostTitle = encodedPost
             ) else it
         }
         val roleText = if (postTitle.isNotBlank()) "，任$postTitle" else ""
         return DispatchResult.Success(
             "【诏命】命${officer.name}赴${targetCity.name}$roleText，路程约${travelTurns}旬。" +
-                "旨意已发，本人即刻启程；途中不再肉身参加朝议，唯凭奏札陈情，抵达后方才实际履职。",
-            state.copy(officers = newOfficers)
+                "旨意已发，本人即刻离任启程；途中不再肉身参加朝议，抵达后方才实际履职。",
+            state.copy(
+                officers = newOfficers,
+                cityGovernors = clearedGovernors,
+                cityGarrisons = clearedGarrisons
+            )
         )
     }
 }

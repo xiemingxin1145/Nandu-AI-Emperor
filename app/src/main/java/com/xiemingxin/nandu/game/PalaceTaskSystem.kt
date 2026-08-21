@@ -3,9 +3,9 @@ package com.xiemingxin.nandu.game
 /**
  * V1.6.2 宫殿待办派生系统。
  *
- * 待办目前从 GameState 派生，以兼容既有存档；但每一条正式待办必须能解释为当前世界
- * 状态的结果，不能仅因 turn % N 到点就伪造“有事待闻”。持久化、逾期和连锁后果仍留
- * 给后续版本深化。
+ * 待办从 GameState 派生，以兼容既有存档；每一条正式待办必须能解释为当前世界
+ * 状态的结果。WORLD-CORE-001 增加稳定 signature 与已处理冷却记忆，避免同一问题
+ * 被玩家处理后立刻无限重刷；世界真正恶化时仍会再次提醒。
  */
 data class PalaceTask(
     val id: String,
@@ -18,8 +18,6 @@ data class PalaceTask(
     val relatedCityIds: List<String> = emptyList(),
     val recommendedTab: Int = 1,
     val edictDraft: String = "",
-    // WORLD-CORE-001：不含 turn 的稳定标识，用来判断"这是不是同一件事又刷出来了"。
-    // 默认取 id 去掉尾部 "_<turn>" 数字，特殊情况在生成处显式指定。
     val signature: String = ""
 )
 
@@ -69,6 +67,10 @@ object PalaceRegistry {
 
 object PalaceTaskSystem {
 
+    private const val LOCAL_GRAIN_ABSOLUTE_FLOOR = 30_000
+    private const val LOCAL_GRAIN_PER_TROOP_FLOOR = 2
+    private const val COOLDOWN_TURNS = 3
+
     fun generate(state: GameState): List<PalaceTask> {
         val tasks = mutableListOf<PalaceTask>()
         val songCities = state.cities.filter { it.owner == "song" }
@@ -76,7 +78,16 @@ object PalaceTaskSystem {
             .filter { it.controlState == "FRONTLINE" || it.controlState == "CONTESTED" }
             .sortedBy { it.defense }
         val weakestFront = frontline.firstOrNull()
-        val lowGrainCity = songCities.sortedBy { it.grain }.firstOrNull()
+
+        // 旧逻辑取“粮最少的一座宋城”后只判断 != null，导致只要大宋还有城，财政待办永久成立。
+        // 现在只有真正低于绝对安全线，或存粮不足约两倍驻军规模时，才算地方粮情异常。
+        val lowGrainCity = songCities
+            .filter { city ->
+                city.grain < LOCAL_GRAIN_ABSOLUTE_FLOOR ||
+                    (city.troops > 0 && city.grain < city.troops * LOCAL_GRAIN_PER_TROOP_FLOOR)
+            }
+            .minByOrNull { it.grain }
+
         val hiddenTalent = state.officers.firstOrNull {
             (it.status == OfficerStatus.HIDDEN || it.status == OfficerStatus.WANDERING) && !state.talentLeads.contains(it.id)
         }
@@ -129,13 +140,20 @@ object PalaceTaskSystem {
         }
 
         if (state.grain < 160000 || state.gold < 40000 || lowGrainCity != null) {
+            val localGrainNote = lowGrainCity?.let { "；${it.name}现存粮${it.grain}石，守军${it.troops}" }.orEmpty()
             tasks += PalaceTask(
                 id = "fiscal_${state.turn}",
                 signature = "fiscal",
                 palaceId = PalaceIds.ZHENGSHI,
-                title = if (state.grain < 120000) "府库粮储吃紧" else "钱粮调度待议",
-                description = "国库${state.gold}贯，粮草${state.grain}石。政事堂请议转运、屯田、赈济与军粮。",
-                severity = if (state.grain < 120000) TaskSeverity.HIGH else TaskSeverity.MEDIUM,
+                title = when {
+                    state.grain < 120000 -> "府库粮储吃紧"
+                    lowGrainCity != null -> "${lowGrainCity.name}粮储偏低"
+                    else -> "钱粮调度待议"
+                },
+                description = "国库${state.gold}贯，粮草${state.grain}石$localGrainNote。政事堂请议转运、屯田、赈济与军粮。",
+                severity = if (state.grain < 120000 || (lowGrainCity?.grain ?: Int.MAX_VALUE) < 15_000) {
+                    TaskSeverity.HIGH
+                } else TaskSeverity.MEDIUM,
                 source = TaskSource.FISCAL,
                 relatedOfficerIds = openingCourtIds.take(3),
                 relatedCityIds = lowGrainCity?.let { listOf(it.id) } ?: emptyList(),
@@ -232,8 +250,6 @@ object PalaceTaskSystem {
             )
         }
 
-        // STAB-004：内廷不再按 turn % 4 机械制造“有事待闻”。
-        // 只有当前世界确实存在内廷能感知的压力时才生成，且文案直接展示触发数据。
         val innerPalaceTask = when {
             state.jinThreat >= 85 -> PalaceTask(
                 id = "inner_war_pressure_${state.turn}",
@@ -279,13 +295,8 @@ object PalaceTaskSystem {
             .take(12)
     }
 
-    private const val COOLDOWN_TURNS = 3
-
     /**
-     * WORLD-CORE-001：这件事玩家最近处理过、而且情况没有明显恶化，就不再刷出来——
-     * 这是"待办不断重复"这个问题的核心修复。恶化的判定很简单：这次算出来的
-     * severity 等级比处理时更高，冷却期内也照样重新提示，不会真的把火烧起来
-     * 还装看不见。
+     * 最近处理过、且情况没有明显恶化，就不再机械重刷；恶化或冷却期结束可重新提醒。
      */
     private fun isCoolingDown(state: GameState, task: PalaceTask): Boolean {
         if (task.signature.isBlank()) return false
@@ -294,10 +305,6 @@ object PalaceTaskSystem {
         return task.severity.ordinal <= memory.severityOrdinal
     }
 
-    /**
-     * 玩家真正处理了这件事（比如朱批下发了对应的圣旨）后调用，记一笔"已处理"，
-     * 在冷却期内、且情况没有恶化时，[generate] 不会再把同一件事刷回来。
-     */
     fun markDismissed(state: GameState, signature: String, severity: TaskSeverity): GameState =
         state.copy(
             dismissedTaskSignatures = state.dismissedTaskSignatures +
