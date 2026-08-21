@@ -398,7 +398,7 @@ fun NanduApp() {
                     onDismissStoryOutcome = { playSfx("story_outcome"); viewModel.dismissStoryOutcome() },
                     onOpenSettings = { playSfx("open_panel"); showSettings = true }
                 )
-                2 -> MapScreen(
+                2 -> GeoMapScreenV2(
                     gameState = uiState.gameState,
                     replay = uiState.activeWorldReplay,
                     lastReplay = uiState.lastWorldReplay,
