@@ -25,7 +25,6 @@ data class StoryEvent(
     @SerialName("art_hint") val artHint: String = "",
     @SerialName("related_characters") val relatedCharacters: List<String> = emptyList(),
     @SerialName("related_cities") val relatedCities: List<String> = emptyList(),
-    // V1.0 随机事件扩展
     val weight: Int = 50,
     @SerialName("chain_next") val chainNext: List<String> = emptyList(),
     val repeatable: Boolean = false
@@ -131,6 +130,11 @@ object StoryEventLoader {
         )
     }
 
+    /**
+     * Preserve every source trigger field. Older code rebuilt a tiny compatible object and silently
+     * discarded `city_owner`, `blocked_flags` and other guards, so JSON looked conditional while the
+     * game ignored those conditions. Converted turn/condition fields are additive compatibility keys.
+     */
     private fun JsonObject.toCompatibleTrigger(priority: Int): JsonObject {
         val yearGte = int("year_gte")
         val yearLte = int("year_lte")
@@ -139,7 +143,7 @@ object StoryEventLoader {
         val courtLte = int("court_stability_lte")
         val goldGte = int("gold_gte")
         val grainGte = int("grain_gte")
-        val condition = when {
+        val compatibleCondition = when {
             jinGte != null -> "jinThreat >= $jinGte"
             jinLte != null -> "jinThreat <= $jinLte"
             courtLte != null -> "courtStability <= $courtLte"
@@ -147,11 +151,16 @@ object StoryEventLoader {
             grainGte != null -> "grain >= $grainGte"
             else -> null
         }
+
         return buildJsonObject {
+            // Keep structured guards so EventDirector can enforce them directly.
+            this@toCompatibleTrigger.forEach { (key, value) -> put(key, value) }
             put("priority", JsonPrimitive(priority))
             yearGte?.let { put("turn_min", JsonPrimitive(yearToTurnMin(it))) }
             yearLte?.let { put("turn_max", JsonPrimitive(yearToTurnMax(it))) }
-            condition?.let { put("condition", JsonPrimitive(it)) }
+            if (this@toCompatibleTrigger["condition"] == null) {
+                compatibleCondition?.let { put("condition", JsonPrimitive(it)) }
+            }
         }
     }
 
