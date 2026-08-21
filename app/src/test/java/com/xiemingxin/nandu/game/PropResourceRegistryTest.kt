@@ -85,4 +85,45 @@ class PropResourceRegistryTest {
         assertTrue("imperial_edict" in props)
         assertTrue(props.size <= 3)
     }
+
+    @Test
+    fun catalogExposesAllEighteenRegisteredProps() {
+        val catalog = PropResourceRegistry.catalog()
+        assertEquals(18, catalog.size)
+        assertEquals(18, catalog.map { it.id }.toSet().size)
+        assertTrue(catalog.all { it.name.isNotBlank() })
+        assertTrue(catalog.all { it.shortDescription.isNotBlank() })
+        assertTrue(catalog.all { it.imagePath.startsWith("images/props/v1/prop_") })
+        assertTrue(catalog.all { it.imagePath.endsWith(".webp") })
+        assertTrue(catalog.any { it.id == "imperial_seal" && it.name == "传国御玺" })
+        assertTrue(catalog.any { it.id == "dispatch_box" && it.name == "急递匣" })
+    }
+
+    @Test
+    fun catalogGroupsEveryPropWithoutDroppingEntries() {
+        val grouped = PropResourceRegistry.catalogByCategory()
+        val flattened = grouped.values.flatten()
+        assertEquals(PropResourceRegistry.catalog().size, flattened.size)
+        assertTrue(grouped.keys.contains(PropCategory.IMPERIAL))
+        assertTrue(grouped.keys.contains(PropCategory.MILITARY))
+        assertTrue(grouped.keys.contains(PropCategory.DOCUMENT))
+        assertTrue(grouped.values.all { it.isNotEmpty() })
+    }
+
+    @Test
+    fun missingPropImageUsesExistingUiFallback() {
+        assertEquals(ArtResourceRegistry.Fallback.ui, PropResourceRegistry.imageFallbackPath())
+        assertTrue(PropResourceRegistry.imageFallbackPath().startsWith("images/"))
+        assertTrue(PropResourceRegistry.imageFallbackPath().endsWith(".webp"))
+        assertTrue(PropResourceRegistry.byId("no_such_prop") == null)
+    }
+
+    @Test
+    fun catalogDoesNotInventInventoryOwnership() {
+        val catalog = PropResourceRegistry.catalog()
+        assertEquals(PropResourceRegistry.all.size, catalog.size)
+        assertTrue(catalog.none { it.id.isBlank() })
+        assertEquals("images/props/v1/prop_imperial_seal.webp", PropResourceRegistry.byId("imperial_seal")?.imagePath)
+    }
 }
+

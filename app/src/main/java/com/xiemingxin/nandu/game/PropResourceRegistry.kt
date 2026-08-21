@@ -142,6 +142,13 @@ object PropResourceRegistry {
 
     fun byId(id: String): PropArt? = all[id]
 
+    fun catalog(): List<PropArt> = all.values.toList()
+
+    fun catalogByCategory(): Map<PropCategory, List<PropArt>> =
+        catalog().groupBy { it.category }
+
+    fun imageFallbackPath(): String = ArtResourceRegistry.Fallback.ui
+
     fun signaturePropsForOfficer(officerId: String): List<PropArt> =
         signatureByOfficer[officerId].orEmpty().mapNotNull(all::get)
 

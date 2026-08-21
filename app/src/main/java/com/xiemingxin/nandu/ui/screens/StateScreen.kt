@@ -25,7 +25,11 @@ import com.xiemingxin.nandu.game.CharacterDetailEntryPolicy
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.Officer
 import com.xiemingxin.nandu.game.OfficerStatus
+import com.xiemingxin.nandu.game.PropArt
+import com.xiemingxin.nandu.game.PropResourceRegistry
 import com.xiemingxin.nandu.ui.components.CharacterDetailDialog
+import com.xiemingxin.nandu.ui.components.ImperialTreasuryCatalog
+import com.xiemingxin.nandu.ui.components.PropDetailDialog
 import com.xiemingxin.nandu.ui.theme.ImperialGold
 import com.xiemingxin.nandu.ui.theme.InkBlack
 import com.xiemingxin.nandu.ui.theme.JinRed
@@ -35,6 +39,7 @@ import com.xiemingxin.nandu.ui.theme.XuanCream
 @Composable
 fun StateScreen(gameState: GameState) {
     var selectedOfficer by remember { mutableStateOf<Officer?>(null) }
+    var selectedProp by remember { mutableStateOf<PropArt?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -54,6 +59,9 @@ fun StateScreen(gameState: GameState) {
                     onOfficerClick = { selectedOfficer = it }
                 )
             }
+            item {
+                ImperialTreasuryCard(onPropClick = { selectedProp = it })
+            }
             item { ChroniclePreviewCard(gameState) }
         }
 
@@ -62,6 +70,12 @@ fun StateScreen(gameState: GameState) {
                 officer = officer,
                 gameState = gameState,
                 onDismiss = { selectedOfficer = null }
+            )
+        }
+        selectedProp?.let { prop ->
+            PropDetailDialog(
+                prop = prop,
+                onDismiss = { selectedProp = null }
             )
         }
     }
@@ -191,6 +205,26 @@ private fun OfficerSummaryCard(
                 }
                 Spacer(Modifier.height(6.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun ImperialTreasuryCard(onPropClick: (PropArt) -> Unit) {
+    val props = PropResourceRegistry.catalog()
+    PanelCard {
+        SectionTitle("内库器物")
+        Text(
+            "图鉴陈列 ${props.size} 件。点开可阅说明；缺图时以宫廷纹样占位，不中断浏览。",
+            color = Color(0xFFB9AA82),
+            fontSize = 12.sp,
+            lineHeight = 18.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        if (props.isEmpty()) {
+            Text("内库暂无登记器物。", color = Color(0xFF8B7355), fontSize = 12.sp)
+        } else {
+            ImperialTreasuryCatalog(props = props, onPropClick = onPropClick)
         }
     }
 }
