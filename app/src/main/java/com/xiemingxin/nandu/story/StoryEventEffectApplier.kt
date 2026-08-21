@@ -128,8 +128,10 @@ object StoryEventEffectApplier {
         }
 
         if (pending.isNotEmpty()) {
-            // DELEGATION-001：绝不把 zong_ze_loyalty 这类内部 key 原样丢给玩家看。
-            outcomes += "【剧情】部分效果仍等待正式规则接入，暂未施行（不影响本次已生效的部分）。"
+            // DELEGATION-001：绝不把 zong_ze_loyalty 这类内部 key 原样丢给玩家看，
+            // 但保留"待接入"这个关键词——这是既有约定的措辞，其它系统/测试依赖它
+            // 判断"这次选择还有效果没有真正生效"，不需要连着这个语义一起改掉。
+            outcomes += "【待接入】部分效果仍等待正式规则接入，暂未施行（不影响本次已生效的部分）。"
         }
 
         return StoryEventEffectResult(
