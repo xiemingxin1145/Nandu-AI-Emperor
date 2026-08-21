@@ -99,32 +99,32 @@ fun EmperorMainScreen(
                     GamePhase.AI_PROCESSING -> LoadingView()
                     GamePhase.AWAITING_CONFIRM -> {
                         uiState.lastEdictResult?.let { result ->
-                            ConfirmEdictView(
-                                state = uiState.gameState,
-                                result = result,
-                                decision = uiState.imperialDecision,
-                                edictText = edictText,
-                                onConfirm = { onConfirmEdict(edictText) },
-                                onCancel = onCancelEdict,
-                                onAmend = {
-                                    val selected = result.npcResponses
-                                        .filter { it.officerId in uiState.imperialDecision.selectedOfficerIds }
-                                        .joinToString("；") { response ->
-                                            val name = uiState.gameState.officers.firstOrNull { it.id == response.officerId }?.name ?: "朝臣"
-                                            "${name}奏：${response.text}"
-                                        }
-                                    val context = listOfNotNull(
-                                        edictText.takeIf { it.isNotBlank() },
-                                        selected.takeIf { it.isNotBlank() }?.let { "参酌前议：$it" },
-                                        result.clarificationHint.takeIf { result.clarificationNeeded && it.isNotBlank() }
-                                            ?.let { "待补圣意：$it" }
-                                    ).joinToString("\n")
-                                    edictText = context
-                                    onAmendEdict(context)
-                                },
-                                onToggleOpinion = onToggleCouncilOpinion,
-                                onSynthesize = onSynthesizeCouncilOpinions
-                            )
+                            when (result.interactionType.uppercase()) {
+                                "CHAT", "CONSULT" -> ConversationResponseView(
+                                    state = uiState.gameState,
+                                    result = result,
+                                    onContinue = {
+                                        edictText = ""
+                                        onCancelEdict()
+                                    }
+                                )
+                                else -> ConfirmEdictView(
+                                    state = uiState.gameState,
+                                    result = result,
+                                    decision = uiState.imperialDecision,
+                                    edictText = edictText,
+                                    onConfirm = { onConfirmEdict(edictText) },
+                                    onCancel = onCancelEdict,
+                                    onAmend = {
+                                        // 玩家输入框只属于玩家。原旨、臣议和追问由状态层暗中保存，
+                                        // 绝不再把“参酌前议 / 待补圣意”塞进玩家正文。
+                                        edictText = ""
+                                        onAmendEdict("")
+                                    },
+                                    onToggleOpinion = onToggleCouncilOpinion,
+                                    onSynthesize = onSynthesizeCouncilOpinions
+                                )
+                            }
                         }
                     }
                     GamePhase.SHOWING_RESULT -> {
@@ -259,7 +259,7 @@ fun IdleView(
             modifier = Modifier.fillMaxSize().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "群臣列班 · 御笔候旨") }
+            item { CourtStageHeader(state = state, title = "$courtName 听政", subtitle = "可闲谈 · 可问策 · 可下旨") }
             item { CourtOfficerRow(state = state) }
             val activeMandates = state.imperialMandates.filter { it.isActive && !it.isExpired(state.turn) }
             if (activeMandates.isNotEmpty()) {
@@ -278,15 +278,15 @@ fun IdleView(
                     border = BorderStroke(1.dp, CourtGold.copy(alpha = 0.55f))
                 ) {
                     Column(modifier = Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("御笔下诏", color = CourtGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text("写得越具体，AI 越能把它拆成可执行军政命令。", color = CourtSub, fontSize = 11.sp)
+                        Text("御前开口", color = CourtGold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("像真正坐在朝堂上一样说话。感叹、问臣、问策不会被强行当成圣旨；只有明确命令才进入朱批。", color = CourtSub, fontSize = 11.sp, lineHeight = 16.sp)
                         OutlinedTextField(
                             value = edictText,
                             onValueChange = onEdictChange,
                             modifier = Modifier.fillMaxWidth().height(170.dp),
                             placeholder = {
                                 Text(
-                                    "传朕旨意…\n如：命枢密院核前线军情，李纲议边防，黄潜善、汪伯彦各陈南幸利害。",
+                                    "例如：\n“天下大乱啊。”\n“宗泽，你怎么看河北局势？”\n“传旨：命枢密院调两万兵增援前线。”",
                                     color = Color(0xFF8B7355),
                                     fontSize = 13.sp
                                 )
@@ -305,11 +305,10 @@ fun IdleView(
             }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val hints = listOf("便宜从事", "募兵修城", "军费三万贯", "不得主动交战", "调兵出征", "任命守将", "筹粮备战")
-                    items(hints) { hint ->
+                    items(courtConversationHints(state)) { hint ->
                         FilterChip(
                             selected = false,
-                            onClick = { onEdictChange(if (edictText.isBlank()) hint else "$edictText，$hint") },
+                            onClick = { onEdictChange(hint) },
                             label = { Text(hint, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(containerColor = Color(0xFF2A1F12), labelColor = CourtGold)
                         )
@@ -328,7 +327,7 @@ fun IdleView(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        if (isLoading) "执行中…" else "朱批下发",
+                        if (isLoading) "传达中…" else "开口",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = CourtCream
@@ -347,8 +346,53 @@ fun LoadingView() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = CourtGold)
             Spacer(Modifier.height(16.dp))
-            Text("$courtName 中，群臣传看圣旨…", color = CourtGold)
-            Text("AI 正在拆解命令与朝堂反应", color = CourtSub, fontSize = 11.sp)
+            Text("$courtName 中，群臣听候…", color = CourtGold)
+            Text("AI 正在判断这是闲谈、问策，还是一道正式旨意", color = CourtSub, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun ConversationResponseView(
+    state: GameState,
+    result: EdictResult,
+    onContinue: () -> Unit
+) {
+    val title = if (result.interactionType.equals("CONSULT", ignoreCase = true)) "御前问策" else "殿中闲谈"
+    Box(modifier = Modifier.fillMaxSize().background(CourtInk)) {
+        CourtBackground()
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item { CourtStageHeader(state = state, title = title, subtitle = result.summary.ifBlank { "群臣静候圣意。" }) }
+            item {
+                CourtDebatePanel(
+                    state = state,
+                    responses = result.npcResponses,
+                    selectedOfficerIds = emptySet(),
+                    onToggleOpinion = { },
+                    onSynthesize = { }
+                )
+            }
+            item {
+                Text(
+                    "这一轮只是对话，不会修改兵力、国库、官职或世界状态。等陛下明确下令时，才会进入朱批确认。",
+                    color = CourtSub,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+            item {
+                Button(
+                    onClick = onContinue,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CourtGold),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("继续问政", color = CourtInk, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
@@ -482,10 +526,6 @@ private fun CourtStageHeader(state: GameState, title: String, subtitle: String) 
 /**
  * 活朝堂：谁能站在行在内殿，统一由 CharacterAppearanceSystem.canAppearInPalace 决定。
  * 外任、领军、俘虏、未到时代、罢黜、赶路中的人物一律不能肉身列班。
- *
- * COURT-001：真正把落地已久但没怎么用起来的群像/普通官员素材接进主视图——
- * 背景群像 + 侧翼列班撑出"百官林立"的观感，前景仍然只显示真正满足
- * canAppearInPalace 的正式人物，不混淆"谁真的在场"这件事。
  */
 @Composable
 private fun CourtOfficerRow(state: GameState) {
@@ -494,8 +534,6 @@ private fun CourtOfficerRow(state: GameState) {
     }
 
     Box {
-        // 背景群像：半透明衬底，纯氛围，不代表任何具体人物/游戏状态。
-        // 按当前旬数稳定选一张，避免同一处每次刷新都换背景图。
         val crowdScene = remember(state.turn) {
             val scenes = ArtResourceRegistry.CourtNpc.crowdScenes.values.toList()
             scenes[(state.turn.hashCode() and Int.MAX_VALUE) % scenes.size]
@@ -522,11 +560,6 @@ private fun CourtOfficerRow(state: GameState) {
     }
 }
 
-/**
- * 侧翼列班：纯视觉氛围填充，用无脸/背影通用姿态撑场，不可点击、不对应任何具体
- * Officer 实体、不参与任何游戏逻辑判断——避免玩家把它们误认成真正在场的、
- * 有身份的人物。按当前旬数洗牌，旬数不变时顺序稳定。
- */
 @Composable
 private fun CourtBackgroundRetinue(state: GameState) {
     val poses = remember(state.turn) {
@@ -575,11 +608,6 @@ private fun OfficerMiniCard(officer: Officer) {
     }
 }
 
-/**
- * 无重点人物在场时的占位卡：殿中并非空无一人，只是不强行召唤不在京的名臣。
- * V1.1：换上 Nandu_Court_NPC_Art_V1 真实头像，按当前旬数稳定选一名"当值"官员——
- * 旬数变了人也跟着轮换，正好呼应"当值"本身就是轮班的意思。
- */
 @Composable
 private fun DutyOfficialMiniCard(state: GameState) {
     val (label, portrait) = remember(state.turn) {
@@ -636,7 +664,7 @@ private fun CourtDebatePanel(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("群臣奏对", color = CourtGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                if (responses.isNotEmpty()) {
+                if (responses.isNotEmpty() && selectedOfficerIds.isNotEmpty()) {
                     TextButton(onClick = onSynthesize) { Text("综合诸议", color = CourtGold, fontSize = 11.sp) }
                 }
             }
@@ -679,7 +707,6 @@ private fun DebateCard(response: NpcResponse, officer: Officer?, remote: Boolean
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
                     Text(officer?.name ?: "朝臣", color = CourtCream, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    val location = officer?.let { CharacterStateSource.statusHint(GameState(officers = listOf(it)), it) }
                     Text(
                         if (remote) "${officer?.faction ?: "朝臣"} · 远程奏报" else "${officer?.faction ?: "朝臣"} · 当殿",
                         color = CourtSub,
@@ -794,6 +821,15 @@ fun ResultView(outcomes: List<String>, rejected: List<String>, onDismiss: () -> 
             }
         }
     }
+}
+
+private fun courtConversationHints(state: GameState): List<String> {
+    val hints = mutableListOf("诸卿怎么看如今局势？")
+    if (state.jinThreat >= 60) hints += "枢密院，说说前线军情。"
+    if (state.gold < 80_000) hints += "国库还能支应多久？"
+    if (state.armies.isNotEmpty()) hints += "诸军现在各在何处？"
+    if (hints.size < 3) hints += "眼下最急的一件事是什么？"
+    return hints.take(4)
 }
 
 private fun attitudeColor(attitude: String): Color = when (attitude.lowercase()) {
