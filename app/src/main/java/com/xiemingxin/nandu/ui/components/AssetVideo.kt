@@ -1,12 +1,10 @@
 package com.xiemingxin.nandu.ui.components
 
-import android.graphics.Matrix
-import android.graphics.SurfaceTexture
-import android.media.MediaPlayer
-import android.view.Surface
-import android.view.TextureView
+import android.graphics.Color as AndroidColor
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,22 +12,38 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlin.math.max
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
+
+enum class AssetVideoFailureKind {
+    RESOURCE_MISSING,
+    DATA_SOURCE,
+    FORMAT,
+    DECODER,
+    PLAYER
+}
+
+data class AssetVideoFailure(
+    val kind: AssetVideoFailureKind,
+    val message: String,
+    val errorCodeName: String? = null
+)
 
 /**
- * Plays an MP4 bundled in Android assets using MediaPlayer + TextureView.
+ * Plays a packaged MP4 through one shared Media3/ExoPlayer implementation.
  *
- * Generated/asset video is VISUAL ONLY. Its embedded audio track is never allowed into the game mix.
- * BGM, ambience, SFX and voice must always be routed through GameAudioPlayer independently.
+ * Rules:
+ * - repository-root /assets and app/src/main/assets are both Android assets;
+ * - asset videos are VISUAL ONLY: volume is always forced to 0;
+ * - the composable removes itself on failure so the caller's static CG underneath remains visible;
+ * - failures are classified instead of reporting every problem as "codec unsupported".
  *
- * Why this exists instead of VideoView:
- * - TextureView can be center-cropped, which is important for portrait phones.
- * - generated V3 videos live under repository-root assets/videos and are packaged as Android assets.
- * - failure is non-fatal: when decoding/opening fails this composable removes itself so the caller's
- *   static image underneath remains visible.
- *
- * Some legacy callers may still pass muted=false. That flag is intentionally ignored: asset videos
- * remain silent by policy so generated AAC noise/voice can never leak into gameplay again.
+ * `onError` is retained for source compatibility with older callers. New code should prefer
+ * `onFailure`, which receives the real failure category and diagnostic message.
  */
 @Composable
 fun AssetVideoSurface(
@@ -39,105 +53,118 @@ fun AssetVideoSurface(
     muted: Boolean = true,
     onPrepared: (() -> Unit)? = null,
     onCompletion: (() -> Unit)? = null,
-    onError: (() -> Unit)? = null
+    onError: (() -> Unit)? = null,
+    onFailure: ((AssetVideoFailure) -> Unit)? = null
 ) {
     val context = LocalContext.current
-    var failed by remember(path) { mutableStateOf(false) }
-    var player by remember(path) { mutableStateOf<MediaPlayer?>(null) }
+    var failure by remember(path) { mutableStateOf<AssetVideoFailure?>(null) }
+    var readySignalled by remember(path) { mutableStateOf(false) }
 
-    // Keep the parameter for source compatibility with older named-argument call sites.
+    // Keep this parameter only so old named-argument call sites remain source-compatible.
+    // Asset videos are muted regardless of its value.
     @Suppress("UNUSED_VARIABLE")
     val legacyMutedFlag = muted
 
-    DisposableEffect(path) {
-        onDispose {
-            runCatching { player?.stop() }
-            runCatching { player?.release() }
-            player = null
+    val assetExists = remember(path) {
+        runCatching {
+            context.assets.open(path).use { /* opening is enough; do not read the whole video */ }
+            true
+        }.getOrDefault(false)
+    }
+
+    LaunchedEffect(path, assetExists) {
+        if (!assetExists && failure == null) {
+            val missing = AssetVideoFailure(
+                kind = AssetVideoFailureKind.RESOURCE_MISSING,
+                message = "视频资源不存在：$path"
+            )
+            failure = missing
+            onFailure?.invoke(missing)
+            onError?.invoke()
         }
     }
 
-    if (failed) return
+    if (!assetExists || failure != null) return
+
+    val player = remember(context, path, loop) {
+        ExoPlayer.Builder(context).build().apply {
+            volume = 0f
+            repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+            playWhenReady = true
+            setMediaItem(MediaItem.fromUri(Uri.parse("asset:///$path")))
+            prepare()
+        }
+    }
+
+    DisposableEffect(player, path, loop) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    Player.STATE_READY -> {
+                        player.volume = 0f
+                        if (!readySignalled) {
+                            readySignalled = true
+                            onPrepared?.invoke()
+                        }
+                    }
+                    Player.STATE_ENDED -> {
+                        if (!loop) onCompletion?.invoke()
+                    }
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                val classified = classifyAssetVideoFailure(error)
+                failure = classified
+                onFailure?.invoke(classified)
+                onError?.invoke()
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.stop()
+            player.release()
+        }
+    }
 
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            TextureView(ctx).apply {
-                isOpaque = false
-                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                    override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
-                        val mediaPlayer = MediaPlayer()
-                        player = mediaPlayer
-                        try {
-                            val afd = context.assets.openFd(path)
-                            mediaPlayer.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                            afd.close()
-                            mediaPlayer.setSurface(Surface(surfaceTexture))
-                            mediaPlayer.isLooping = loop
-
-                            // Hard rule: every generated/asset video is visual-only.
-                            mediaPlayer.setVolume(0f, 0f)
-
-                            mediaPlayer.setOnVideoSizeChangedListener { _, videoWidth, videoHeight ->
-                                applyCenterCrop(this@apply, videoWidth, videoHeight)
-                            }
-                            mediaPlayer.setOnPreparedListener { mp ->
-                                applyCenterCrop(this@apply, mp.videoWidth, mp.videoHeight)
-                                // Re-assert mute after prepare in case the platform reset the volume.
-                                mp.setVolume(0f, 0f)
-                                onPrepared?.invoke()
-                                mp.start()
-                            }
-                            mediaPlayer.setOnCompletionListener {
-                                if (!loop) onCompletion?.invoke()
-                            }
-                            mediaPlayer.setOnErrorListener { _, _, _ ->
-                                failed = true
-                                onError?.invoke()
-                                true
-                            }
-                            mediaPlayer.prepareAsync()
-                        } catch (_: Throwable) {
-                            runCatching { mediaPlayer.release() }
-                            player = null
-                            failed = true
-                            onError?.invoke()
-                        }
-                    }
-
-                    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
-                        player?.let { applyCenterCrop(this@apply, it.videoWidth, it.videoHeight) }
-                    }
-
-                    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                        runCatching { player?.stop() }
-                        runCatching { player?.release() }
-                        player = null
-                        return true
-                    }
-
-                    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
-                }
+            PlayerView(ctx).apply {
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                setShutterBackgroundColor(AndroidColor.TRANSPARENT)
+                setKeepContentOnPlayerReset(true)
+                this.player = player
             }
+        },
+        update = { view ->
+            view.player = player
+            player.volume = 0f
         }
     )
 }
 
-private fun applyCenterCrop(view: TextureView, videoWidth: Int, videoHeight: Int) {
-    if (videoWidth <= 0 || videoHeight <= 0 || view.width <= 0 || view.height <= 0) return
+internal fun classifyAssetVideoFailure(error: PlaybackException): AssetVideoFailure {
+    val kind = when (error.errorCode) {
+        in 2000..2999 -> AssetVideoFailureKind.DATA_SOURCE
+        in 3000..3999 -> AssetVideoFailureKind.FORMAT
+        in 4000..4999 -> AssetVideoFailureKind.DECODER
+        else -> AssetVideoFailureKind.PLAYER
+    }
 
-    val viewWidth = view.width.toFloat()
-    val viewHeight = view.height.toFloat()
-    val scale = max(viewWidth / videoWidth.toFloat(), viewHeight / videoHeight.toFloat())
-    val scaledWidth = videoWidth * scale
-    val scaledHeight = videoHeight * scale
+    val message = when (kind) {
+        AssetVideoFailureKind.RESOURCE_MISSING -> "视频资源不存在"
+        AssetVideoFailureKind.DATA_SOURCE -> "视频资源存在，但播放器无法读取 asset 数据"
+        AssetVideoFailureKind.FORMAT -> "视频容器或轨道格式无法解析"
+        AssetVideoFailureKind.DECODER -> "设备无法初始化或完成视频解码"
+        AssetVideoFailureKind.PLAYER -> "视频播放器发生异常"
+    }
 
-    val matrix = Matrix()
-    matrix.setScale(
-        scaledWidth / viewWidth,
-        scaledHeight / viewHeight,
-        viewWidth / 2f,
-        viewHeight / 2f
+    return AssetVideoFailure(
+        kind = kind,
+        message = message,
+        errorCodeName = error.errorCodeName
     )
-    view.setTransform(matrix)
 }
