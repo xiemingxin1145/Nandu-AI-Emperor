@@ -268,7 +268,10 @@ data class GameState(
     /** 本旬人物主动提案列表（每旬覆写，不持久化）*/
     val pendingAgentProposals: List<com.xiemingxin.nandu.agent.IntentProposal> = emptyList(),
     /** 人物意见冲突（本旬，用于UI展示）*/
-    val pendingAgentConflicts: List<com.xiemingxin.nandu.agent.AgentConflict> = emptyList()
+    val pendingAgentConflicts: List<com.xiemingxin.nandu.agent.AgentConflict> = emptyList(),
+    // DELEGATION-001：皇帝授权制。全带默认值，兼容旧存档。
+    val imperialMandates: List<ImperialMandate> = emptyList(),
+    val mandateExecutionLog: List<MandateExecutionRecord> = emptyList()
 )
 
 // ═══ V1.7 天下战略：势力归属统计与存亡判定（骨架，不改动既有经济/战斗结算逻辑）═══
