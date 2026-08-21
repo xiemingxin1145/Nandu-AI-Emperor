@@ -41,23 +41,48 @@ object MapBackgroundRegistry {
     }
 }
 
+/** Existing, state-driven map ornaments; no decoration creates fictional world state. */
+object MapDecorationRegistry {
+    private const val BASE = "images/map/decorations"
+
+    const val selectedRing = "$BASE/selected_ring.webp"
+    const val frontlineWarning = "$BASE/frontline_warning.webp"
+    const val tradeRouteGlow = "$BASE/trade_route_glow.webp"
+    const val songArmyBanner = "$BASE/army_banner_song.webp"
+    const val jinArmyBanner = "$BASE/army_banner_jin.webp"
+
+    val activeAssets = listOf(
+        selectedRing,
+        frontlineWarning,
+        tradeRouteGlow,
+        songArmyBanner,
+        jinArmyBanner
+    )
+
+    fun armyBannerFor(factionId: String): String? = when (factionId) {
+        "song" -> songArmyBanner
+        "jin" -> jinArmyBanner
+        else -> null
+    }
+}
+
 object CityVisualRegistry {
     private val important = listOf(
-        CityVisualInfo("linan", "临安", CityVisualTier.FORTRESS, "front_fortress", "images/city/linan_palace.webp", "images/map/city_fortress.webp", listOf("两浙", "水路", "繁华"), "两浙重镇，市舶财政要地。"),
-        CityVisualInfo("yingtianfu", "应天府", CityVisualTier.CAPITAL, "capital_song", "images/city/yingtianfu.webp", "images/map/city_capital_song.webp", listOf("行在", "草创", "军政中枢"), "建炎元年天子驻跸之地，仓促草创的战时行在。"),
-        CityVisualInfo("jiankang", "建康", CityVisualTier.FORTRESS, "river_fortress", "images/city/jiankang_river_fortress.webp", "images/map/city_fortress_river.webp", listOf("江防", "重镇"), "江淮门户，守江必守建康。"),
-        CityVisualInfo("xiangyang", "襄阳", CityVisualTier.FORTRESS, "north_fortress", "images/city/xiangyang_fortress.webp", "images/map/city_fortress.webp", listOf("北伐", "山河要冲"), "荆襄北伐跳板，兵家必争。"),
-        CityVisualInfo("kaifeng", "汴京", CityVisualTier.METROPOLIS, "old_capital", "images/city/kaifeng_old_capital.webp", "images/map/city_old_capital.webp", listOf("旧都", "中原"), "旧日东京，收复此城意味着中兴大业入史。"),
-        CityVisualInfo("luoyang", "洛阳", CityVisualTier.METROPOLIS, "old_capital_west", "images/city/luoyang_old_capital.webp", "images/map/city_old_capital.webp", listOf("旧都", "西京"), "西京旧地，政治象征极重。"),
-        CityVisualInfo("yanjing", "燕京", CityVisualTier.FORTRESS, "yanjing", "images/city/yanjing_north.webp", "images/map/city_fortress_jin.webp", listOf("燕云", "北方重镇"), "燕云门户，后期北望关键。"),
-        CityVisualInfo("quanzhou", "泉州", CityVisualTier.PORT, "sea_port", "images/city/quanzhou_port.webp", "images/map/city_port.webp", listOf("市舶司", "香料海贸"), "东南大港，海贸与商税的爆点。"),
-        CityVisualInfo("mingzhou", "明州", CityVisualTier.PORT, "ship_port", "images/city/mingzhou_shipyard.webp", "images/map/city_port.webp", listOf("船材", "高丽海路"), "船材与海东贸易节点。"),
-        CityVisualInfo("guangzhou", "广州", CityVisualTier.PORT, "south_port", "images/city/guangzhou_southsea.webp", "images/map/city_port.webp", listOf("南海", "香药"), "南海商路门户，利润厚、风险也高。"),
-        CityVisualInfo("chengdu", "成都", CityVisualTier.METROPOLIS, "west_metropolis", "images/city/chengdu_west.webp", "images/map/city_metropolis.webp", listOf("西南", "财赋"), "西南财赋与大理路线的根。"),
-        CityVisualInfo("xingqing", "兴庆府", CityVisualTier.CAPITAL, "xixia_capital", "images/city/xingqing_xixia.webp", "images/map/city_capital_xixia.webp", listOf("西夏", "马市"), "西夏都城，外交、马市与河陇事件中心。"),
-        CityVisualInfo("dali", "大理", CityVisualTier.CAPITAL, "dali_capital", "images/city/dali_southwest.webp", "images/map/city_capital_dali.webp", listOf("大理", "西南商路"), "西南国都，药材、马匹、铜矿的入口。"),
-        CityVisualInfo("hefei", "合肥", CityVisualTier.FORTRESS, "front_fortress", "images/city/hefei_front.webp", "images/map/city_fortress.webp", listOf("江淮", "前线"), "江淮前线城池，防线稳定器。"),
-        CityVisualInfo("shouchun", "寿春", CityVisualTier.FORTRESS, "front_fortress", "images/city/shouchun_front.webp", "images/map/city_fortress.webp", listOf("江淮", "前线"), "淮上要地，失则江南震动。")
+        CityVisualInfo("linan", "临安", CityVisualTier.FORTRESS, "front_fortress", "images/city/linan_palace.webp", "images/map/icons/city_fortress.webp", listOf("两浙", "水路", "繁华"), "两浙重镇，市舶财政要地。"),
+        CityVisualInfo("yingtianfu", "应天府", CityVisualTier.CAPITAL, "capital_song", "images/city/yingtianfu.webp", "images/map/icons/city_capital_song.webp", listOf("行在", "草创", "军政中枢"), "建炎元年天子驻跸之地，仓促草创的战时行在。"),
+        CityVisualInfo("jiankang", "建康", CityVisualTier.FORTRESS, "river_fortress", "images/city/jiankang_river_fortress.webp", "images/map/icons/city_fortress_river.webp", listOf("江防", "重镇"), "江淮门户，守江必守建康。"),
+        CityVisualInfo("xiangyang", "襄阳", CityVisualTier.FORTRESS, "north_fortress", "images/city/xiangyang_fortress.webp", "images/map/icons/city_fortress.webp", listOf("北伐", "山河要冲"), "荆襄北伐跳板，兵家必争。"),
+        CityVisualInfo("kaifeng", "汴京", CityVisualTier.METROPOLIS, "old_capital", "images/city/kaifeng_old_capital.webp", "images/map/icons/city_old_capital.webp", listOf("旧都", "中原"), "旧日东京，收复此城意味着中兴大业入史。"),
+        CityVisualInfo("luoyang", "洛阳", CityVisualTier.METROPOLIS, "old_capital_west", "images/city/luoyang_old_capital.webp", "images/map/icons/city_old_capital.webp", listOf("旧都", "西京"), "西京旧地，政治象征极重。"),
+        CityVisualInfo("yanjing", "燕京", CityVisualTier.FORTRESS, "yanjing", "images/city/yanjing_north.webp", "images/map/icons/city_fortress_jin.webp", listOf("燕云", "北方重镇"), "燕云门户，后期北望关键。"),
+        CityVisualInfo("quanzhou", "泉州", CityVisualTier.PORT, "sea_port", "images/city/quanzhou_port.webp", "images/map/icons/city_port.webp", listOf("市舶司", "香料海贸"), "东南大港，海贸与商税的爆点。"),
+        CityVisualInfo("mingzhou", "明州", CityVisualTier.PORT, "ship_port", "images/city/mingzhou_shipyard.webp", "images/map/icons/city_port.webp", listOf("船材", "高丽海路"), "船材与海东贸易节点。"),
+        CityVisualInfo("guangzhou", "广州", CityVisualTier.PORT, "south_port", "images/city/guangzhou_southsea.webp", "images/map/icons/city_port.webp", listOf("南海", "香药"), "南海商路门户，利润厚、风险也高。"),
+        CityVisualInfo("chengdu", "成都", CityVisualTier.METROPOLIS, "west_metropolis", "images/city/chengdu_west.webp", "images/map/icons/city_metropolis.webp", listOf("西南", "财赋"), "西南财赋与大理路线的根。"),
+        CityVisualInfo("xingqing", "兴庆府", CityVisualTier.CAPITAL, "xixia_capital", "images/city/xingqing_xixia.webp", "images/map/icons/city_capital_xixia.webp", listOf("西夏", "马市"), "西夏都城，外交、马市与河陇事件中心。"),
+        CityVisualInfo("dali", "大理", CityVisualTier.CAPITAL, "dali_capital", "images/city/dali_southwest.webp", "images/map/icons/city_capital_dali.webp", listOf("大理", "西南商路"), "西南国都，药材、马匹、铜矿的入口。"),
+        CityVisualInfo("hefei", "合肥", CityVisualTier.FORTRESS, "front_fortress", "images/city/hefei_front.webp", "images/map/icons/city_fortress.webp", listOf("江淮", "前线"), "江淮前线城池，防线稳定器。"),
+        CityVisualInfo("shouchun", "寿春", CityVisualTier.FORTRESS, "front_fortress", "images/city/shouchun_front.webp", "images/map/icons/city_fortress.webp", listOf("江淮", "前线"), "淮上要地，失则江南震动。")
     ).associateBy { it.cityId }
 
     fun visualFor(city: City?, node: MapNode): CityVisualInfo {
@@ -73,13 +98,22 @@ object CityVisualRegistry {
         }
         val id = city?.id ?: node.id
         val name = city?.name ?: node.name
+        val iconKey = when (tier) {
+            CityVisualTier.CAPITAL -> when (city?.owner ?: node.ownerHint) {
+                "jin" -> "capital_jin"
+                "xixia" -> "capital_xixia"
+                "dali" -> "capital_dali"
+                else -> "capital_song"
+            }
+            else -> tier.name.lowercase()
+        }
         return CityVisualInfo(
             cityId = id,
             displayName = name,
             tier = tier,
-            iconKey = tier.name.lowercase(),
-            panelBackgroundPath = "images/city/${id}.webp",
-            mapIconPath = "images/map/city_${tier.name.lowercase()}.webp",
+            iconKey = iconKey,
+            panelBackgroundPath = ArtResourceRegistry.cityBackground(id),
+            mapIconPath = ArtResourceRegistry.mapIcon(iconKey),
             tags = defaultTags(city, node, tier),
             visualHint = defaultHint(tier)
         )

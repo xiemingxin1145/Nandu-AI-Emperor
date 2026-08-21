@@ -22,6 +22,8 @@
 | RISK-008 | P0 / RESOLVED IN FINAL INTEGRATION | STAB-006 历史事件分支 | PR #60 已修正 base 为 `fix/stab-005-video-player-compat`，并将 11 个 STAB-006 文件完整合流到 #59 集成线。 | 已合流；前置事件、人物生死、旗标、城市归属、概率、世界效果及年号切换统一参与完整 CI。 |
 | RISK-009 | P1 / RESOLVED IN PREP | `CgVideoDialog.kt` | 事件卡“播放过场 CG”曾使用正式可达的 `android.widget.VideoView` + `file:///android_asset`，意味着 STAB-005 声称的视频单链路实际上漏掉了一条。 | 已在本预验收分支迁移为统一 `AssetVideoSurface`，视频始终静音，并增加静态 CG 保底与真实错误分类；源码守卫禁止 VideoView 回流。 |
 | RISK-010 | P1 / RESOLVED IN PREP | `PROJECT_MASTER_PLAN.md` | cherry-pick COURT-001 后，文档出现两条同名任务：一处 `IN_PROGRESS`，另一处 `DONE`，容易误导其他 AI 重做已完成工作。 | 已手工合并为唯一 `DONE` 记录，保留 STAB-001～005、COURT、ROSTER 与预验收全部交接信息。 |
+| RISK-011 | P1 / RESOLVED BY ART-HOTFIX-001 | `CityVisualRegistry.kt` / `MapScreen.kt` | 15 条重点城市地图图标路径和动态回退规则均漏了 `icons/`；地图正式界面还绕开 `mapIconPath`，动态城市背景也会漏掉鄂州、扬州这类已注册专属图。 | 已修复；16/16 图标、24 个别名、全部地图节点、动态势力首都图标、31 个城市背景及 APK 素材均有自动守卫。 |
+| RISK-012 | P2 / FOLLOW-UP | 地图旧素材池与专属城池图 | 10 张地图装饰实际是半透明方框标记，不能把 `fog_overlay` 当真实全屏雾层；开局 36 座实际城市中另有 18 座尚无正式专属背景。 | 已安全接入选中框、前线预警、商路标记、宋军旗和金军旗；雾层、山河标签、区域牌、路线箭头暂缓，未注册城市保留既有通用背景，等待后续专项处理。 |
 
 ## BGM 缺失清单
 
@@ -61,6 +63,7 @@ app/build.gradle.kts 中的 versionCode / versionName / signingConfigs
 - 预验收 JVM 单测、54 张图片 SHA-256 全量校验、应天资源校验、六幕旁白校验，以及 51 条 APK 内视频逐条 ffprobe。
 - `docs/V162_SMOKE_TEST_MATRIX.md` 中的正式入口逐项检查表。
 - 主菜单设置、真实首都亡国判定、军务返回、系统返回、绘卷返回和 Demo 文案修复。
+- `ART-HOTFIX-001`：15 条重点城市图标路径 + 1 条动态规则修复；16 张图标 / 24 个注册别名、31 张城市背景与 5 个真实状态驱动地图装饰接线。
 
 ## STAB-008 之前仍需完成
 

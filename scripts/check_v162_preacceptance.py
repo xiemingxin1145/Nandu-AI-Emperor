@@ -25,6 +25,12 @@ EXPECTED_V3_VIDEOS = 51
 EXPECTED_PROLOGUE_VOICES = 6
 EXPECTED_APPROVED_BGM = 8
 EXPECTED_SMOKE_ROWS = 49
+EXPECTED_MAP_ICONS = 16
+EXPECTED_MAP_ICON_REFERENCES = 24
+EXPECTED_MAP_DECORATIONS = 10
+EXPECTED_ACTIVE_MAP_DECORATIONS = 5
+EXPECTED_MAP_BACKGROUNDS = 6
+EXPECTED_REGISTERED_CITY_BACKGROUNDS = 31
 
 
 class AuditFailure(RuntimeError):
@@ -73,6 +79,46 @@ def source_audit() -> None:
     require('"yingtianfu" to city("yingtianfu", "应天府", "yingtianfu.webp")' in art_registry, "Yingtian art registry mapping missing")
     require(re.search(r'MapNode\("yingtianfu",[^\n]+isCapital\s*=\s*true', map_data) is not None, "Yingtian map node is not the opening capital")
     require(re.search(r'MapNode\("linan",[^\n]+isCapital\s*=\s*true', map_data) is None, "Hangzhou is incorrectly marked as opening capital")
+
+    icon_files = sorted((APP_ASSETS / "images/map/icons").glob("*.webp"))
+    decoration_files = sorted((APP_ASSETS / "images/map/decorations").glob("*.webp"))
+    background_files = sorted((APP_ASSETS / "images/map").glob("*.webp"))
+    require(len(icon_files) == EXPECTED_MAP_ICONS, f"expected 16 real map icon files, found {len(icon_files)}")
+    require(len(decoration_files) == EXPECTED_MAP_DECORATIONS, f"expected 10 existing map decorations, found {len(decoration_files)}")
+    require(len(background_files) == EXPECTED_MAP_BACKGROUNDS, f"expected six existing map backgrounds, found {len(background_files)}")
+
+    icon_registry_block = art_registry.split("val mapIconImages:", 1)[1].split("\n    )", 1)[0]
+    icon_references = re.findall(r'"([^"\n]+)"\s+to\s+icon\([^\n]+?"(city_[^"\n]+\.webp)"\)', icon_registry_block)
+    require(len(icon_references) == EXPECTED_MAP_ICON_REFERENCES, f"expected 24 formal icon aliases, found {len(icon_references)}")
+    for alias, filename in icon_references:
+        require((APP_ASSETS / "images/map/icons" / filename).is_file(), f"map icon alias has no real asset: {alias} -> {filename}")
+    require(len({filename for _, filename in icon_references}) == EXPECTED_MAP_ICONS, "map icon aliases do not cover all 16 real files")
+
+    important_icons = re.findall(r'"(images/map/icons/city_[^"\n]+\.webp)"', city_registry)
+    require(len(important_icons) == 15, f"expected 15 corrected important-city icon paths, found {len(important_icons)}")
+    for path in important_icons:
+        require((APP_ASSETS / path).is_file(), f"important city map icon does not exist: {path}")
+    require(re.search(r'"images/map/city_[^"\n]+\.webp"', city_registry) is None, "city map icon path is missing the icons/ directory")
+    require("mapIconPath = ArtResourceRegistry.mapIcon(iconKey)" in city_registry, "dynamic map icon fallback does not resolve through real registered assets")
+    require("panelBackgroundPath = ArtResourceRegistry.cityBackground(id)" in city_registry, "dynamic city background bypasses the actual image registry")
+
+    city_background_block = art_registry.split("val cityBackgrounds:", 1)[1].split("\n    )", 1)[0]
+    city_backgrounds = re.findall(r'"([^"\n]+)"\s+to\s+city\([^\n]+?"([^"\n]+\.webp)"\)', city_background_block)
+    require(len(city_backgrounds) == EXPECTED_REGISTERED_CITY_BACKGROUNDS, f"expected 31 registered city backgrounds, found {len(city_backgrounds)}")
+    for city_id, filename in city_backgrounds:
+        require((APP_ASSETS / "images/city" / filename).is_file(), f"registered city background is missing: {city_id} -> {filename}")
+
+    decoration_block = city_registry.split("object MapDecorationRegistry", 1)[1].split("object CityVisualRegistry", 1)[0]
+    active_decorations = re.findall(r'const val\s+(\w+)\s*=\s*"\$BASE/([^"\n]+\.webp)"', decoration_block)
+    require(len(active_decorations) == EXPECTED_ACTIVE_MAP_DECORATIONS, f"expected five safely wired map decorations, found {len(active_decorations)}")
+    map_screen = (JAVA_ROOT / "com/xiemingxin/nandu/ui/screens/MapScreen.kt").read_text(encoding="utf-8")
+    require("path = visual.mapIconPath" in map_screen, "formal map UI does not consume CityVisualRegistry.mapIconPath")
+    for constant, filename in active_decorations:
+        require((APP_ASSETS / "images/map/decorations" / filename).is_file(), f"active map decoration is missing: {filename}")
+        if constant in {"songArmyBanner", "jinArmyBanner"}:
+            require("MapDecorationRegistry::armyBannerFor" in map_screen, "map army banners are not attached to actual armies")
+        else:
+            require(f"MapDecorationRegistry.{constant}" in map_screen, f"map decoration is registered but not used: {constant}")
 
     video_view_paths: list[str] = []
     builders: list[str] = []
@@ -138,6 +184,9 @@ def source_audit() -> None:
 
     print(f"COURT_ASSETS: {EXPECTED_COURT_IMAGES}/{EXPECTED_COURT_IMAGES} present, READY, SHA-256 verified")
     print("YINGTIAN: state-aligned capital registry and runtime image verified")
+    print(f"MAP_ICONS: files={len(icon_files)}/{EXPECTED_MAP_ICONS}; references={len(icon_references)}; important_city_paths={len(important_icons)}; dynamic_fallback=registered")
+    print(f"MAP_DECORATIONS: available={len(decoration_files)}/{EXPECTED_MAP_DECORATIONS}; safely_active={len(active_decorations)}")
+    print(f"MAP_BACKGROUNDS: {len(background_files)}/{EXPECTED_MAP_BACKGROUNDS}; CITY_BACKGROUNDS: {len(city_backgrounds)}/{EXPECTED_REGISTERED_CITY_BACKGROUNDS}")
     print("FORMAL_VIDEO: one Media3 implementation; story CG shares AssetVideoSurface; VideoView=0")
     print("FORMAL_ROUTES: main-menu settings, military return, system back and state-derived capital verified")
     print(f"V3_SOURCE_VIDEOS: {len(videos)}")
@@ -171,6 +220,17 @@ def apk_audit(apk_path: Path) -> None:
 
         require("assets/images/city/yingtianfu.webp" in members, "Yingtian runtime city image missing from APK")
         require("assets/video/VID-CZ-001-PREWAR-V01.mp4" in members, "legacy story CG asset missing from APK")
+        apk_map_icons = sorted(member for member in members if re.fullmatch(r"assets/images/map/icons/[^/]+\.webp", member))
+        apk_map_decorations = sorted(member for member in members if re.fullmatch(r"assets/images/map/decorations/[^/]+\.webp", member))
+        apk_map_backgrounds = sorted(member for member in members if re.fullmatch(r"assets/images/map/[^/]+\.webp", member))
+        require(len(apk_map_icons) == EXPECTED_MAP_ICONS, f"APK contains {len(apk_map_icons)} map icons instead of 16")
+        require(len(apk_map_decorations) == EXPECTED_MAP_DECORATIONS, f"APK contains {len(apk_map_decorations)} map decorations instead of 10")
+        require(len(apk_map_backgrounds) == EXPECTED_MAP_BACKGROUNDS, f"APK contains {len(apk_map_backgrounds)} map backgrounds instead of six")
+        for path in (APP_ASSETS / "images/map/icons").glob("*.webp"):
+            require(f"assets/images/map/icons/{path.name}" in members, f"map icon missing from APK: {path.name}")
+        for path in (APP_ASSETS / "images/map/decorations").glob("*.webp"):
+            require(f"assets/images/map/decorations/{path.name}" in members, f"map decoration missing from APK: {path.name}")
+
         voices = sorted(member for member in members if re.fullmatch(r"assets/audio/voice/prologue/prologue_act[^/]+\.m4a", member))
         require(len(voices) == EXPECTED_PROLOGUE_VOICES, f"APK contains {len(voices)} prologue narration files instead of six")
 
@@ -191,6 +251,9 @@ def apk_audit(apk_path: Path) -> None:
         approved_bgm = sorted(member for member in members if re.fullmatch(r"assets/audio/bgm/bgm_[^/]+\.ogg", member))
         print(f"APK_COURT_ASSETS: {EXPECTED_COURT_IMAGES}/{EXPECTED_COURT_IMAGES} present and SHA-256 verified")
         print("APK_YINGTIAN_IMAGE: assets/images/city/yingtianfu.webp present")
+        print(f"APK_MAP_ICONS: {len(apk_map_icons)}/{EXPECTED_MAP_ICONS}")
+        print(f"APK_MAP_DECORATIONS: {len(apk_map_decorations)}/{EXPECTED_MAP_DECORATIONS}; active={EXPECTED_ACTIVE_MAP_DECORATIONS}")
+        print(f"APK_MAP_BACKGROUNDS: {len(apk_map_backgrounds)}/{EXPECTED_MAP_BACKGROUNDS}")
         print(f"APK_V3_VIDEO: h264={len(videos)}/{EXPECTED_V3_VIDEOS}; yuv420p={len(videos)}/{EXPECTED_V3_VIDEOS}; embedded_audio=0")
         print(f"APK_PROLOGUE_NARRATION: {len(voices)}/{EXPECTED_PROLOGUE_VOICES}")
         print(f"APK_APPROVED_BGM: {len(approved_bgm)}/{EXPECTED_APPROVED_BGM}")

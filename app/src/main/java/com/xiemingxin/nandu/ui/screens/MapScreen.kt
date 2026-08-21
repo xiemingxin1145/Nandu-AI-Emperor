@@ -57,6 +57,7 @@ import com.xiemingxin.nandu.game.City
 import com.xiemingxin.nandu.game.CityVisualRegistry
 import com.xiemingxin.nandu.game.GameState
 import com.xiemingxin.nandu.game.MapData
+import com.xiemingxin.nandu.game.MapDecorationRegistry
 import com.xiemingxin.nandu.game.MapLayerMode
 import com.xiemingxin.nandu.game.MapNode
 import com.xiemingxin.nandu.game.RoadType
@@ -184,7 +185,8 @@ fun MapScreen(gameState: GameState, onCitySelected: (String) -> Unit = {}) {
             zoom = zoom,
             selectedId = selectedId,
             activeLayer = activeLayer,
-            cityMap = cityMap
+            cityMap = cityMap,
+            armiesByCity = armiesByCity
         )
 
         MapStatusChip(gameState, activeLayer, Modifier.align(Alignment.TopStart).padding(8.dp))
@@ -235,7 +237,8 @@ private fun MapIconOverlay(
     zoom: Float,
     selectedId: String?,
     activeLayer: MapLayerMode,
-    cityMap: Map<String, City>
+    cityMap: Map<String, City>,
+    armiesByCity: Map<String, List<Army>>
 ) {
     val density = LocalDensity.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -254,10 +257,32 @@ private fun MapIconOverlay(
                     .offset { IntOffset((sx - iconPx / 2f).roundToInt(), (sy - iconPx / 2f).roundToInt()) }
                     .size(iconDp)
             ) {
+                val isFrontline = city?.controlState == "FRONTLINE" || city?.controlState == "CONTESTED"
+                val isTradeNode = node.id in TradeRouteIds || node.nodeType == "trade" || city?.terrain == "coast"
+                if (activeLayer == MapLayerMode.MILITARY && isFrontline) {
+                    AssetImage(
+                        path = MapDecorationRegistry.frontlineWarning,
+                        fallbackPath = visual.mapIconPath,
+                        contentDescription = "${node.name}前线预警",
+                        contentScale = ContentScale.Fit,
+                        placeholderText = "",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                if (activeLayer == MapLayerMode.TRADE && isTradeNode) {
+                    AssetImage(
+                        path = MapDecorationRegistry.tradeRouteGlow,
+                        fallbackPath = visual.mapIconPath,
+                        contentDescription = "${node.name}商路节点",
+                        contentScale = ContentScale.Fit,
+                        placeholderText = "",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 if (selectedId == node.id) {
                     AssetImage(
-                        path = "images/map/decorations/selected_ring.webp",
-                        fallbackPath = ArtResourceRegistry.mapIcon(visual.iconKey),
+                        path = MapDecorationRegistry.selectedRing,
+                        fallbackPath = visual.mapIconPath,
                         contentDescription = "选中 ${node.name}",
                         contentScale = ContentScale.Fit,
                         placeholderText = "◎",
@@ -265,13 +290,27 @@ private fun MapIconOverlay(
                     )
                 }
                 AssetImage(
-                    path = ArtResourceRegistry.mapIcon(visual.iconKey),
-                    fallbackPath = ArtResourceRegistry.mapIcon(if (activeLayer == MapLayerMode.TRADE) "trade" else "county"),
+                    path = visual.mapIconPath,
+                    fallbackPath = ArtResourceRegistry.mapIcon(visual.iconKey),
                     contentDescription = node.name,
                     contentScale = ContentScale.Fit,
                     placeholderText = node.name.take(1),
                     modifier = Modifier.fillMaxSize()
                 )
+                if (activeLayer == MapLayerMode.MILITARY) {
+                    val army = armiesByCity[node.id].orEmpty().firstOrNull()
+                    val bannerPath = army?.ownerFactionId?.let(MapDecorationRegistry::armyBannerFor)
+                    if (bannerPath != null) {
+                        AssetImage(
+                            path = bannerPath,
+                            fallbackPath = visual.mapIconPath,
+                            contentDescription = "${node.name}驻军旗帜",
+                            contentScale = ContentScale.Fit,
+                            placeholderText = "",
+                            modifier = Modifier.align(Alignment.TopEnd).size(iconDp * 0.58f)
+                        )
+                    }
+                }
             }
         }
     }
