@@ -92,6 +92,12 @@ object OfficerDispatchSystem {
         } else ""
         val newOfficers = state.officers.map {
             if (it.id == officerId) it.copy(
+                // 离宫启程的那一刻就不能继续保持 IN_COURT；否则 AI 上下文会把在途人物误报成“仍在殿”。
+                // 这里先进入目标职责的大类状态，真正的城市职位仍然只在抵达旬写入 cityGovernors/cityGarrisons。
+                status = when {
+                    arrivalStatus == OfficerStatus.IN_COURT -> OfficerStatus.DEPLOYED
+                    else -> arrivalStatus
+                },
                 travelDestinationCityId = targetCityId,
                 travelArrivalTurn = arrivalTurn,
                 travelArrivalStatus = arrivalStatus,
