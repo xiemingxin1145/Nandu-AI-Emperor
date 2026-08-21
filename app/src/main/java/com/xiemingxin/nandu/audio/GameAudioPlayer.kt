@@ -54,6 +54,27 @@ class GameAudioPlayer(private val context: Context) {
     companion object {
         /** 过滤 Demo 期误塞进 BGM 槽位的极短占位音。 */
         private const val MIN_BGM_BYTES = 128 * 1024L
+
+        /**
+         * STAB-007 真机反馈：这些环境层在序幕中被明确听成“说话声/杂音”。
+         * 在重新人工试听并单独放行前，宁可静默，也不允许它们继续污染正式体验。
+         */
+        private val DEVICE_REJECTED_AMBIENCE = setOf(
+            "audio/ambience/amb_frontier_wind.ogg",
+            "audio/ambience/amb_river.ogg",
+            "audio/ambience/amb_palace_murmur.ogg"
+        )
+
+        /**
+         * STAB-007 真机反馈：开头四幕的这一批预生成旁白被听到不符合目标的女声音色。
+         * 暂时只保留字幕+BGM；第五幕主角内心声和第六幕内侍声不在此隔离名单。
+         */
+        private val DEVICE_REJECTED_OPENING_NARRATION = setOf(
+            "audio/voice/prologue/prologue_act1_shanhejiangqing.m4a",
+            "audio/voice/prologue/prologue_act2_jingkang.m4a",
+            "audio/voice/prologue/prologue_act3_nandu.m4a",
+            "audio/voice/prologue/prologue_act4_lishipianzhuan.m4a"
+        )
     }
 
     init {
@@ -140,6 +161,10 @@ class GameAudioPlayer(private val context: Context) {
 
     fun playAmbience(path: String, volume: Float = 0.5f) {
         if (!masterEnabled || !bgmEnabled) return
+        if (path in DEVICE_REJECTED_AMBIENCE) {
+            stopAmbience()
+            return
+        }
         if (path == currentAmbiencePath && ambiencePlayer != null) return
         stopAmbience()
         val file = materializeAsset(path) ?: return
@@ -175,7 +200,7 @@ class GameAudioPlayer(private val context: Context) {
      * 播放正式人声文件。保留给角色配音和后续正式旁白使用。
      */
     fun playVoice(path: String, voiceVolume: Float? = null, onComplete: (() -> Unit)? = null) {
-        if (!masterEnabled || !voiceEnabled) {
+        if (!masterEnabled || !voiceEnabled || path in DEVICE_REJECTED_OPENING_NARRATION) {
             onComplete?.invoke()
             return
         }
