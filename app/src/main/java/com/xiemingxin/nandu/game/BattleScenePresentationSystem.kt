@@ -156,6 +156,7 @@ object BattleScenePresentationSystem {
                 if (enemyTroops > 0) append("已侦得金军约${enemyTroops}，当前判断：${situation}。")
                 else append("目前尚无可核实的金军军团进入战区，不得伪造‘十万铁骑已至城下’。")
             }
+        }
 
         return BattleScenePresentation(
             battleName = "顺昌方向军情",
